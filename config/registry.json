@@ -1432,6 +1432,6 @@
   ],
   "heuristics": {
     "bot": "bot\\b|bot/|crawl|spider|slurp|scrap|fetcher|archiver|indexer|python-|python/|curl/|wget|go-http-client|java/|okhttp|axios|node-fetch|undici|headless|phantomjs|httpclient|libwww|scrapy|aiohttp|httpx|guzzle|^mozilla/5\\.0$|^$",
-    "ai_hint": "(?:^|[^a-z])(?:ai|llm|gpt|genai|openai|anthropic|claude|gemini|mistral|cohere|perplexity|grok|xai|deepseek|qwen|llama|rag|agent|assistant)(?:[^a-z]|$)|ai-?bot|aicrawler|ai-crawler"
+    "ai_hint": "llm|gpt|genai|openai|anthropic|claude|gemini|mistral|cohere|perplexity|deepseek|qwen|llama|(?:^|[^a-z])(?:ai|xai|grok|rag|agent|assistant)(?:[^a-z]|$)|ai-?bot|ai-?crawler|ai-?spider"
   }
 }

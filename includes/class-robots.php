@@ -251,10 +251,12 @@ class Robots {
 		if ( ! $b || ! $b['robots_tokens'] ) {
 			return array( 'allowed' => true, 'rule' => '', 'agent' => '' );
 		}
-		static $parsed = null;
-		if ( null === $parsed ) {
-			$parsed = self::parse( self::current()['body'] );
+		static $cache = array();
+		$body = (string) self::current()['body'];
+		$key  = md5( $body );
+		if ( ! isset( $cache[ $key ] ) ) {
+			$cache = array( $key => self::parse( $body ) ); // keep only the current file
 		}
-		return self::check( $parsed, $b['robots_tokens'][0], rawurldecode( $path ) );
+		return self::check( $cache[ $key ], $b['robots_tokens'][0], rawurldecode( $path ) );
 	}
 }

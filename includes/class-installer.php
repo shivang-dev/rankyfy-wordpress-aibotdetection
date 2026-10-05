@@ -11,6 +11,7 @@
  *
  * Read path (built from events by the worker, set-based, in chunks):
  *   daily         day × bot × page counts — the history behind every chart
+ *   daily_pages   day × page totals for AI crawlers (fast range sums for page lists)
  *   daily_bots    day × bot totals (also counters for crawlers we do not log per page)
  *   page_bots     first/last crawl per page × bot — crawled vs. not crawled
  *   bots_seen     first/last visit per bot — new-bot and stopped-bot alerts
@@ -31,7 +32,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Installer {
 
-	const TABLES = array( 'events', 'verify_queue', 'ip_verdicts', 'agents', 'referrals', 'daily', 'daily_bots', 'page_bots', 'bots_seen', 'sessions', 'pages', 'page_terms', 'terms', 'links', 'findings', 'alerts', 'snapshots' );
+	const TABLES = array( 'events', 'verify_queue', 'ip_verdicts', 'agents', 'referrals', 'daily', 'daily_pages', 'daily_bots', 'page_bots', 'bots_seen', 'sessions', 'pages', 'page_terms', 'terms', 'links', 'findings', 'alerts', 'snapshots' );
 
 	public static function table( $name ) {
 		global $wpdb;
@@ -53,11 +54,33 @@ class Installer {
 	}
 
 	public static function maybe_upgrade() {
-		if ( get_option( 'rfaib_db_version' ) !== RFAIB_DB_VERSION ) {
+		$from = (string) get_option( 'rfaib_db_version' );
+		if ( $from !== RFAIB_DB_VERSION ) {
 			self::install();
+			self::migrate( $from );
 			Registry::compile();
 			if ( ! get_option( 'rfaib_monitoring_since' ) ) {
 				update_option( 'rfaib_monitoring_since', time(), false );
+			}
+		}
+	}
+
+	/** Data migrations after dbDelta has brought the tables up to date. */
+	private static function migrate( $from ) {
+		global $wpdb;
+		if ( '' !== $from && version_compare( $from, '2', '<' ) ) {
+			// 2: day × page rollup, backfilled from the day × bot × page history.
+			$ai = array();
+			foreach ( Registry::bots() as $id => $b ) {
+				if ( $b['ai'] ) {
+					$ai[] = $wpdb->prepare( '%s', $id );
+				}
+			}
+			if ( $ai ) {
+				$wpdb->query(
+					'INSERT IGNORE INTO ' . self::table( 'daily_pages' ) . ' (day, url_hash, hits, errors, ms_total)
+					 SELECT day, url_hash, SUM(hits), SUM(errors), SUM(ms_total) FROM ' . self::table( 'daily' ) . ' WHERE bot IN (' . implode( ',', $ai ) . ') GROUP BY day, url_hash' // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				);
 			}
 		}
 	}
@@ -177,6 +200,18 @@ class Installer {
 			last_status smallint(5) unsigned NOT NULL DEFAULT 0,
 			PRIMARY KEY  (day,bot,url_hash),
 			KEY bot_day (bot,day),
+			KEY url_day (url_hash,day)
+		) {$c};"
+		);
+
+		dbDelta(
+			"CREATE TABLE {$t['daily_pages']} (
+			day date NOT NULL,
+			url_hash char(32) NOT NULL,
+			hits int(10) unsigned NOT NULL DEFAULT 0,
+			errors int(10) unsigned NOT NULL DEFAULT 0,
+			ms_total bigint(20) unsigned NOT NULL DEFAULT 0,
+			PRIMARY KEY  (day,url_hash),
 			KEY url_day (url_hash,day)
 		) {$c};"
 		);
@@ -360,6 +395,7 @@ class Installer {
 		add_option( Settings::OPTION, array(), '', 'yes' );
 		add_option( Tracker::THROTTLE, array(), '', 'yes' );
 		add_option( Ranges::IP_ONLY, array(), '', 'yes' );
+		Aggregator::ensure_watermark();
 
 		update_option( 'rfaib_db_version', RFAIB_DB_VERSION, true );
 		if ( ! get_option( 'rfaib_secret' ) ) {

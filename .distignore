@@ -1,0 +1,7 @@
+/tests
+/tools
+/.git
+/.gitignore
+/.distignore
+.env
+*.log

@@ -307,6 +307,7 @@ class Ranges {
 	}
 
 	public static function purge_all() {
+		self::$loaded = array();
 		foreach ( self::urls() as $url ) {
 			delete_option( self::key( $url ) );
 		}

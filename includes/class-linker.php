@@ -21,6 +21,10 @@ class Linker {
 	/** Suggested source pages for one target page. */
 	public static function for_page( $page_id, $limit = 5 ) {
 		global $wpdb;
+		$type = $wpdb->get_var( $wpdb->prepare( 'SELECT object_type FROM ' . Installer::table( 'pages' ) . ' WHERE id = %d', $page_id ) );
+		if ( 'post' !== $type ) {
+			return array(); // the home page and archives get their links from navigation
+		}
 		$n     = Analyzer::analyzed_count();
 		$terms = array();
 		foreach ( Analyzer::key_terms( $page_id, 12 ) as $t ) {

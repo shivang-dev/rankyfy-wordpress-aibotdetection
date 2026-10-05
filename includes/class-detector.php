@@ -62,7 +62,7 @@ class Detector {
 				'sig' => true,
 			);
 		}
-		if ( @preg_match( $m['bot'], $ua ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		if ( ! self::browser_shaped( $ua ) && @preg_match( $m['bot'], $ua ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
 			$potential = @preg_match( $m['hint'], $ua ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 			return array(
 				'bot' => $potential ? '_potential' : '_unknown',
@@ -81,6 +81,18 @@ class Detector {
 			'cls' => 'human',
 			'ai'  => false,
 		);
+	}
+
+	/**
+	 * A complete browser user agent ("Mozilla/5.0 (Android 10; CUBOT X30)
+	 * AppleWebKit/… Chrome/… Mobile Safari/…") is a browser even when a device
+	 * name happens to contain "bot". Registered crawlers are matched before this
+	 * by their own tokens; clients that say "compatible;" are not browsers.
+	 */
+	public static function browser_shaped( $ua ) {
+		return (bool) preg_match( '~^Mozilla/5\.0 \((?:Windows|Macintosh|X11|Linux|iPhone|iPad|iPod|Android)[^)]*\) (?:AppleWebKit/[\d.]+ \(KHTML, like Gecko\)|Gecko/\d+)[^()]*(?:Chrome|CriOS|Safari|Firefox|FxiOS|Edg|OPR|Version)/[\d.]+~', $ua )
+			&& false === stripos( $ua, 'compatible;' )
+			&& ! preg_match( '~HeadlessChrome|PhantomJS|Lighthouse|Puppeteer|Playwright~i', $ua );
 	}
 
 	private static function result( $id, array $m, $by_address = false ) {

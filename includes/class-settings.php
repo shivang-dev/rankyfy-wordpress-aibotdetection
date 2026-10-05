@@ -114,8 +114,15 @@ class Settings {
 				if ( '' === $v ) {
 					return '';
 				}
-				$v = esc_url_raw( $v, array( 'https' ) );
-				return wp_http_validate_url( $v ) ? $v : null;
+				$v    = esc_url_raw( $v, array( 'https' ) );
+				$host = strtolower( (string) wp_parse_url( $v, PHP_URL_HOST ) );
+				// Syntax only here (no DNS at save time); wp_safe_remote_post refuses
+				// internal targets again when an alert is actually sent.
+				if ( '' === $v || '' === $host || 'localhost' === $host || false === strpos( $host, '.' )
+					|| ( filter_var( $host, FILTER_VALIDATE_IP ) && ! filter_var( $host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) ) {
+					return null;
+				}
+				return $v;
 			case 'csv':
 				$parts = array_filter( array_map( 'sanitize_key', explode( ',', (string) $v ) ) );
 				return implode( ',', array_slice( array_unique( $parts ), 0, 40 ) );

@@ -189,6 +189,9 @@ class Rankyfy {
 	/** @return array|WP_Error the stored analysis */
 	public static function analyze_page( $page_id ) {
 		global $wpdb;
+		if ( ! self::available() ) {
+			return self::request( 'POST', '/content/assist' ); // the "connect RankyFy" error, before any work
+		}
 		$t = Installer::table( 'pages' );
 		$p = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d AND deleted = 0", $page_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( ! $p || 'post' !== $p['object_type'] ) {

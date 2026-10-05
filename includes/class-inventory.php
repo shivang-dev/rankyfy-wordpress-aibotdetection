@@ -306,6 +306,18 @@ class Inventory {
 		update_option( self::STATE, $st, false );
 	}
 
+	/** The real URL of a page row (permalinks keep their trailing slash and query style). */
+	public static function url( array $row ) {
+		if ( 'post' === $row['object_type'] && $row['object_id'] ) {
+			$u = get_permalink( (int) $row['object_id'] );
+		} elseif ( 'term' === $row['object_type'] && $row['object_id'] ) {
+			$u = get_term_link( (int) $row['object_id'], (string) $row['subtype'] );
+		} else {
+			$u = '/' === $row['path'] ? home_url( '/' ) : null;
+		}
+		return ( $u && ! is_wp_error( $u ) ) ? $u : home_url( user_trailingslashit( rawurldecode( $row['path'] ) ) );
+	}
+
 	public static function count() {
 		global $wpdb;
 		return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Installer::table( 'pages' ) . ' WHERE deleted = 0' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared

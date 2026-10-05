@@ -51,6 +51,7 @@ class Alerts {
 				'created_at' => time(),
 			)
 		);
+		delete_transient( 'rfaib_unread' );
 		Analytics::bust();
 		return (int) $wpdb->insert_id;
 	}
@@ -601,6 +602,7 @@ class Alerts {
 			return false;
 		}
 		$t = Installer::table( 'alerts' );
+		delete_transient( 'rfaib_unread' );
 		if ( 'all' === $id ) {
 			return false !== $wpdb->query( $wpdb->prepare( "UPDATE {$t} SET status = %s WHERE status = 'unread'", $status ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		}

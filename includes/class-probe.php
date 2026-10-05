@@ -61,9 +61,9 @@ class Probe {
 		}
 		$deadline = microtime( true ) + $budget;
 		$urls     = array( home_url( '/' ) );
-		$paths    = $wpdb->get_col( 'SELECT path FROM ' . Installer::table( 'pages' ) . " WHERE deleted = 0 AND object_type = 'post' ORDER BY importance DESC LIMIT 2" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		foreach ( (array) $paths as $p ) {
-			$urls[] = home_url( rawurldecode( $p ) );
+		$rows     = $wpdb->get_results( 'SELECT * FROM ' . Installer::table( 'pages' ) . " WHERE deleted = 0 AND object_type = 'post' ORDER BY importance DESC LIMIT 2", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		foreach ( (array) $rows as $p ) {
+			$urls[] = Inventory::url( $p );
 		}
 		$urls    = array_values( array_unique( $urls ) );
 		$results = array();

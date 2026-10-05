@@ -72,21 +72,24 @@ class Findings {
 					array( 'id' => $row['id'] )
 				);
 			} else {
-				$wpdb->insert(
-					$t,
-					array(
-						'page_id'    => (int) $page_id,
-						'code'       => $code,
-						'bot'        => $bot,
-						'severity'   => $severity,
-						'kind'       => $meta['kind'],
-						'data'       => wp_json_encode( $data ),
-						'status'     => 'open',
-						'first_seen' => $now,
-						'last_seen'  => $now,
+				// Upsert: another run (cron, or a manual re-check) may have inserted it meanwhile.
+				$inserted = $wpdb->query(
+					$wpdb->prepare(
+						"INSERT INTO {$t} (page_id, code, bot, severity, kind, data, status, first_seen, last_seen) VALUES (%d, %s, %s, %s, %s, %s, 'open', %d, %d)
+						 ON DUPLICATE KEY UPDATE severity = VALUES(severity), data = VALUES(data), last_seen = VALUES(last_seen)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						(int) $page_id,
+						$code,
+						$bot,
+						$severity,
+						$meta['kind'],
+						wp_json_encode( $data ),
+						$now,
+						$now
 					)
 				);
-				$opened[] = array( $code, $bot );
+				if ( 1 === (int) $inserted ) {
+					$opened[] = array( $code, $bot ); // 1 = new row; 2 = it was there already
+				}
 			}
 		}
 		foreach ( $by_key as $key => $row ) {

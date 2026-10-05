@@ -17,8 +17,9 @@ class Coverage {
 
 	const CURSOR = 'rfaib_coverage_cursor';
 
-	public static function run() {
+	public static function run( $budget = 20 ) {
 		global $wpdb;
+		$deadline = microtime( true ) + $budget;
 		$t   = Installer::table( 'pages' );
 		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE deleted = 0 AND (importance >= %d OR pinned > 0) ORDER BY importance DESC LIMIT 2000", (int) Settings::get( 'importance_min' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$cur = (int) get_option( self::CURSOR, 0 );
@@ -26,19 +27,34 @@ class Coverage {
 		update_option( self::CURSOR, $more ? (int) end( $more ) : 0, false );
 		$all = array_values( array_unique( array_map( 'intval', array_merge( (array) $ids, (array) $more ) ) ) );
 		foreach ( array_chunk( $all, 200 ) as $chunk ) {
+			if ( microtime( true ) > $deadline ) {
+				break; // the rest is refreshed next hour (important pages come first)
+			}
 			self::refresh_pages( $chunk );
 		}
 		self::site();
 		Analytics::bust();
 	}
 
-	/** Recompute importance, score and findings for these pages. */
+	/** Recompute importance, score and findings for these pages (one transaction). */
 	public static function refresh_pages( array $ids ) {
 		global $wpdb;
 		$ids = array_values( array_filter( array_map( 'intval', $ids ) ) );
 		if ( ! $ids ) {
 			return;
 		}
+		$wpdb->query( 'START TRANSACTION' );
+		try {
+			self::refresh_pages_tx( $ids );
+			$wpdb->query( 'COMMIT' );
+		} catch ( \Throwable $e ) {
+			$wpdb->query( 'ROLLBACK' );
+			throw $e;
+		}
+	}
+
+	private static function refresh_pages_tx( array $ids ) {
+		global $wpdb;
 		$t    = Installer::table( 'pages' );
 		$in   = implode( ',', $ids );
 		$rows = $wpdb->get_results( "SELECT * FROM {$t} WHERE id IN ({$in}) AND deleted = 0", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

@@ -55,13 +55,13 @@ class Tracker {
 			$ref = self::referral( $m );
 			if ( $ref ) {
 				self::$hit = array( 'ref' => $ref );
-				add_action( 'shutdown', array( __CLASS__, 'record_referral' ), 1 );
+				add_action( 'shutdown', array( __CLASS__, 'record_referral' ), PHP_INT_MAX );
 			}
 			return;
 		}
 		$r['ua']   = $ua;
 		self::$hit = $r;
-		add_action( 'shutdown', array( __CLASS__, 'record' ), 1 );
+		add_action( 'shutdown', array( __CLASS__, 'record' ), PHP_INT_MAX );
 	}
 
 	private static function should_track() {
@@ -143,7 +143,10 @@ class Tracker {
 		}
 		self::$hit = null;
 		try {
-			self::store( $r, self::context(), Util::client_ip(), 'live', self::signature_headers() );
+			$ctx = self::context();
+			$sig = self::signature_headers();
+			self::release_client();
+			self::store( $r, $ctx, Util::client_ip(), 'live', $sig );
 		} catch ( \Throwable $e ) {
 			// Never let monitoring break a response.
 			Log::error( 'record failed', array( 'error' => $e->getMessage() ) );
@@ -204,7 +207,9 @@ class Tracker {
 
 		$ua    = Util::clean( $r['ua'], 255 );
 		$net   = 'network' === Settings::get( 'ip_storage' ) ? Util::ip_network( $ip ) : '';
-		$dedup = md5( $ctx['ts'] . '|' . $ip_hash . '|' . strtolower( $ctx['path'] ) . '|' . $bot . '|' . $ctx['method'] );
+		// Same second, address, page, method and user agent = the same request
+		// (seen live and again in an imported log).
+		$dedup = md5( $ctx['ts'] . '|' . $ip_hash . '|' . strtolower( $ctx['path'] ) . '|' . $ctx['method'] . '|' . $ua );
 		$ok    = $wpdb->query(
 			$wpdb->prepare(
 				'INSERT IGNORE INTO ' . Installer::table( 'events' ) . ' (ts, day, bot, cls, vstate, method, path, url_hash, kind, object_type, object_id, status, ms, ip_net, ip_hash, ua, source, dedup)
@@ -249,6 +254,7 @@ class Tracker {
 		if ( $ctx['status'] >= 400 || 'asset' === $ctx['kind'] || 'GET' !== $ctx['method'] ) {
 			return;
 		}
+		self::release_client();
 		$wpdb->query(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'referrals' ) . ' (day, source, url_hash, path, object_id, hits) VALUES (%s, %s, %s, %s, %d, 1)
@@ -260,6 +266,20 @@ class Tracker {
 				$ctx['oid']
 			)
 		);
+	}
+
+	/**
+	 * Finish the HTTP response before writing, so the visitor never waits for
+	 * the database. This runs as the very last shutdown callback (WordPress
+	 * has already flushed its output buffers at priority 1), so nothing that
+	 * comes after it can lose output.
+	 */
+	private static function release_client() {
+		if ( function_exists( 'fastcgi_finish_request' ) ) {
+			fastcgi_finish_request();
+		} elseif ( function_exists( 'litespeed_finish_request' ) ) {
+			litespeed_finish_request();
+		}
 	}
 
 	private static function remember_agent( $ua, $cls, $ts ) {

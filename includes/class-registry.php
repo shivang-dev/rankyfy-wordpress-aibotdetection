@@ -394,6 +394,7 @@ class Registry {
 			'categories' => $d['categories'],
 			'bots'       => $out,
 			'referrers'  => $d['referrers'],
+			'heuristics' => $d['heuristics'],
 		);
 	}
 }

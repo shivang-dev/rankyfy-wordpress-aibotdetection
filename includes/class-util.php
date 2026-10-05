@@ -38,8 +38,13 @@ class Util {
 	 * trailing slash (except "/"), percent-encoding normalised.
 	 */
 	public static function normalize_path( $uri ) {
-		$uri  = (string) $uri;
-		$path = (string) wp_parse_url( $uri, PHP_URL_PATH );
+		$uri = (string) $uri;
+		if ( preg_match( '#^[a-z][a-z0-9+.-]*://#i', $uri ) ) {
+			$path = (string) wp_parse_url( $uri, PHP_URL_PATH );
+		} else {
+			// A request path: "//x" is a path here, not a protocol-relative host.
+			$path = (string) preg_replace( '/[?#].*$/s', '', $uri );
+		}
 		if ( '' === $path ) {
 			$path = '/';
 		}

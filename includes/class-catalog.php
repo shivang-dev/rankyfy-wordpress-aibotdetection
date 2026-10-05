@@ -71,6 +71,41 @@ class Catalog {
 		'info'     => 1,
 	);
 
+	/** Short, generic name of an issue type (for counts and filters). */
+	public static function label( $code ) {
+		$l = array(
+			'robots_blocked'         => __( 'Blocked by robots.txt', 'rankyfy-ai-crawlers' ),
+			'noindex'                => __( 'Set to noindex', 'rankyfy-ai-crawlers' ),
+			'noai'                   => __( 'Opts out of AI use (noai)', 'rankyfy-ai-crawlers' ),
+			'http_error'             => __( 'Answers with an error', 'rankyfy-ai-crawlers' ),
+			'redirects'              => __( 'Redirects', 'rankyfy-ai-crawlers' ),
+			'canonical_elsewhere'    => __( 'Canonical points elsewhere', 'rankyfy-ai-crawlers' ),
+			'bot_errors'             => __( 'AI crawlers got errors', 'rankyfy-ai-crawlers' ),
+			'slow_for_bots'          => __( 'Slow for AI crawlers', 'rankyfy-ai-crawlers' ),
+			'never_crawled'          => __( 'Important page never crawled', 'rankyfy-ai-crawlers' ),
+			'stale_crawl'            => __( 'Updated since last AI crawl', 'rankyfy-ai-crawlers' ),
+			'training_only'          => __( 'Only training crawlers visit', 'rankyfy-ai-crawlers' ),
+			'orphan'                 => __( 'No internal links point here', 'rankyfy-ai-crawlers' ),
+			'few_inlinks'            => __( 'Few internal links', 'rankyfy-ai-crawlers' ),
+			'thin_content'           => __( 'Thin content', 'rankyfy-ai-crawlers' ),
+			'no_subheadings'         => __( 'No subheadings', 'rankyfy-ai-crawlers' ),
+			'no_question_headings'   => __( 'No question headings', 'rankyfy-ai-crawlers' ),
+			'no_direct_answer'       => __( 'No direct answer up top', 'rankyfy-ai-crawlers' ),
+			'no_faq'                 => __( 'No FAQ section', 'rankyfy-ai-crawlers' ),
+			'no_lists'               => __( 'No lists or tables', 'rankyfy-ai-crawlers' ),
+			'no_structured_data'     => __( 'No structured data', 'rankyfy-ai-crawlers' ),
+			'schema_mismatch'        => __( 'Structured data type missing', 'rankyfy-ai-crawlers' ),
+			'no_author'              => __( 'No author information', 'rankyfy-ai-crawlers' ),
+			'outdated'               => __( 'Not updated for over a year', 'rankyfy-ai-crawlers' ),
+			'missing_alt'            => __( 'Images without alt text', 'rankyfy-ai-crawlers' ),
+			'no_meta_description'    => __( 'No meta description', 'rankyfy-ai-crawlers' ),
+			'content_gaps'           => __( 'Content gaps (AI-suggested)', 'rankyfy-ai-crawlers' ),
+			'keyword_gaps'           => __( 'Missing related terms (AI-suggested)', 'rankyfy-ai-crawlers' ),
+			'faq_opportunities'      => __( 'Questions to answer (AI-suggested)', 'rankyfy-ai-crawlers' ),
+		);
+		return $l[ $code ] ?? self::text( $code )['title'];
+	}
+
 	public static function meta( $code ) {
 		$m = self::CODES[ $code ] ?? array( 'info', 'observed', 'content', 'content' );
 		return array(

@@ -44,6 +44,10 @@ class Verifier {
 		return self::$cache[ $k ] ? self::$cache[ $k ] : '';
 	}
 
+	public static function flush_cache() {
+		self::$cache = array();
+	}
+
 	public static function enqueue( $kind, $event_id, $bot, $ip, $ip_hash, array $payload = array() ) {
 		global $wpdb;
 		$wpdb->query(
@@ -107,6 +111,7 @@ class Verifier {
 		$events = Installer::table( 'events' );
 		if ( 'rdns' === $row['kind'] ) {
 			if ( in_array( $verdict, array( 'verified', 'failed' ), true ) ) {
+				self::$cache[ $row['bot'] . '|' . $row['ip_hash'] ] = $verdict;
 				$wpdb->replace(
 					Installer::table( 'ip_verdicts' ),
 					array(

@@ -107,7 +107,7 @@ class Worker {
 			}
 			if ( $left() > 2 && self::due( 'hourly', HOUR_IN_SECONDS ) ) {
 				Robots::refresh();
-				Coverage::run();
+				Coverage::run( max( 3, min( 15, $left() ) ) );
 				Alerts::periodic();
 				Rankyfy::sync_registry();
 				Ranges::refresh_direct( min( 10, $left() ) );

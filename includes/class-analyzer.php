@@ -64,7 +64,7 @@ class Analyzer {
 	/** Analyse one page row now. */
 	public static function analyze( array $row, $force_fetch = false ) {
 		global $wpdb;
-		$url   = home_url( rawurldecode( $row['path'] ) );
+		$url   = Inventory::url( $row );
 		$local = '';
 		$post  = null;
 		if ( 'post' === $row['object_type'] ) {
@@ -133,7 +133,8 @@ class Analyzer {
 				'analyzed_at'  => time(),
 				'facts'        => wp_json_encode( $facts ),
 				'content_hash' => md5( $body_html ),
-				'title'        => Util::clean( (string) $facts['title'], 255 ),
+				// The WordPress title (the HTML <title> adds the site name); kept in facts too.
+				'title'        => Util::clean( $post ? get_the_title( $post ) : ( 'term' === $row['object_type'] ? (string) $row['title'] : (string) $facts['title'] ), 255 ),
 				'dirty'        => 0,
 			),
 			array( 'id' => $page_id )
@@ -537,8 +538,9 @@ class Analyzer {
 
 	public static function analyzed_count() {
 		global $wpdb;
-		static $n = null;
-		if ( null === $n ) {
+		static $n = null, $at = 0;
+		if ( null === $n || time() - $at > 60 ) {
+			$at = time();
 			$n = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Installer::table( 'pages' ) . ' WHERE deleted = 0 AND analyzed_at > 0' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		}
 		return max( 1, $n );
