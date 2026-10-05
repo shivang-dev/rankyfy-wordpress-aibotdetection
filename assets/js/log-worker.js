@@ -56,13 +56,17 @@
 	}
 
 	function jsonTime(v) {
+		if (typeof v === 'string' && /^\d+(\.\d+)?$/.test(v)) { v = Number(v); }
 		if (typeof v === 'number') {
-			// seconds, milliseconds or nanoseconds since the epoch
+			// seconds, milliseconds, microseconds or nanoseconds since the epoch
 			if (v > 1e17) { return Math.floor(v / 1e9); }
+			if (v > 1e14) { return Math.floor(v / 1e6); }
 			if (v > 1e11) { return Math.floor(v / 1e3); }
 			return Math.floor(v);
 		}
-		var t = Date.parse(v);
+		var s = String(v || '');
+		if (/^\d{2}\/\w{3}\/\d{4}:/.test(s)) { return clfTime(s); } // nginx $time_local
+		var t = Date.parse(s);
 		return isNaN(t) ? 0 : Math.floor(t / 1000);
 	}
 
@@ -137,7 +141,8 @@
 			stream = stream.pipeThrough(new DecompressionStream('gzip'));
 		}
 		var reader = stream.pipeThrough(new TextDecoderStream()).getReader();
-		var rest = '', lines = 0, bytes = 0, batch = [], lastReport = 0;
+		var rest = '', lines = 0, bytes = 0, batch = [], lastReport = 0, noUa = 0;
+		var MAX_LINE = 1 << 20; // a "line" longer than 1 MB is not a log line
 		var total = file.size || 1;
 		async function flush() {
 			if (!batch.length) { return; }
@@ -152,9 +157,11 @@
 			bytes += r.value.length;
 			var parts = (rest + r.value).split('\n');
 			rest = parts.pop();
+			if (rest.length > MAX_LINE) { rest = ''; }
 			for (var i = 0; i < parts.length; i++) {
 				lines++;
 				var rec = parseLine(parts[i].replace(/\r$/, ''));
+				if (rec && !rec.ua && !rec.referer) { noUa++; continue; } // nothing to classify by
 				if (rec && keep(rec.ua, rec.referer)) {
 					batch.push(rec);
 					if (batch.length >= batchSize) { await flush(); }
@@ -173,6 +180,6 @@
 			if (last && keep(last.ua, last.referer)) { batch.push(last); }
 		}
 		await flush();
-		global.postMessage({ type: 'done', lines: lines });
+		global.postMessage({ type: 'done', lines: lines, noUa: noUa });
 	}
 })(typeof self !== 'undefined' ? self : this);

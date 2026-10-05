@@ -62,6 +62,7 @@ class Catalog {
 		'impersonation'         => array( 'info', 'observed', 'site', 'security' ),
 		'verification_stale'    => array( 'warning', 'observed', 'site', 'system' ),
 		'worker_stalled'        => array( 'critical', 'observed', 'site', 'system' ),
+		'proxy_unconfigured'    => array( 'warning', 'observed', 'site', 'system' ),
 		'no_sitemap_in_robots'  => array( 'info', 'observed', 'site', 'discovery' ),
 	);
 
@@ -99,6 +100,7 @@ class Catalog {
 			'outdated'               => __( 'Not updated for over a year', 'rankyfy-ai-crawlers' ),
 			'missing_alt'            => __( 'Images without alt text', 'rankyfy-ai-crawlers' ),
 			'no_meta_description'    => __( 'No meta description', 'rankyfy-ai-crawlers' ),
+			'proxy_unconfigured'     => __( 'Proxy or CDN not set up', 'rankyfy-ai-crawlers' ),
 			'content_gaps'           => __( 'Content gaps (AI-suggested)', 'rankyfy-ai-crawlers' ),
 			'keyword_gaps'           => __( 'Missing related terms (AI-suggested)', 'rankyfy-ai-crawlers' ),
 			'faq_opportunities'      => __( 'Questions to answer (AI-suggested)', 'rankyfy-ai-crawlers' ),
@@ -376,6 +378,12 @@ class Catalog {
 					'title'  => __( 'Background processing is not running', 'rankyfy-ai-crawlers' ),
 					'why'    => __( 'Crawler visits are still recorded, but history, verification and alerts are not being updated.', 'rankyfy-ai-crawlers' ),
 					'action' => __( 'WP-Cron may be disabled. Ask your host to run wp-cron.php every 5 minutes with a real cron job.', 'rankyfy-ai-crawlers' ),
+				);
+			case 'proxy_unconfigured':
+				return array(
+					'title'  => __( 'Your site is behind a proxy or CDN that is not set up here', 'rankyfy-ai-crawlers' ),
+					'why'    => __( 'Requests reach WordPress from the proxy\'s address, so crawler identities cannot be verified — they are shown as "user agent only" rather than risk calling real crawlers impostors.', 'rankyfy-ai-crawlers' ),
+					'action' => __( 'In Settings → Tracking, choose the header your proxy uses for the visitor address and add the proxy\'s address ranges as trusted proxies. (Cloudflare is recognised automatically.)', 'rankyfy-ai-crawlers' ),
 				);
 			case 'no_sitemap_in_robots':
 				return array(

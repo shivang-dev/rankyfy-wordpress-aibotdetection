@@ -303,7 +303,31 @@ class Ranges {
 		if ( $done ) {
 			self::compile_ip_only();
 		}
+		self::refresh_cloudflare();
 		return $done;
+	}
+
+	/** Cloudflare edge ranges, used to trust CF-Connecting-IP without any setup. Autoloaded and small. */
+	private static function refresh_cloudflare() {
+		if ( time() - (int) get_option( 'rfaib_cf_at', 0 ) < WEEK_IN_SECONDS ) {
+			return;
+		}
+		update_option( 'rfaib_cf_at', time(), false );
+		$all = array();
+		foreach ( array( 'https://www.cloudflare.com/ips-v4', 'https://www.cloudflare.com/ips-v6' ) as $url ) {
+			$res = wp_safe_remote_get( $url, array( 'timeout' => 8, 'limit_response_size' => 64 * KB_IN_BYTES ) );
+			if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) {
+				return; // keep the current list
+			}
+			foreach ( preg_split( '/\s+/', (string) wp_remote_retrieve_body( $res ) ) as $c ) {
+				if ( Util::cidr_range( $c ) ) {
+					$all[] = $c;
+				}
+			}
+		}
+		if ( count( $all ) >= 10 && count( $all ) <= 200 ) {
+			update_option( 'rfaib_cf_ranges', $all, true );
+		}
 	}
 
 	public static function purge_all() {

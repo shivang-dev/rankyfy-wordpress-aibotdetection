@@ -129,7 +129,7 @@ class Detector {
 	 *
 	 * @return array{vstate:string,needs:string}
 	 */
-	public static function verify( array $r, $ip ) {
+	public static function verify( array $r, $ip, $live = false ) {
 		if ( ! empty( $r['by_address'] ) ) {
 			return array( 'vstate' => 'verified', 'needs' => '' );
 		}
@@ -145,6 +145,11 @@ class Detector {
 		$by_range = Ranges::check( $bot['id'], $ip );
 		if ( 'verified' === $by_range ) {
 			return array( 'vstate' => 'verified', 'needs' => '' );
+		}
+		if ( $live && Util::proxy_suspected() ) {
+			// We would be checking a proxy's address, not the crawler's: never call it an impersonation.
+			Tracker::note_proxy();
+			return array( 'vstate' => 'none', 'needs' => '' );
 		}
 		if ( $bot['verify']['rdns'] && Settings::get( 'verify_rdns' ) ) {
 			$cached = Verifier::cached( $bot['id'], Util::ip_hash( $ip ) );

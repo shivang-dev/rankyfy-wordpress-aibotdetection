@@ -395,6 +395,7 @@ class Installer {
 		add_option( Settings::OPTION, array(), '', 'yes' );
 		add_option( Tracker::THROTTLE, array(), '', 'yes' );
 		add_option( Ranges::IP_ONLY, array(), '', 'yes' );
+		add_option( 'rfaib_cf_ranges', Util::CLOUDFLARE, '', 'yes' ); // read when a request carries CF-Connecting-IP
 		Aggregator::ensure_watermark();
 
 		update_option( 'rfaib_db_version', RFAIB_DB_VERSION, true );

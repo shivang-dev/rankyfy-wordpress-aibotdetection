@@ -23,13 +23,33 @@ class Importer {
 
 	const BATCH = 2000;
 
-	/** @return array counts */
-	public static function batch( array $lines ) {
+	const SEEN = 'rfaib_import_batches';
+
+	/**
+	 * @param string $key client batch key (file fingerprint + batch number); a
+	 *                    batch already imported is skipped entirely.
+	 * @return array counts
+	 */
+	public static function batch( array $lines, $key = '' ) {
 		global $wpdb;
+		$key  = preg_match( '/^[a-f0-9]{16,64}:\d{1,7}$/', (string) $key ) ? (string) $key : '';
+		$seen = get_option( self::SEEN, array() );
+		$seen = is_array( $seen ) ? $seen : array();
+		if ( '' !== $key && isset( $seen[ $key ] ) ) {
+			return array( 'received' => count( $lines ), 'already_imported' => true, 'events' => 0, 'not_recorded' => 0, 'duplicates' => count( $lines ), 'humans' => 0, 'referrals' => 0, 'invalid' => 0, 'too_old' => 0, 'no_user_agent' => 0 );
+		}
 		// One transaction per batch: one disk sync instead of one per line.
 		$wpdb->query( 'START TRANSACTION' );
 		try {
 			$out = self::batch_tx( $lines );
+			if ( '' !== $key ) {
+				$seen[ $key ] = time();
+				if ( count( $seen ) > 20000 ) {
+					asort( $seen );
+					$seen = array_slice( $seen, -15000, null, true );
+				}
+				update_option( self::SEEN, $seen, false );
+			}
 			$wpdb->query( 'COMMIT' );
 			return $out;
 		} catch ( \Throwable $e ) {
@@ -42,7 +62,7 @@ class Importer {
 		global $wpdb;
 		$m      = Registry::matcher();
 		$oldest = time() - DAY_IN_SECONDS * (int) Settings::get( 'retention_history' );
-		$out    = array( 'received' => count( $lines ), 'events' => 0, 'counted' => 0, 'duplicates' => 0, 'humans' => 0, 'referrals' => 0, 'invalid' => 0, 'too_old' => 0 );
+		$out    = array( 'received' => count( $lines ), 'events' => 0, 'not_recorded' => 0, 'duplicates' => 0, 'humans' => 0, 'referrals' => 0, 'invalid' => 0, 'too_old' => 0, 'no_user_agent' => 0 );
 		foreach ( $lines as $l ) {
 			if ( ! is_array( $l ) ) {
 				$out['invalid']++;
@@ -59,6 +79,10 @@ class Importer {
 			}
 			if ( $ts < $oldest ) {
 				$out['too_old']++;
+				continue;
+			}
+			if ( '' === trim( $ua ) ) {
+				$out['no_user_agent']++; // without a user agent nothing can be classified
 				continue;
 			}
 			$norm = Util::normalize_path( $path );
@@ -96,10 +120,13 @@ class Importer {
 			}
 			$r['ua'] = $ua;
 			$res     = Tracker::store( $r, $ctx, $ip, 'log' );
+			if ( '' !== (string) $wpdb->last_error ) {
+				throw new \RuntimeException( 'import failed: ' . $wpdb->last_error );
+			}
 			if ( 'event' === $res ) {
 				$out['events']++;
-			} elseif ( 'counted' === $res ) {
-				$out['counted']++;
+			} elseif ( 'not_recorded' === $res ) {
+				$out['not_recorded']++;
 			} else {
 				$out['duplicates']++;
 			}

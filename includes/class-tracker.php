@@ -45,7 +45,9 @@ class Tracker {
 			}
 		}
 
-		$sig = isset( $_SERVER['HTTP_SIGNATURE_AGENT'] ) ? (string) $_SERVER['HTTP_SIGNATURE_AGENT'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		// A Signature-Agent header counts only together with the signature itself;
+		// on its own it is just a claim anyone can send.
+		$sig = ( ! empty( $_SERVER['HTTP_SIGNATURE_AGENT'] ) && ! empty( $_SERVER['HTTP_SIGNATURE_INPUT'] ) && ! empty( $_SERVER['HTTP_SIGNATURE'] ) ) ? (string) $_SERVER['HTTP_SIGNATURE_AGENT'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 		// The address is only needed when the user agent looks like a browser
 		// and address-only agents are configured; Detector asks for it lazily.
 		$ip  = get_option( Ranges::IP_ONLY ) ? Util::client_ip() : '';
@@ -93,7 +95,7 @@ class Tracker {
 			}
 		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only attribution parameter
-		if ( ! empty( $_GET['utm_source'] ) && $m['utm'] ) {
+		if ( ! empty( $_GET['utm_source'] ) && is_string( $_GET['utm_source'] ) && $m['utm'] ) {
 			$src = strtolower( substr( (string) $_GET['utm_source'], 0, 40 ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput, WordPress.Security.NonceVerification.Recommended
 			if ( isset( $m['utm'][ $src ] ) ) {
 				return $m['utm'][ $src ];
@@ -169,7 +171,7 @@ class Tracker {
 		$v       = array( 'vstate' => 'none', 'needs' => '' );
 
 		if ( in_array( $cls, array( 'ai', 'search', 'known' ), true ) ) {
-			$v = Detector::verify( $r, $ip );
+			$v = Detector::verify( $r, $ip, 'live' === $source );
 			if ( 'failed' === $v['vstate'] ) {
 				$cls = 'spoofed';
 			}
@@ -184,9 +186,14 @@ class Tracker {
 		}
 
 		if ( in_array( $cls, array( 'unknown', 'potential' ), true ) && Settings::get( 'track_unknown' ) ) {
-			self::remember_agent( $r['ua'], $cls, $ctx['ts'] );
+			self::remember_agent( $r['ua'], $cls, $ctx['ts'], 'live' === $source );
 		}
 
+		if ( ! $per_page && 'live' !== $source ) {
+			// Counters cannot be de-duplicated, so imported logs only add per-page
+			// rows (which can). Re-importing a log never inflates a number.
+			return 'not_recorded';
+		}
 		if ( ! $per_page ) {
 			// One counter row per day and crawler; no page, no address.
 			$wpdb->query(
@@ -282,13 +289,13 @@ class Tracker {
 		}
 	}
 
-	private static function remember_agent( $ua, $cls, $ts ) {
+	private static function remember_agent( $ua, $cls, $ts, $count = true ) {
 		global $wpdb;
 		$ua = Util::clean( $ua, 255 );
 		$wpdb->query(
 			$wpdb->prepare(
-				'INSERT INTO ' . Installer::table( 'agents' ) . ' (ua_hash, ua, cls, state, hits, first_seen, last_seen) VALUES (%s, %s, %s, %s, 1, %d, %d)
-				 ON DUPLICATE KEY UPDATE hits = hits + 1, last_seen = GREATEST(last_seen, VALUES(last_seen))',
+				'INSERT INTO ' . Installer::table( 'agents' ) . ' (ua_hash, ua, cls, state, hits, first_seen, last_seen) VALUES (%s, %s, %s, %s, ' . ( $count ? 1 : 0 ) . ', %d, %d)
+				 ON DUPLICATE KEY UPDATE hits = hits + ' . ( $count ? 1 : 0 ) . ', last_seen = GREATEST(last_seen, VALUES(last_seen))',
 				md5( $ua ),
 				$ua,
 				$cls,
@@ -326,6 +333,14 @@ class Tracker {
 			}
 		}
 		return $out;
+	}
+
+	/** Remember (at most daily) that crawler requests arrive through an unconfigured proxy. */
+	public static function note_proxy() {
+		if ( ! get_transient( 'rfaib_proxy_seen' ) ) {
+			set_transient( 'rfaib_proxy_seen', 1, DAY_IN_SECONDS );
+			update_option( 'rfaib_proxy_noted', time(), false );
+		}
 	}
 
 	private static function throttled( $ip_hash ) {

@@ -305,6 +305,9 @@ class Coverage {
 		if ( $stale && Ranges::status() ) {
 			$out[] = array( 'verification_stale', array(), '' );
 		}
+		if ( ! Settings::get( 'proxy_header' ) && (int) get_option( 'rfaib_proxy_noted', 0 ) > time() - WEEK_IN_SECONDS ) {
+			$out[] = array( 'proxy_unconfigured', array(), '' );
+		}
 		$opened = Findings::sync( 0, 'site', $out );
 		if ( $opened ) {
 			Alerts::site_findings_opened( $opened );

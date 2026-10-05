@@ -121,7 +121,11 @@ class Notifier {
 	/** @return true|\WP_Error */
 	public static function post( $url, array $a ) {
 		$link = admin_url( 'admin.php?page=rankyfy-ai-crawlers' ) . $a['route'];
-		$text = "*{$a['title']}*\n{$a['what']}\n_" . __( 'Why it matters:', 'rankyfy-ai-crawlers' ) . "_ {$a['why']}\n_" . __( 'What to do:', 'rankyfy-ai-crawlers' ) . "_ {$a['action']}\n<{$link}|" . __( 'Open in WordPress', 'rankyfy-ai-crawlers' ) . '>';
+		// Slack mrkdwn: &, < and > are control characters (links, @channel) — escape everything we did not write.
+		$e    = static function ( $t ) {
+			return str_replace( array( '&', '<', '>' ), array( '&amp;', '&lt;', '&gt;' ), (string) $t );
+		};
+		$text = '*' . $e( $a['title'] ) . "*\n" . $e( $a['what'] ) . "\n_" . __( 'Why it matters:', 'rankyfy-ai-crawlers' ) . '_ ' . $e( $a['why'] ) . "\n_" . __( 'What to do:', 'rankyfy-ai-crawlers' ) . '_ ' . $e( $a['action'] ) . "\n<{$link}|" . __( 'Open in WordPress', 'rankyfy-ai-crawlers' ) . '>';
 		$res  = wp_safe_remote_post(
 			$url,
 			array(

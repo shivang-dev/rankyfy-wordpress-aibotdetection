@@ -277,7 +277,7 @@ class Analytics {
 		$verif    = $wpdb->get_results( "SELECT cls, vstate, COUNT(*) n FROM ({$sample}) x GROUP BY cls, vstate", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$nets     = $wpdb->get_results( "SELECT ip_net, vstate, COUNT(*) n FROM ({$sample}) x WHERE ip_net <> '' GROUP BY ip_net, vstate ORDER BY n DESC LIMIT 15", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$uas      = $wpdb->get_results( "SELECT ua, COUNT(*) n FROM ({$sample}) x GROUP BY ua ORDER BY n DESC LIMIT 10", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$recent   = $wpdb->get_results( $wpdb->prepare( "SELECT ts, method, path, status, ms, cls, vstate, ip_net, source FROM {$e} WHERE bot = %s ORDER BY ts DESC LIMIT 50", $id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$recent   = $wpdb->get_results( $wpdb->prepare( "SELECT ts, bot, method, path, status, ms, cls, vstate, ip_net, source FROM {$e} WHERE bot = %s ORDER BY ts DESC LIMIT 50", $id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$seen     = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'bots_seen' ) . ' WHERE bot = %s', $id ), ARRAY_A );
 		$matrix   = Robots::matrix();
 		$reg      = $b;

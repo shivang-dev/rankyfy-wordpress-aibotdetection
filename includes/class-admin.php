@@ -86,6 +86,7 @@ class Admin {
 				'exportUrl' => wp_nonce_url( admin_url( 'admin-post.php?action=rfaib_export' ), 'rfaib_export' ),
 				'workerUrl' => RFAIB_URL . 'assets/js/log-worker.js?ver=' . rawurlencode( self::version( 'assets/js/log-worker.js' ) ),
 				'siteUrl'   => home_url( '/' ),
+				'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
 				'version'   => RFAIB_VERSION,
 				'importBatch' => Importer::BATCH,
 			)

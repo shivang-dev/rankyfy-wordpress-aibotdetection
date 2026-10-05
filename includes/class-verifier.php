@@ -34,9 +34,11 @@ class Verifier {
 		if ( ! array_key_exists( $k, self::$cache ) ) {
 			self::$cache[ $k ] = $wpdb->get_var(
 				$wpdb->prepare(
-					'SELECT verdict FROM ' . Installer::table( 'ip_verdicts' ) . ' WHERE ip_hash = %s AND bot = %s AND checked_at > %d',
+					// A pass is trusted for a week; a failure only for a day (it may have been a DNS hiccup).
+					'SELECT verdict FROM ' . Installer::table( 'ip_verdicts' ) . " WHERE ip_hash = %s AND bot = %s AND checked_at > IF(verdict = 'failed', %d, %d)",
 					$ip_hash,
 					$bot,
+					time() - DAY_IN_SECONDS,
 					time() - self::VERDICT_TTL
 				)
 			);
@@ -182,11 +184,28 @@ class Verifier {
 		if ( null !== $filtered ) {
 			return (string) $filtered;
 		}
-		$host = @gethostbyaddr( $ip ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
-		if ( false === $host ) {
-			return null;
+		// A real PTR query tells "no record" (empty answer) from "lookup failed"
+		// (false); gethostbyaddr() returns the address unchanged for both.
+		if ( function_exists( 'dns_get_record' ) ) {
+			$bin = inet_pton( $ip );
+			if ( 4 === strlen( $bin ) ) {
+				$arpa = implode( '.', array_reverse( explode( '.', $ip ) ) ) . '.in-addr.arpa';
+			} else {
+				$arpa = implode( '.', array_reverse( str_split( bin2hex( $bin ) ) ) ) . '.ip6.arpa';
+			}
+			$recs = @dns_get_record( $arpa, DNS_PTR ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			if ( false === $recs ) {
+				return null;
+			}
+			foreach ( (array) $recs as $r ) {
+				if ( ! empty( $r['target'] ) ) {
+					return (string) $r['target'];
+				}
+			}
+			return '';
 		}
-		return $host === $ip ? '' : $host;
+		$host = @gethostbyaddr( $ip ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		return ( false === $host || $host === $ip ) ? null : $host; // cannot tell failure from absence: retry
 	}
 
 	protected static function forward( $host, $ip ) {
@@ -252,7 +271,9 @@ class Verifier {
 		if ( ! preg_match( '/^\(([^)]*)\)(.*)$/s', $raw, $m ) ) {
 			return null;
 		}
-		preg_match_all( '/"([^"]+)"/', $m[1], $c );
+		// Components may carry parameters: "signature-agent";key="sig1".
+		preg_match_all( '/"([^"]+)"((?:;[a-z0-9*_.-]+(?:=(?:"[^"]*"|[^;\s"]+))?)*)/i', $m[1], $c );
+		$comp_params = $c[2];
 		$params = array();
 		foreach ( explode( ';', $m[2] ) as $p ) {
 			$p = trim( $p );
@@ -263,21 +284,32 @@ class Verifier {
 			$params[ strtolower( $kv[0] ) ] = isset( $kv[1] ) ? trim( $kv[1], '"' ) : true;
 		}
 		return array(
-			'components' => $c[1],
-			'params'     => $params,
-			'raw'        => $raw,
+			'components'  => $c[1],
+			'comp_params' => $comp_params,
+			'params'      => $params,
+			'raw'         => $raw,
 		);
 	}
 
 	/** RFC 9421 signature base. Null when a covered component is missing. */
 	public static function signature_base( array $parsed, array $request ) {
 		$lines = array();
-		foreach ( $parsed['components'] as $name ) {
-			$key = strtolower( $name );
+		foreach ( $parsed['components'] as $i => $name ) {
+			$key    = strtolower( $name );
+			$params = (string) ( $parsed['comp_params'][ $i ] ?? '' );
 			if ( ! isset( $request[ $key ] ) ) {
 				return null;
 			}
-			$lines[] = '"' . $key . '": ' . trim( (string) $request[ $key ] );
+			$value = trim( (string) $request[ $key ] );
+			if ( preg_match( '/;key="([^"]+)"/', $params, $km ) ) {
+				// Dictionary member of a structured header (RFC 9421 §2.1.2).
+				$dict = self::sf_dictionary( $value );
+				if ( ! isset( $dict[ $km[1] ] ) ) {
+					return null;
+				}
+				$value = $dict[ $km[1] ];
+			}
+			$lines[] = '"' . $key . '"' . $params . ': ' . $value;
 		}
 		$lines[] = '"@signature-params": ' . $parsed['raw'];
 		return implode( "\n", $lines );
@@ -342,8 +374,9 @@ class Verifier {
 		if ( ! is_array( $req ) || empty( $req['signature-input'] ) || empty( $req['signature'] ) ) {
 			return array( 'none', '' );
 		}
+		// Plain ("https://agent.example") or dictionary (sig1="https://agent.example") form.
 		$host = Detector::signature_host( $req['signature-agent'] ?? '' );
-		if ( '' === $host || 0 !== stripos( trim( (string) $req['signature-agent'], '"' ), 'https://' ) ) {
+		if ( '' === $host || ! preg_match( '#(?:^|[="\s])https://#i', (string) $req['signature-agent'] ) ) {
 			return array( 'none', '' ); // a key directory must be served over https
 		}
 		$inputs = self::sf_dictionary( $req['signature-input'] );
@@ -381,7 +414,10 @@ class Verifier {
 		if ( ! $keys ) {
 			return array( 'none', $host );
 		}
-		$candidates = ( '' !== $keyid && isset( $keys[ $keyid ] ) ) ? array( $keys[ $keyid ] ) : array_values( array_unique( $keys ) );
+		if ( '' !== $keyid && ! isset( $keys[ $keyid ] ) ) {
+			return array( 'none', $host ); // key not (yet) published — possibly rotated; cannot decide
+		}
+		$candidates = '' !== $keyid ? array( $keys[ $keyid ] ) : array_values( array_unique( $keys ) );
 		foreach ( $candidates as $pk ) {
 			try {
 				if ( sodium_crypto_sign_verify_detached( $sig, $base, base64_decode( $pk ) ) ) {

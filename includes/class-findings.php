@@ -148,7 +148,7 @@ class Findings {
 	public static function for_page( $page_id, $status = 'open' ) {
 		global $wpdb;
 		$rows = $wpdb->get_results(
-			$wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'findings' ) . ' WHERE page_id = %d AND status = %s ORDER BY FIELD(severity, \'critical\', \'warning\', \'info\'), id', (int) $page_id, $status ),
+			$wpdb->prepare( 'SELECT f.*, p.path, p.title AS page_title, p.importance, p.object_type, p.object_id FROM ' . Installer::table( 'findings' ) . ' f LEFT JOIN ' . Installer::table( 'pages' ) . ' p ON p.id = f.page_id WHERE f.page_id = %d AND f.status = %s ORDER BY FIELD(f.severity, \'critical\', \'warning\', \'info\'), f.id', (int) $page_id, $status ),
 			ARRAY_A
 		);
 		return self::present( (array) $rows );

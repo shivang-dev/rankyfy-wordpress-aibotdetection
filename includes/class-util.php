@@ -99,10 +99,51 @@ class Util {
 	 * named it and the connection really comes from one of their trusted
 	 * proxies — otherwise anyone could claim to be OpenAI by sending a header.
 	 */
+	/** Cloudflare's published edge ranges (refreshed by the worker; this is the fallback). */
+	const CLOUDFLARE = array( '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22', '141.101.64.0/18', '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20', '197.234.240.0/22', '198.41.128.0/17', '162.158.0.0/15', '104.16.0.0/13', '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22', '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32', '2405:8100::/32', '2a06:98c0::/29', '2c0f:f248::/32' );
+
+	/** @var bool|null whether the address in use came from a trusted forwarding header */
+	private static $forwarded = null;
+
+	public static function cloudflare_ranges() {
+		$r = get_option( 'rfaib_cf_ranges' );
+		return is_array( $r ) && count( $r ) >= 10 ? $r : self::CLOUDFLARE;
+	}
+
+	/**
+	 * The request arrived through a proxy we were not told about: forwarding
+	 * headers are present, but the address in use is the connection's. Crawler
+	 * verification would then test the proxy's address, so it is skipped.
+	 */
+	public static function proxy_suspected() {
+		if ( null === self::$forwarded ) {
+			self::client_ip();
+		}
+		if ( self::$forwarded ) {
+			return false;
+		}
+		foreach ( array( 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'HTTP_CF_CONNECTING_IP', 'HTTP_FORWARDED', 'HTTP_TRUE_CLIENT_IP', 'HTTP_FASTLY_CLIENT_IP' ) as $h ) {
+			if ( ! empty( $_SERVER[ $h ] ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public static function client_ip() {
+		self::$forwarded = false;
 		$remote = isset( $_SERVER['REMOTE_ADDR'] ) ? trim( (string) $_SERVER['REMOTE_ADDR'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 		$remote = filter_var( $remote, FILTER_VALIDATE_IP ) ? $remote : '';
 		$header = Settings::get( 'proxy_header' );
+		// Cloudflare needs no setup: its header is used only when the connection
+		// really comes from Cloudflare's published ranges, so it cannot be forged.
+		if ( ! $header && $remote && ! empty( $_SERVER['HTTP_CF_CONNECTING_IP'] ) ) {
+			$cf = trim( (string) $_SERVER['HTTP_CF_CONNECTING_IP'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			if ( filter_var( $cf, FILTER_VALIDATE_IP ) && self::ip_in_list( $remote, self::cloudflare_ranges() ) ) {
+				self::$forwarded = true;
+				return $cf;
+			}
+		}
 		if ( $header && $remote ) {
 			$trusted = Settings::get( 'trusted_proxies' );
 			if ( $trusted && self::ip_in_list( $remote, preg_split( '/\s+/', $trusted ) ) ) {
@@ -113,6 +154,7 @@ class Util {
 					$parts = array_reverse( array_map( 'trim', $parts ) );
 					foreach ( $parts as $cand ) {
 						if ( filter_var( $cand, FILTER_VALIDATE_IP ) && ! self::ip_in_list( $cand, preg_split( '/\s+/', $trusted ) ) ) {
+							self::$forwarded = true;
 							return $cand;
 						}
 					}

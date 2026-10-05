@@ -378,8 +378,11 @@ class Rankyfy {
 	 * RankyFy's checks) and the prompts it tracks (generated, i.e. inferred).
 	 */
 	public static function visibility( $force = false ) {
-		if ( ! self::available() || ! class_exists( '\Rankyfy\Visibility_Api' ) ) {
+		if ( ! self::available() ) {
 			return array( 'state' => self::state() );
+		}
+		if ( ! class_exists( '\Rankyfy\Visibility_Api' ) ) {
+			return array( 'state' => 'error', 'message' => __( 'Update the RankyFy SEO plugin to see AI Visibility here.', 'rankyfy-ai-crawlers' ) );
 		}
 		$cached = get_transient( 'rfaib_visibility' );
 		if ( ! $force && is_array( $cached ) ) {

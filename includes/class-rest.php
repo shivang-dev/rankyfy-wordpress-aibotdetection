@@ -407,7 +407,7 @@ class Rest {
 			/* translators: %d: max lines */
 			return new WP_Error( 'rfaib_invalid', sprintf( __( 'Send at most %d lines per batch.', 'rankyfy-ai-crawlers' ), Importer::BATCH ), array( 'status' => 400 ) );
 		}
-		return Importer::batch( $lines );
+		return Importer::batch( $lines, (string) $r->get_param( 'key' ) );
 	}
 
 	public static function get_settings() {

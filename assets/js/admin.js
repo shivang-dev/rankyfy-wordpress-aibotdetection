@@ -154,14 +154,32 @@
 	function pagePath(p) { return p || '/'; }
 
 	// ── API ──────────────────────────────────────────────────────────────────
-	function api(path, opts) {
+	/** REST URL for a route plus query, on pretty and on plain ("?rest_route=") permalinks. */
+	function restUrl(path) {
+		var i = path.indexOf('?'), route = i >= 0 ? path.slice(0, i) : path, qs = i >= 0 ? path.slice(i + 1) : '';
+		return cfg.root + route + (qs ? (cfg.root.indexOf('?') >= 0 ? '&' : '?') + qs : '');
+	}
+	/** A fresh REST nonce once the page has been open longer than the nonce lives. */
+	function renewNonce() {
+		return fetch(cfg.ajaxUrl + '?action=rest-nonce', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (n) {
+			if (/^[a-f0-9]{8,20}$/.test((n || '').trim())) { cfg.nonce = n.trim(); return true; }
+			return false;
+		}).catch(function () { return false; });
+	}
+	function api(path, opts, retried) {
 		opts = opts || {};
 		var init = { method: opts.method || 'GET', credentials: 'same-origin', headers: { 'X-WP-Nonce': cfg.nonce, Accept: 'application/json' } };
 		if (opts.body !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(opts.body); }
-		return fetch(cfg.root + path, init).then(function (res) {
+		return fetch(restUrl(path), init).then(function (res) {
 			return res.text().then(function (t) {
 				var data = null;
 				try { data = t ? JSON.parse(t) : null; } catch (e) { data = null; }
+				if (res.status === 403 && data && data.code === 'rest_cookie_invalid_nonce' && !retried) {
+					return renewNonce().then(function (ok) {
+						if (ok) { return api(path, opts, true); }
+						throw new Error(__('Your session has expired. Reload the page to continue.'));
+					});
+				}
 				if (!res.ok) {
 					var err = new Error((data && data.message) || sprintf(__('Request failed (HTTP %d).'), res.status));
 					err.code = data && data.code; err.status = res.status;
@@ -429,6 +447,17 @@
 	function refreshStatus() {
 		return api('/status').then(function (st) { state.status = st; renderNav(); renderBanners(); return st; }).catch(function () {});
 	}
+	/**
+	 * Only the latest view may draw. A view started for another route (for
+	 * example a list refreshed after the user already navigated away) is
+	 * dropped, and so is any view superseded by a newer one.
+	 */
+	var seq = 0;
+	function begin(prefix) {
+		if (prefix && (prefix === '/' ? route() !== '/' : route().indexOf(prefix) !== 0)) { return null; }
+		var my = ++seq;
+		return function () { return my === seq; };
+	}
 	function loading() { clear(shell.main).appendChild(h('div', { 'class': 'rf-skeleton' }, h('div'), h('div'), h('div'))); }
 	function fail(e, retry) {
 		clear(shell.main).appendChild(h('div', { 'class': 'rf-error' }, icon('xCircle', 20), h('p', { text: e.message || __('Something went wrong.') }), retry ? button(__('Try again'), retry, { icon: 'refresh' }) : null));
@@ -447,8 +476,11 @@
 
 	// ── Overview ─────────────────────────────────────────────────────────────
 	function viewOverview() {
+		var live = begin('/');
+		if (!live) { return; }
 		loading();
 		api('/overview?days=' + state.days).then(function (o) {
+			if (!live()) { return; }
 			var body = view(__('AI crawler overview'), __('Which AI crawlers visit your site, what they read and what to do next.'), rangeControl(viewOverview));
 			var obs = o.observed, cov = o.coverage;
 			if (cov.learning) {
@@ -516,7 +548,7 @@
 			refs.body.appendChild(table([{ label: __('Assistant'), key: 'name' }, { label: __('Visits'), num: true, render: function (r) { return num(r.visits); } }, { label: __('Landing pages'), num: true, render: function (r) { return num(r.pages); } }], o.referrals, { empty: __('No visits from AI assistants recorded in this period.') }));
 
 			add(body, [h('div', { 'class': 'rf-grid rf-grid-hero' }, hero, h('div', { 'class': 'rf-stack' }, tiles, covCard)), tl, h('div', { 'class': 'rf-grid' }, bots, pages), h('div', { 'class': 'rf-grid' }, next, h('div', { 'class': 'rf-stack' }, alerts, refs))]);
-		}).catch(function (e) { fail(e, viewOverview); });
+		}).catch(function (e) { if (live()) { fail(e, viewOverview); } });
 	}
 
 	function recItem(f) {
@@ -535,8 +567,11 @@
 		var tools = h('div', { 'class': 'rf-row' }, segmented([['ai', __('AI crawlers')], ['all', __('All bots')], ['unknown', __('Unrecognised')], ['registry', __('Registry')]], tab, function (v) { location.hash = '#/crawlers?tab=' + v; }, __('Show')), tab === 'ai' || tab === 'all' ? rangeControl(viewCrawlers) : null);
 		if (tab === 'unknown') { return viewAgents(tools); }
 		if (tab === 'registry') { return viewRegistry(tools); }
+		var live = begin('/crawlers');
+		if (!live) { return; }
 		loading();
 		api('/bots?days=' + state.days).then(function (d) {
+			if (!live()) { return; }
 			var body = view(__('Crawlers'), __('Every automated client that visited, how sure we are who it is, and whether robots.txt lets it in.'), tools);
 			var items = d.items.filter(function (b) { return tab === 'all' || b.ai; });
 			var c = card(null);
@@ -553,12 +588,15 @@
 				{ label: __('Last seen'), render: function (b) { return ago(b.last_seen); } }
 			], items, { empty: __('No crawler activity in this period yet.') }));
 			add(body, [c, h('p', { 'class': 'rf-hint', text: __('Verified: the request came from the operator\'s published addresses, passed reverse DNS, or carried a valid signature. "n/a" means the operator publishes no way to check, so identification relies on the user agent.') })]);
-		}).catch(function (e) { fail(e, viewCrawlers); });
+		}).catch(function (e) { if (live()) { fail(e, viewCrawlers); } });
 	}
 
 	function viewCrawler(id) {
+		var live = begin('/crawlers/');
+		if (!live) { return; }
 		loading();
 		api('/bots/' + encodeURIComponent(id) + '?days=' + state.days).then(function (b) {
+			if (!live()) { return; }
 			var reg = b.registry || {};
 			var body = view(b.name, reg.description || '', h('div', { 'class': 'rf-row' }, link('← ' + __('All crawlers'), '/crawlers'), rangeControl(function () { viewCrawler(id); })));
 			var facts = h('dl', { 'class': 'rf-facts' },
@@ -600,7 +638,7 @@
 			var recent = card(__('Latest requests'), { prov: 'observed' });
 			recent.body.appendChild(eventsTable(b.recent));
 			add(body, [h('div', { 'class': 'rf-grid' }, info, tl), h('div', { 'class': 'rf-grid' }, pages, h('div', { 'class': 'rf-stack' }, sess, codes)), nets, recent]);
-		}).catch(function (e) { fail(e, function () { viewCrawler(id); }); });
+		}).catch(function (e) { if (live()) { fail(e, function () { viewCrawler(id); }); } });
 	}
 	function statusChip(code) {
 		if (!code) { return '—'; }
@@ -621,8 +659,11 @@
 	}
 
 	function viewAgents(tools) {
+		var live = begin('/crawlers');
+		if (!live) { return; }
 		loading();
 		api('/agents').then(function (d) {
+			if (!live()) { return; }
 			var body = view(__('Unrecognised bots'), __('Automated clients that are not in the crawler registry. Possible AI crawlers are listed first.'), tools);
 			var c = card(null, { prov: 'observed' });
 			c.body.appendChild(table([
@@ -638,7 +679,7 @@
 				} }
 			], d.items, { empty: __('No unrecognised bots so far.') }));
 			body.appendChild(c);
-		}).catch(function (e) { fail(e, viewCrawlers); });
+		}).catch(function (e) { if (live()) { fail(e, viewCrawlers); } });
 	}
 	function trackAgent(a) {
 		var token = h('input', { type: 'text', value: a.token || '', 'class': 'rf-input' });
@@ -656,8 +697,11 @@
 	}
 
 	function viewRegistry(tools) {
+		var live = begin('/crawlers');
+		if (!live) { return; }
 		loading();
 		api('/registry').then(function (r) {
+			if (!live()) { return; }
 			var body = view(__('Crawler registry'), sprintf(__('Version %1$s · source: %2$s'), r.version, r.source === 'rankyfy' ? __('RankyFy (live)') : __('built into the plugin')), tools);
 			var actions = h('div', { 'class': 'rf-row' }, button(__('Check for updates'), function () { return api('/registry/sync', { method: 'POST' }).then(function (x) { toast(x.result === 'updated' ? __('Registry updated.') : x.result === 'unavailable' ? __('RankyFy is not reachable; using the built-in registry and operators\' own address lists.') : __('Registry is up to date.')); viewRegistry(tools); }); }, { icon: 'refresh' }), button(__('Add a crawler'), function () { addCustom(tools); }, { icon: 'robot' }));
 			body.appendChild(actions);
@@ -682,7 +726,7 @@
 				], groups[c], { compact: true }));
 				body.appendChild(cd);
 			});
-		}).catch(function (e) { fail(e, viewCrawlers); });
+		}).catch(function (e) { if (live()) { fail(e, viewCrawlers); } });
 	}
 	function addCustom(tools) {
 		var f = { id: h('input', { 'class': 'rf-input', placeholder: 'examplebot' }), name: h('input', { 'class': 'rf-input', placeholder: 'ExampleBot' }), provider: h('input', { 'class': 'rf-input' }), pattern: h('input', { 'class': 'rf-input', placeholder: 'ExampleBot' }), robots: h('input', { 'class': 'rf-input', placeholder: 'ExampleBot' }) };
@@ -698,12 +742,23 @@
 
 	// ── Pages ────────────────────────────────────────────────────────────────
 	var pagesState = { filter: 'important', sort: 'importance', search: '', page: 1, bot: '' };
+	/** Change the page list's filters through the URL, so the URL always describes the screen. */
+	function goPages(changes) {
+		Object.keys(changes).forEach(function (k) { pagesState[k] = changes[k]; });
+		var h = '#/pages?filter=' + encodeURIComponent(pagesState.filter) + '&sort=' + encodeURIComponent(pagesState.sort) + (pagesState.search ? '&search=' + encodeURIComponent(pagesState.search) : '') + (pagesState.page > 1 ? '&page=' + pagesState.page : '');
+		if (location.hash === h) { render(); } else { location.hash = h; }
+	}
 	function viewPages() {
-		if (q('filter')) { pagesState.filter = q('filter'); }
-		if (q('sort')) { pagesState.sort = q('sort'); }
+		var live = begin('/pages');
+		if (!live) { return; }
+		pagesState.filter = q('filter') || 'important';
+		pagesState.sort = q('sort') || 'importance';
+		pagesState.search = q('search');
+		pagesState.page = parseInt(q('page'), 10) || 1;
 		loading();
 		var qs = '/pages?filter=' + pagesState.filter + '&sort=' + pagesState.sort + '&page=' + pagesState.page + '&days=' + state.days + '&bot=' + encodeURIComponent(pagesState.bot) + '&search=' + encodeURIComponent(pagesState.search);
 		Promise.all([api(qs), api('/overview?days=' + state.days)]).then(function (res) {
+			if (!live()) { return; }
 			var d = res[0], cov = res[1].coverage;
 			var body = view(__('Pages'), __('Which pages AI crawlers read, which they ignore, and which are blocked.'), rangeControl(viewPages));
 			body.appendChild(h('div', { 'class': 'rf-grid rf-grid-3' },
@@ -712,10 +767,10 @@
 				meter(cov.crawled_ever, cov.pages, __('Crawled at least once since monitoring began'), { level: 'info' })));
 			var filters = [['important', __('Important')], ['all', __('All')], ['crawled', __('Crawled')], ['uncrawled', __('Not crawled')], ['never', __('Never crawled')], ['dropped', __('No longer crawled')], ['errors', __('Errors')], ['blocked', __('Blocked')]];
 			var search = h('input', { type: 'search', 'class': 'rf-input', placeholder: __('Search title or URL'), value: pagesState.search });
-			search.addEventListener('keydown', function (e) { if (e.key === 'Enter') { pagesState.search = search.value; pagesState.page = 1; viewPages(); } });
+			search.addEventListener('keydown', function (e) { if (e.key === 'Enter') { goPages({ search: search.value, page: 1 }); } });
 			var sort = h('select', { 'class': 'rf-input', 'aria-label': __('Sort') }, [['importance', __('Most important')], ['hits', __('Most crawled')], ['last', __('Recently crawled')], ['score', __('Lowest AEO score')], ['title', __('Title')]].map(function (o) { return h('option', { value: o[0], text: o[1], selected: o[0] === pagesState.sort }); }));
-			sort.addEventListener('change', function () { pagesState.sort = sort.value; pagesState.page = 1; viewPages(); });
-			body.appendChild(h('div', { 'class': 'rf-filterbar' }, segmented(filters, pagesState.filter, function (v) { pagesState.filter = v; pagesState.page = 1; location.hash = '#/pages?filter=' + v; }, __('Filter')), search, sort));
+			sort.addEventListener('change', function () { goPages({ sort: sort.value, page: 1 }); });
+			body.appendChild(h('div', { 'class': 'rf-filterbar' }, segmented(filters, pagesState.filter, function (v) { goPages({ filter: v, page: 1 }); }, __('Filter')), search, sort));
 			var c = card(sprintf(_n('%s page', '%s pages', d.total), num(d.total)), { prov: 'observed' });
 			c.body.appendChild(table([
 				{ label: __('Page'), render: function (p) { return h('div', { 'class': 'rf-pagecell' }, link(p.title || p.path, '/pages/' + p.id), h('span', { 'class': 'rf-mono rf-muted', text: p.path }), p.important ? h('span', { 'class': 'rf-hint', text: p.reasons.map(function (r) { return REASONS[r] || r; }).join(' · ') }) : null); } },
@@ -726,9 +781,9 @@
 				{ label: __('Crawled by'), render: function (p) { return p.bots.length ? h('span', { 'class': 'rf-muted', text: p.bots.join(', ') }) : '—'; } },
 				{ label: __('Issues'), render: function (p) { return h('span', null, p.critical ? sev('critical') : null, p.critical ? ' ' + p.critical + ' ' : null, p.warnings ? h('span', { 'class': 'rf-muted', text: sprintf(_n('%d warning', '%d warnings', p.warnings), p.warnings) }) : null); } }
 			], d.items, { empty: __('No pages match this filter.') }));
-			add(c.body, [pager(d.page, d.pages, function (p) { pagesState.page = p; viewPages(); })]);
+			add(c.body, [pager(d.page, d.pages, function (p) { goPages({ page: p }); })]);
 			body.appendChild(c);
-		}).catch(function (e) { fail(e, viewPages); });
+		}).catch(function (e) { if (live()) { fail(e, viewPages); } });
 	}
 	function scoreChip(v) {
 		var cls = v >= 70 ? 'rf-chip-good' : v >= 45 ? 'rf-chip-warn' : 'rf-chip-crit';
@@ -736,8 +791,11 @@
 	}
 
 	function viewPage(id) {
+		var live = begin('/pages/');
+		if (!live) { return; }
 		loading();
 		api('/pages/' + id).then(function (d) {
+			if (!live()) { return; }
 			var p = d.page, obs = d.observed, inf = d.inferred;
 			var pin = function (v) { return api('/pages/' + id + '/pin', { method: 'POST', body: { pin: v } }).then(function () { toast(__('Saved.')); viewPage(id); }); };
 			var tools = h('div', { 'class': 'rf-row' },
@@ -823,7 +881,7 @@
 				h('div', { 'class': 'rf-section-label' }, prov('inferred'), h('span', { text: __('Suggestions — not observed data') })),
 				h('div', { 'class': 'rf-grid' }, aiCard, patterns)
 			]);
-		}).catch(function (e) { fail(e, function () { viewPage(id); }); });
+		}).catch(function (e) { if (live()) { fail(e, function () { viewPage(id); }); } });
 	}
 	function renderAssist(el, a, available, id) {
 		var run = button(a ? __('Analyze again') : __('Analyze with RankyFy AI'), function () {
@@ -859,8 +917,11 @@
 
 	// ── Opportunities ────────────────────────────────────────────────────────
 	function viewOpportunities() {
+		var live = begin('/opportunities');
+		if (!live) { return; }
 		loading();
 		Promise.all([api('/opportunities'), api('/visibility').catch(function () { return { state: 'error' }; })]).then(function (res) {
+			if (!live()) { return; }
 			var o = res[0], vis = res[1];
 			var body = view(__('AI search opportunities'), __('Where your site can win more AI visibility. Observed data and suggestions are kept apart.'));
 			body.appendChild(h('div', { 'class': 'rf-banner rf-banner-info' }, icon('info'), h('span', { text: __('"Observed" sections come from real requests to your site and from your own content. "AI-suggested" and "Template idea" items are generated — they are not real searches or prompts anyone was observed making. AI assistants do not share the questions people ask.') })));
@@ -897,7 +958,7 @@
 			var pats = card(__('Possible questions, by page'), { prov: 'template', sub: __('Patterns built from each page\'s key terms. Use them as a checklist, not as data.') });
 			pats.body.appendChild(inf.query_patterns.length ? h('ul', { 'class': 'rf-linkops' }, inf.query_patterns.map(function (p) { return h('li', null, pageLink(p.page), h('ul', { 'class': 'rf-items' }, p.patterns.map(function (t) { return h('li', { text: t }); }))); })) : empty(__('Ideas appear once important pages are analysed.')));
 			add(body, [kws, h('div', { 'class': 'rf-grid' }, qs, gaps), pats]);
-		}).catch(function (e) { fail(e, viewOpportunities); });
+		}).catch(function (e) { if (live()) { fail(e, viewOpportunities); } });
 	}
 	function visibilityCard(vis) {
 		var c = card(__('Mentions in AI answers (RankyFy AI Visibility)'), { sub: __('RankyFy asks AI assistants a set of tracked prompts and records whether your site is mentioned. The answers are real (observed); the prompts are generated, not collected from users.') });
@@ -929,18 +990,26 @@
 	}
 
 	// ── Recommendations ──────────────────────────────────────────────────────
-	var recState = { severity: '', kind: '', group: '', page: 1 };
+	var recState = { severity: '', kind: '', group: '', code: '', page: 1 };
+	function goRecs(changes) {
+		Object.keys(changes).forEach(function (k) { recState[k] = changes[k]; });
+		var h = '#/recommendations?' + ['severity', 'kind', 'group', 'code', 'page'].filter(function (k) { return recState[k] && !(k === 'page' && recState[k] === 1); }).map(function (k) { return k + '=' + encodeURIComponent(recState[k]); }).join('&');
+		if (location.hash === h) { render(); } else { location.hash = h; }
+	}
 	function viewRecommendations() {
-		if (q('severity')) { recState.severity = q('severity'); }
-		if (q('code')) { recState.code = q('code'); }
+		var live = begin('/recommendations');
+		if (!live) { return; }
+		['severity', 'kind', 'group', 'code'].forEach(function (k) { recState[k] = q(k); });
+		recState.page = parseInt(q('page'), 10) || 1;
 		loading();
 		var qs = '/recommendations?severity=' + recState.severity + '&kind=' + recState.kind + '&group=' + recState.group + '&page=' + recState.page + (recState.code ? '&code=' + recState.code : '');
 		api(qs).then(function (d) {
+			if (!live()) { return; }
 			var body = view(__('Recommendations'), __('Ordered by severity and by how important the page is. Fixed issues close automatically on the next check.'));
 			var bar = h('div', { 'class': 'rf-filterbar' },
-				segmented([['', __('All')], ['critical', __('Critical')], ['warning', __('Warnings')], ['info', __('Suggestions')]], recState.severity, function (v) { recState.severity = v; recState.page = 1; recState.code = ''; viewRecommendations(); }, __('Severity')),
-				segmented([['', __('Any source')], ['observed', __('Observed')], ['inferred', __('AI-suggested')]], recState.kind, function (v) { recState.kind = v; recState.page = 1; viewRecommendations(); }, __('Source')),
-				segmented([['', __('All areas')], ['access', __('Access')], ['discovery', __('Discovery')], ['content', __('Content')], ['trust', __('Trust')]], recState.group, function (v) { recState.group = v; recState.page = 1; viewRecommendations(); }, __('Area')));
+				segmented([['', __('All')], ['critical', __('Critical')], ['warning', __('Warnings')], ['info', __('Suggestions')]], recState.severity, function (v) { goRecs({ severity: v, code: '', page: 1 }); }, __('Severity')),
+				segmented([['', __('Any source')], ['observed', __('Observed')], ['inferred', __('AI-suggested')]], recState.kind, function (v) { goRecs({ kind: v, page: 1 }); }, __('Source')),
+				segmented([['', __('All areas')], ['access', __('Access')], ['discovery', __('Discovery')], ['content', __('Content')], ['trust', __('Trust')]], recState.group, function (v) { goRecs({ group: v, code: '', page: 1 }); }, __('Area')));
 			body.appendChild(bar);
 			var c = card(sprintf(_n('%s open item', '%s open items', d.total), num(d.total)));
 			c.body.appendChild(d.items.length ? h('ol', { 'class': 'rf-recs' }, d.items.map(function (f) {
@@ -948,15 +1017,19 @@
 				li.appendChild(h('div', { 'class': 'rf-row' }, button(__('Ignore'), function () { return api('/findings/' + f.id, { method: 'POST', body: { status: 'ignored' } }).then(function () { toast(__('Ignored. It will not be shown again unless it changes.')); viewRecommendations(); }); }, { small: true, ghost: true })));
 				return li;
 			})) : empty(__('Nothing here. Change the filters, or check back after the next analysis.')));
-			add(c.body, [pager(d.page, d.pages, function (p) { recState.page = p; viewRecommendations(); })]);
+			if (recState.code) { body.insertBefore(h('div', { 'class': 'rf-banner rf-banner-info' }, icon('info'), h('span', { text: __('Showing one issue type.') }), button(__('Show all'), function () { goRecs({ code: '', page: 1 }); }, { small: true, ghost: true })), c); }
+			add(c.body, [pager(d.page, d.pages, function (p) { goRecs({ page: p }); })]);
 			body.appendChild(c);
-		}).catch(function (e) { fail(e, viewRecommendations); });
+		}).catch(function (e) { if (live()) { fail(e, viewRecommendations); } });
 	}
 
 	// ── Technical ────────────────────────────────────────────────────────────
 	function viewTechnical() {
+		var live = begin('/technical');
+		if (!live) { return; }
 		loading();
 		api('/technical').then(function (t) {
+			if (!live()) { return; }
 			var body = view(__('Technical access'), __('robots.txt, server responses and verification, as AI crawlers experience them.'), button(__('Check again now'), function () { return api('/technical/refresh', { method: 'POST' }).then(function () { toast(__('Checked.')); viewTechnical(); }); }, { icon: 'refresh' }));
 			if (t.site.length) {
 				var sc = card(__('Site-wide issues'));
@@ -992,14 +1065,17 @@
 			var raw = card(__('robots.txt'), { sub: t.robots.sitemaps.length ? sprintf(__('Sitemaps listed: %s'), t.robots.sitemaps.join(', ')) : __('No sitemap listed.') });
 			raw.body.appendChild(h('pre', { 'class': 'rf-pre', text: t.robots.body || __('(empty — everything allowed)') }));
 			add(body, [m, h('div', { 'class': 'rf-grid' }, probe, issues), h('div', { 'class': 'rf-grid' }, ver, raw)]);
-		}).catch(function (e) { fail(e, viewTechnical); });
+		}).catch(function (e) { if (live()) { fail(e, viewTechnical); } });
 	}
 
 	// ── History ──────────────────────────────────────────────────────────────
 	var histState = { days: 90, group: 'day' };
 	function viewHistory() {
+		var live = begin('/history');
+		if (!live) { return; }
 		loading();
 		api('/history?days=' + histState.days + '&group=' + histState.group).then(function (d) {
+			if (!live()) { return; }
 			var tools = h('div', { 'class': 'rf-row' },
 				segmented([[30, __('30 days')], [90, __('90 days')], [180, __('6 months')], [365, __('1 year')]], histState.days, function (v) { histState.days = Number(v); histState.group = v > 120 ? 'week' : 'day'; viewHistory(); }, __('Range')),
 				segmented([['day', __('Daily')], ['week', __('Weekly')], ['month', __('Monthly')]], d.group, function (v) { histState.group = v; viewHistory(); }, __('Group by')));
@@ -1019,34 +1095,40 @@
 			var fixed = card(__('Recently fixed issues'));
 			fixed.body.appendChild(d.resolved_recent.length ? h('ul', { 'class': 'rf-items' }, d.resolved_recent.map(function (f) { return h('li', null, icon('checkCircle', 12), ' ', f.title, ' ', f.page_id ? link(f.page_title || f.path, '/pages/' + f.page_id) : h('span', { 'class': 'rf-muted', text: __('site-wide') }), h('span', { 'class': 'rf-muted', text: ' · ' + fmtDay(f.resolved_at) })); })) : empty(__('No issues fixed yet in this period.')));
 			add(body, [act, h('div', { 'class': 'rf-grid' }, score, cov), h('div', { 'class': 'rf-grid' }, bots, h('div', { 'class': 'rf-stack' }, newb, fixed))]);
-		}).catch(function (e) { fail(e, viewHistory); });
+		}).catch(function (e) { if (live()) { fail(e, viewHistory); } });
 	}
 
 	// ── Alerts ───────────────────────────────────────────────────────────────
 	function viewAlerts() {
+		var live = begin('/alerts');
+		if (!live) { return; }
 		loading();
 		api('/alerts').then(function (d) {
+			if (!live()) { return; }
 			var body = view(__('Alerts'), __('What happened, why it matters and what to do.'), d.unread ? button(__('Mark all as read'), function () { return api('/alerts/all', { method: 'POST', body: { status: 'read' } }).then(function () { refreshStatus(); viewAlerts(); }); }, { icon: 'check' }) : null);
 			if (!d.items.length) { body.appendChild(empty(__('No alerts yet. You will be notified when a new AI crawler appears, an important page is crawled for the first time or gets blocked, activity changes sharply, and more.'))); return; }
 			body.appendChild(h('ol', { 'class': 'rf-alerts' }, d.items.map(function (a) {
-				var mark = function (st) { return api('/alerts/' + a.id, { method: 'POST', body: { status: st } }).then(function () { refreshStatus(); viewAlerts(); }); };
+				var mark = function (st, stay) { return api('/alerts/' + a.id, { method: 'POST', body: { status: st } }).then(function () { refreshStatus(); if (stay !== false) { viewAlerts(); } }); };
 				return h('li', { 'class': 'rf-alert rf-alert-' + a.severity + (a.status === 'unread' ? ' is-unread' : '') },
 					h('div', { 'class': 'rf-rec-head' }, sev(a.severity), h('strong', { text: a.title }), h('span', { 'class': 'rf-muted', text: fmtDate(a.created_at) })),
 					h('p', null, h('span', { 'class': 'rf-lbl', text: __('What happened') }), a.what),
 					h('p', null, h('span', { 'class': 'rf-lbl', text: __('Why it matters') }), a.why),
 					a.affected.length ? h('div', null, h('span', { 'class': 'rf-lbl', text: __('Affected') }), h('ul', { 'class': 'rf-items' }, a.affected.map(function (p) { return h('li', null, p.page_id ? link(p.label, '/pages/' + p.page_id) : p.label, p.detail ? h('span', { 'class': 'rf-muted', text: ' — ' + p.detail }) : null); }))) : null,
 					h('p', null, h('span', { 'class': 'rf-lbl', text: __('What to do') }), a.action),
-					h('div', { 'class': 'rf-row' }, a.route ? h('a', { 'class': 'rf-btn rf-btn-sm', href: a.route, onclick: function () { if (a.status === 'unread') { mark('read'); } } }, __('Open')) : null,
+					h('div', { 'class': 'rf-row' }, a.route ? h('a', { 'class': 'rf-btn rf-btn-sm', href: a.route, onclick: function () { if (a.status === 'unread') { mark('read', false); } } }, __('Open')) : null,
 						a.status === 'unread' ? button(__('Mark as read'), function () { return mark('read'); }, { small: true, ghost: true }) : null,
 						button(__('Dismiss'), function () { return mark('dismissed'); }, { small: true, ghost: true })));
 			})));
-		}).catch(function (e) { fail(e, viewAlerts); });
+		}).catch(function (e) { if (live()) { fail(e, viewAlerts); } });
 	}
 
 	// ── Settings ─────────────────────────────────────────────────────────────
 	function viewSettings() {
+		var live = begin('/settings');
+		if (!live) { return; }
 		loading();
 		Promise.all([api('/settings'), api('/status'), api('/log')]).then(function (res) {
+			if (!live()) { return; }
 			var st = res[0].settings, reg = res[0].registry, status = res[1], log = res[2].items;
 			var body = view(__('Settings'));
 			var form = {};
@@ -1092,7 +1174,7 @@
 				field('notify_email', __('Email address'), h('input', { type: 'email', 'class': 'rf-input', value: st.notify_email })),
 				field('webhook_url', __('Webhook URL (Slack, Teams, Google Chat or any HTTPS endpoint)'), h('input', { type: 'url', 'class': 'rf-input', value: st.webhook_url, placeholder: 'https://hooks.slack.com/services/…' })),
 				select('webhook_level', __('Send to the webhook'), [['critical', __('Critical alerts')], ['warning', __('Warnings and critical alerts')], ['info', __('All alerts')]]),
-				button(__('Send a test notification'), function () { return save().then(function () { return api('/alerts/test', { method: 'POST' }); }).then(function (r) { toast(r.webhook && r.webhook !== true ? r.webhook : __('Test sent.'), r.webhook && r.webhook !== true ? 'error' : 'info'); }); }, { small: true, icon: 'bell' })
+				button(__('Send a test notification'), function () { return saveAndReport().then(function () { return api('/alerts/test', { method: 'POST' }); }).then(function (r) { toast(r.webhook && r.webhook !== true ? r.webhook : __('Test sent.'), r.webhook && r.webhook !== true ? 'error' : 'info'); }); }, { small: true, icon: 'bell' })
 			]);
 			var rk = card(__('RankyFy'));
 			add(rk.body, [
@@ -1105,7 +1187,22 @@
 				Object.keys(form).forEach(function (k) { out[k] = form[k](); });
 				return api('/settings', { method: 'POST', body: out });
 			}
-			var saveBar = h('div', { 'class': 'rf-savebar' }, button(__('Save settings'), function () { return save().then(function () { toast(__('Settings saved.')); refreshStatus(); }); }, { primary: true }));
+			function saveAndReport() {
+				var sent = {};
+				Object.keys(form).forEach(function (k) { sent[k] = form[k](); });
+				return save().then(function (res) {
+					var got = (res && res.settings) || {};
+					var refused = ['webhook_url', 'notify_email'].filter(function (k) { return String(sent[k] || '') !== String(got[k] || '') && String(sent[k] || '') !== ''; });
+					if (refused.length) {
+						toast(sprintf(__('Saved, except: %s (not a valid value — the previous one is kept). Webhooks must use https on a public host.'), refused.join(', ')), 'error');
+					} else {
+						toast(__('Settings saved.'));
+					}
+					refreshStatus();
+					return res;
+				});
+			}
+			var saveBar = h('div', { 'class': 'rf-savebar' }, button(__('Save settings'), saveAndReport, { primary: true }));
 
 			var imp = card(__('Import a server access log'), { sub: __('Pages served from a page cache or CDN never reach WordPress, so their crawler visits are missed. Import an access log to fill the gap. The file is read in your browser — it is not uploaded; only crawler lines are sent to your site.') });
 			imp.body.appendChild(importer());
@@ -1123,7 +1220,7 @@
 			var lg = card(__('Diagnostics log'));
 			lg.body.appendChild(table([{ label: __('Time'), render: function (e) { return fmtDate(e.t); } }, { label: __('Level'), key: 'l' }, { label: __('Message'), key: 'm' }, { label: __('Details'), render: function (e) { return h('span', { 'class': 'rf-mono', text: JSON.stringify(e.ctx) }); } }], log.slice(0, 30), { compact: true, empty: __('Nothing logged.') }));
 			add(body, [h('div', { 'class': 'rf-grid' }, h('div', { 'class': 'rf-stack' }, tracking, verify), h('div', { 'class': 'rf-stack' }, privacy, notify, rk)), important, saveBar, h('div', { 'class': 'rf-grid' }, imp, h('div', { 'class': 'rf-stack' }, exp, sys)), lg]);
-		}).catch(function (e) { fail(e, viewSettings); });
+		}).catch(function (e) { if (live()) { fail(e, viewSettings); } });
 	}
 
 	function importer() {
@@ -1141,23 +1238,31 @@
 	function runImport(file, reg, prog, out) {
 		return new Promise(function (resolve, reject) {
 			var worker = new Worker(cfg.workerUrl);
-			var queue = [], sending = false, done = false, totals = { lines: 0, kept: 0, events: 0, counted: 0, duplicates: 0, invalid: 0 };
+			var queue = [], sending = false, done = false, batchNo = 0, noUa = 0, totals = { lines: 0, kept: 0, events: 0, duplicates: 0, invalid: 0, skipped: 0 };
+			// Same file (name, size, date) → same batch keys → a re-import is skipped by the server.
+			var fp = Array.prototype.map.call(file.name + '|' + file.size + '|' + file.lastModified, function (c) { return c.charCodeAt(0); }).reduce(function (h, c) { return ((h * 31) + c) >>> 0; }, 2166136261).toString(16);
+			fp = (fp + '0000000000000000').slice(0, 16);
 			prog.hidden = false;
-			function report() { out.textContent = sprintf(__('%1$s lines read · %2$s crawler lines · %3$s new crawler requests recorded · %4$s already known'), num(totals.lines), num(totals.kept), num(totals.events + totals.counted), num(totals.duplicates)); }
+			function report() { out.textContent = sprintf(__('%1$s lines read · %2$s crawler lines · %3$s new AI crawler requests recorded · %4$s already known'), num(totals.lines), num(totals.kept), num(totals.events), num(totals.duplicates)) + (totals.skipped ? ' · ' + sprintf(__('%s search/SEO bot lines not imported (only AI crawler requests are imported)'), num(totals.skipped)) : ''); }
 			function pump() {
 				if (sending) { return; }
 				if (!queue.length) { if (done) { worker.terminate(); toast(__('Import finished. History updates within a few minutes.')); resolve(); } return; }
 				sending = true;
-				api('/import', { method: 'POST', body: { lines: queue.shift() } }).then(function (r) {
-					totals.events += r.events; totals.counted += r.counted; totals.duplicates += r.duplicates; totals.invalid += r.invalid; report();
+				var item = queue.shift();
+				api('/import', { method: 'POST', body: { lines: item.lines, key: fp + ':' + item.no } }).then(function (r) {
+					totals.events += r.events; totals.duplicates += r.duplicates; totals.invalid += r.invalid; totals.skipped += r.not_recorded || 0; report();
 					sending = false; worker.postMessage({ type: 'ack' }); pump();
 				}).catch(function (e) { worker.terminate(); out.textContent = e.message; reject(e); });
 			}
 			worker.onmessage = function (e) {
 				var m = e.data;
-				if (m.type === 'batch') { queue.push(m.lines); totals.kept += m.lines.length; pump(); }
+				if (m.type === 'batch') { queue.push({ lines: m.lines, no: batchNo++ }); totals.kept += m.lines.length; pump(); }
 				else if (m.type === 'progress') { prog.value = m.pct; totals.lines = m.lines; report(); }
-				else if (m.type === 'done') { done = true; prog.value = 100; totals.lines = m.lines; report(); pump(); }
+				else if (m.type === 'done') {
+					done = true; prog.value = 100; totals.lines = m.lines; noUa = m.noUa || 0; report();
+					if (m.lines && noUa > m.lines / 2) { toast(__('Most lines have no user agent, so crawlers cannot be identified. Export the log in "combined" format (with referrer and user agent).'), 'error'); }
+					pump();
+				}
 				else if (m.type === 'error') { worker.terminate(); out.textContent = m.message; reject(new Error(m.message)); }
 			};
 			worker.postMessage({ type: 'start', file: file, batch: cfg.importBatch || 2000, registry: { patterns: reg.bots.reduce(function (a, b) { return a.concat(b.patterns || []); }, []), heuristics: reg.heuristics, referrers: reg.referrers.reduce(function (a, r) { return a.concat(r.hosts); }, []) } });
@@ -1180,7 +1285,7 @@
 		else if (r === '/history') { viewHistory(); }
 		else if (r === '/alerts') { viewAlerts(); }
 		else if (r === '/settings') { viewSettings(); }
-		else { viewOverview(); }
+		else { location.hash = '#/'; }
 		if (shell.main && document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('rf-tab')) { shell.main.focus({ preventScroll: true }); }
 	}
 	if (root) {

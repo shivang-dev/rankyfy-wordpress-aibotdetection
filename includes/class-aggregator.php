@@ -42,7 +42,17 @@ class Aggregator {
 		wp_cache_delete( self::WATERMARK, 'options' );
 		$wm       = (int) get_option( self::WATERMARK, 0 );
 		$max      = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$e}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$hold     = (int) $wpdb->get_var( $wpdb->prepare( "SELECT MIN(id) FROM {$e} WHERE vstate = 'pending' AND id > %d AND ts > %d", $wm, time() - 900 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// A pending event whose check is no longer queued can never settle: repair it.
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$e} e SET e.vstate = 'none' WHERE e.id > %d AND e.vstate = 'pending' AND NOT EXISTS (
+				   SELECT 1 FROM " . Installer::table( 'verify_queue' ) . " q WHERE q.event_id = e.id OR (q.kind = 'rdns' AND q.bot = e.bot AND q.ip_hash = e.ip_hash))", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wm
+			)
+		);
+		// Every event still waiting for its verdict holds the watermark (live or
+		// imported); the verifier settles or expires each check within 2 days.
+		$hold     = (int) $wpdb->get_var( $wpdb->prepare( "SELECT MIN(id) FROM {$e} WHERE vstate = 'pending' AND id > %d", $wm ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$upper    = $hold ? min( $max, $hold - 1 ) : $max;
 		$total    = 0;
 
@@ -84,6 +94,21 @@ class Aggregator {
 		return $total;
 	}
 
+	/** A write that must succeed, or the chunk is rolled back (wpdb never throws). */
+	private static function exec( $sql ) {
+		global $wpdb;
+		$r = $wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared by callers
+		self::check();
+		return $r;
+	}
+
+	private static function check() {
+		global $wpdb;
+		if ( '' !== (string) $wpdb->last_error ) {
+			throw new \RuntimeException( 'rollup statement failed: ' . $wpdb->last_error );
+		}
+	}
+
 	/** The watermark row must exist for the compare-and-swap. */
 	public static function ensure_watermark() {
 		add_option( self::WATERMARK, '0', '', 'no' );
@@ -104,6 +129,7 @@ class Aggregator {
 				$hi
 			)
 		);
+		self::check();
 		foreach ( (array) $new_bots as $b ) {
 			self::$new_bots[ $b ] = true;
 		}
@@ -118,12 +144,13 @@ class Aggregator {
 			),
 			ARRAY_A
 		);
+		self::check();
 		foreach ( (array) $firsts as $f ) {
 			self::$first_crawls[] = $f;
 		}
 
 		// Day × bot × page.
-		$wpdb->query(
+		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'daily' ) . " (day, bot, url_hash, path, object_id, hits, errors, ms_total, ms_max, last_status)
 				 SELECT day, bot, url_hash, MAX(path), MAX(object_id), COUNT(*), SUM(status >= 400), SUM(ms), MAX(ms),
@@ -139,7 +166,7 @@ class Aggregator {
 		);
 
 		// Day × page totals for AI crawlers (what page lists sum over a date range).
-		$wpdb->query(
+		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'daily_pages' ) . " (day, url_hash, hits, errors, ms_total)
 				 SELECT day, url_hash, COUNT(*), SUM(status >= 400), SUM(ms) FROM {$e} WHERE id BETWEEN %d AND %d AND cls = 'ai'
@@ -151,7 +178,7 @@ class Aggregator {
 		);
 
 		// Day × bot totals (impersonations counted under the bot they claimed).
-		$wpdb->query(
+		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'daily_bots' ) . " (day, bot, hits, verified, spoofed, errors, ms_total)
 				 SELECT day, IF(bot = '', '_unknown', bot), SUM(cls <> 'spoofed'), SUM(vstate = 'verified' AND cls <> 'spoofed'), SUM(cls = 'spoofed'),
@@ -166,7 +193,7 @@ class Aggregator {
 		);
 
 		// First and last crawl per page × bot.
-		$wpdb->query(
+		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'page_bots' ) . " (url_hash, bot, path, object_id, first_seen, last_seen, hits, last_status)
 				 SELECT url_hash, bot, MAX(path), MAX(object_id), MIN(ts), MAX(ts), COUNT(*),
@@ -183,7 +210,7 @@ class Aggregator {
 		);
 
 		// First and last visit per bot.
-		$wpdb->query(
+		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'bots_seen' ) . " (bot, first_seen, last_seen, hits, verified, spoofed)
 				 SELECT bot, MIN(ts), MAX(ts), COUNT(*), SUM(vstate = 'verified'), 0
@@ -202,8 +229,9 @@ class Aggregator {
 			$wpdb->prepare( "SELECT bot, COUNT(*) c FROM {$e} WHERE id BETWEEN %d AND %d AND cls = 'spoofed' GROUP BY bot", $lo, $hi ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			ARRAY_A
 		);
+		self::check();
 		foreach ( (array) $spoofed as $r ) {
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . Installer::table( 'bots_seen' ) . ' SET spoofed = spoofed + %d WHERE bot = %s', (int) $r['c'], $r['bot'] ) );
+			self::exec( $wpdb->prepare( 'UPDATE ' . Installer::table( 'bots_seen' ) . ' SET spoofed = spoofed + %d WHERE bot = %s', (int) $r['c'], $r['bot'] ) );
 		}
 
 		self::sessions( $lo, $hi );
@@ -226,6 +254,7 @@ class Aggregator {
 			),
 			ARRAY_N
 		);
+		self::check();
 		if ( ! $rows ) {
 			return;
 		}
@@ -264,6 +293,7 @@ class Aggregator {
 				$start = $run['start'];
 				$end   = $run['end'];
 				$wpdb->insert( $s, array( 'bot' => $run['bot'], 'started' => $start, 'ended' => $end ) );
+				self::check();
 				$id = (int) $wpdb->insert_id;
 			}
 			// Exact figures from the events (bot_ts index); bounded by SESSION_MAX.
@@ -289,6 +319,7 @@ class Aggregator {
 				),
 				array( 'id' => $id )
 			);
+			self::check();
 		}
 	}
 
