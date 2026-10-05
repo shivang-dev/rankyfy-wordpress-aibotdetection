@@ -137,3 +137,26 @@ function test_imported_pending_events_hold_the_watermark() {
 	t_eq( 1, RankyfyAIB\Aggregator::run( 5 ), 'an orphaned pending event is repaired, not stuck forever' );
 	t_eq( 'none', $wpdb->get_var( 'SELECT vstate FROM ' . Installer::table( 'events' ) ) );
 }
+
+function test_concurrent_page_analysis_is_safe() {
+	global $wpdb;
+	$ids = array();
+	for ( $i = 0; $i < 12; $i++ ) {
+		$ids[] = wp_insert_post( array( 'post_title' => "Concurrent $i", 'post_content' => '<p>' . str_repeat( "Cold brew ratio and grinder size for espresso number $i. ", 30 ) . '</p>', 'post_status' => 'publish' ) );
+	}
+	$wpdb->query( 'UPDATE ' . Installer::table( 'pages' ) . ' SET dirty = 1' );
+	// Two analysers on the same pages at once (worker + manual re-check).
+	$cmd = 'cd ' . escapeshellarg( ABSPATH ) . ' && wp eval ' . escapeshellarg( 'global $wpdb; foreach ( $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}rfaib_pages WHERE deleted = 0", ARRAY_A ) as $r ) { try { RankyfyAIB\Analyzer::analyze( $r ); } catch ( Throwable $e ) { echo "E:", $e->getMessage(), "\n"; } }' ) . ' 2>&1';
+	$a = popen( $cmd, 'r' );
+	$b = popen( $cmd, 'r' );
+	$out = stream_get_contents( $a ) . stream_get_contents( $b );
+	pclose( $a );
+	pclose( $b );
+	t_ok( false === strpos( $out, 'Duplicate entry' ), 'no duplicate-key errors: ' . substr( $out, 0, 300 ) );
+	// Whatever a deadlock rolled back is consistent: every analysed page has its terms.
+	$bad = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Installer::table( 'pages' ) . ' p WHERE p.deleted = 0 AND p.dirty = 0 AND p.word_count > 50 AND NOT EXISTS (SELECT 1 FROM ' . Installer::table( 'page_terms' ) . ' t WHERE t.page_id = p.id)' );
+	t_eq( 0, $bad, 'no page marked analysed without its terms' );
+	foreach ( $ids as $id ) {
+		wp_delete_post( $id, true );
+	}
+}

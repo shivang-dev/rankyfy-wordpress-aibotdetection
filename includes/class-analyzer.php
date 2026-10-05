@@ -50,7 +50,11 @@ class Analyzer {
 				self::analyze( $row );
 			} catch ( \Throwable $e ) {
 				Log::warning( 'page analysis failed', array( 'page' => $row['id'], 'error' => $e->getMessage() ) );
-				$wpdb->update( $t, array( 'dirty' => 0, 'analyzed_at' => time() ), array( 'id' => $row['id'] ) );
+				if ( false === strpos( $e->getMessage(), 'not saved' ) ) {
+					// A page that cannot be analysed is not retried on every run; a
+					// database conflict (deadlock, lock wait) is, on the next run.
+					$wpdb->update( $t, array( 'dirty' => 0, 'analyzed_at' => time() ), array( 'id' => $row['id'] ) );
+				}
 			}
 			$done[] = (int) $row['id'];
 		}
@@ -119,27 +123,46 @@ class Analyzer {
 		unset( $facts['_text'], $facts['_links'] );
 
 		$page_id = (int) $row['id'];
-		self::store_terms( $page_id, $counts );
-		self::store_links( $page_id, $links );
+		// The page's terms, links and facts change together, or not at all; a
+		// concurrent analysis of the same page (manual re-check while the worker
+		// runs) waits on the row locks instead of interleaving.
+		$wpdb->query( 'START TRANSACTION' );
+		try {
+			self::store_terms( $page_id, $counts );
+			self::store_links( $page_id, $links );
 
-		$wpdb->update(
-			Installer::table( 'pages' ),
-			array(
-				'word_count'   => (int) $facts['words'],
-				'outlinks'     => count( $links ),
-				'noindex'      => $facts['noindex'] ? 1 : 0,
-				'http_status'  => (int) ( $facts['status'] ?? 0 ),
-				'fetch_at'     => $fetched ? time() : (int) $row['fetch_at'],
-				'analyzed_at'  => time(),
-				'facts'        => wp_json_encode( $facts ),
-				'content_hash' => md5( $body_html ),
-				// The WordPress title (the HTML <title> adds the site name); kept in facts too.
-				'title'        => Util::clean( $post ? get_the_title( $post ) : ( 'term' === $row['object_type'] ? (string) $row['title'] : (string) $facts['title'] ), 255 ),
-				'dirty'        => 0,
-			),
-			array( 'id' => $page_id )
-		);
+			$wpdb->update(
+				Installer::table( 'pages' ),
+				array(
+					'word_count'   => (int) $facts['words'],
+					'outlinks'     => count( $links ),
+					'noindex'      => $facts['noindex'] ? 1 : 0,
+					'http_status'  => (int) ( $facts['status'] ?? 0 ),
+					'fetch_at'     => $fetched ? time() : (int) $row['fetch_at'],
+					'analyzed_at'  => time(),
+					'facts'        => wp_json_encode( $facts ),
+					'content_hash' => md5( $body_html ),
+					// The WordPress title (the HTML <title> adds the site name); kept in facts too.
+					'title'        => Util::clean( $post ? get_the_title( $post ) : ( 'term' === $row['object_type'] ? (string) $row['title'] : (string) $facts['title'] ), 255 ),
+					'dirty'        => 0,
+				),
+				array( 'id' => $page_id )
+			);
+			self::db_ok();
+			$wpdb->query( 'COMMIT' );
+		} catch ( \Throwable $e ) {
+			$wpdb->query( 'ROLLBACK' );
+			throw $e;
+		}
 		return $facts;
+	}
+
+	/** wpdb never throws: turn a failed write into an exception so the transaction is rolled back. */
+	private static function db_ok() {
+		global $wpdb;
+		if ( '' !== (string) $wpdb->last_error ) {
+			throw new \RuntimeException( 'page analysis not saved: ' . $wpdb->last_error );
+		}
 	}
 
 	/** Post content as HTML: blocks rendered, shortcodes removed, no theme code. */
@@ -458,6 +481,7 @@ class Analyzer {
 			$keys = array_keys( $removed );
 			$in   = implode( ',', array_fill( 0, count( $keys ), '%s' ) );
 			$wpdb->query( $wpdb->prepare( "UPDATE {$tt} SET df = GREATEST(df, 1) - 1 WHERE term IN ({$in})", $keys ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			self::db_ok();
 		}
 		if ( $added ) {
 			$vals = array();
@@ -467,8 +491,10 @@ class Analyzer {
 				$args[] = $term;
 			}
 			$wpdb->query( $wpdb->prepare( "INSERT INTO {$tt} (term, df) VALUES " . implode( ',', $vals ) . ' ON DUPLICATE KEY UPDATE df = df + 1', $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			self::db_ok();
 		}
 		$wpdb->delete( $pt, array( 'page_id' => $page_id ) );
+		self::db_ok();
 		if ( $new ) {
 			$vals = array();
 			$args = array();
@@ -476,7 +502,8 @@ class Analyzer {
 				$vals[] = '(%d, %s, %f)';
 				array_push( $args, $page_id, $term, (float) $c );
 			}
-			$wpdb->query( $wpdb->prepare( "INSERT INTO {$pt} (page_id, term, weight) VALUES " . implode( ',', $vals ), $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( $wpdb->prepare( "INSERT INTO {$pt} (page_id, term, weight) VALUES " . implode( ',', $vals ) . ' ON DUPLICATE KEY UPDATE weight = VALUES(weight)', $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			self::db_ok();
 		}
 	}
 
@@ -494,6 +521,7 @@ class Analyzer {
 		}
 		$ids = array_values( array_diff( array_unique( $ids ), array( $page_id ) ) );
 		$wpdb->delete( $lt, array( 'from_id' => $page_id ) );
+		self::db_ok();
 		if ( $ids ) {
 			$vals = array();
 			$args = array();
@@ -502,11 +530,13 @@ class Analyzer {
 				array_push( $args, $page_id, $to );
 			}
 			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$lt} (from_id, to_id) VALUES " . implode( ',', $vals ), $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			self::db_ok();
 		}
 		$touched = array_values( array_unique( array_merge( $old, $ids ) ) );
 		if ( $touched ) {
 			$in = implode( ',', array_map( 'intval', $touched ) );
 			$wpdb->query( 'UPDATE ' . Installer::table( 'pages' ) . " p SET p.inlinks = (SELECT COUNT(*) FROM {$lt} l WHERE l.to_id = p.id) WHERE p.id IN ({$in})" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			self::db_ok();
 		}
 	}
 
