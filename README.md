@@ -57,7 +57,7 @@ Alerts include: a new AI crawler, an important page crawled for the first time, 
 
 ## Pages served from a cache or CDN
 
-If a page cache or CDN serves a page, WordPress never sees the request, so the crawler visit is missed. Import your server or CDN access log in **Settings → Import a server access log** (Apache/Nginx combined format or JSON lines; `.gz` is fine). The file is read in your browser; only crawler lines are sent to your site, and they are checked again there. Requests already recorded are not counted twice.
+If a page cache or CDN serves a page, WordPress never sees the request, so the crawler visit is missed. Import your server or CDN access log in **Settings → Import a server access log** (Apache/Nginx combined format or JSON lines; `.gz` is fine). The file is read in your browser; only crawler lines are sent to your site, and they are checked again there. AI crawler requests are added page by page. Requests already recorded, or a file imported twice, are not counted again.
 
 ## Privacy
 
@@ -73,6 +73,6 @@ If a page cache or CDN serves a page, WordPress never sees the request, so the c
 - **Numbers do not move / "Background processing has not run"** — WP-Cron is not running. Ask your host to call `wp-cron.php` every 5 minutes.
 - **Few or no crawler visits although crawlers come** — a page cache or CDN answers them before WordPress. Import an access log, or check the **Technical** screen for blocks.
 - **"Your server or CDN refuses requests that identify as …"** — check bot-protection settings in your CDN (for example Cloudflare's AI bot blocking), firewall and security plugins.
-- **Behind a proxy or CDN, every crawler shows the proxy's network** — set the visitor address header and your trusted proxy ranges in Settings.
+- **"Your site is behind a proxy or CDN that is not set up here"** — crawlers cannot be verified through an unknown proxy, so they show as "user agent only". Set the visitor address header and the proxy's address ranges in Settings. Cloudflare is recognised automatically.
 
 Developers and RankyFy engineers: see [DEVELOPMENT.md](DEVELOPMENT.md).

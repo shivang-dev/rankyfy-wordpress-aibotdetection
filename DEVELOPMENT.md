@@ -85,11 +85,18 @@ Rules that prevent false results:
 - A complete browser user agent (not "compatible;", not headless) is a browser even if a device name contains "bot" (CUBOT phones).
 - When several tokens match, AI tokens beat search tokens and the longest token wins at the same position.
 - Agents that send a browser user agent (Google-Agent) are recognised by published address only. The autoloaded bucket map is skipped if it would ever exceed 3,000 prefixes.
-- Signed agents (`Signature-Agent`) have their signature verified in the background. A bad signature means failed; a missing key means none, never spoofed.
+- Signed agents have their signature verified in the background. `Signature-Agent` counts only together with `Signature` and `Signature-Input`. A bad signature means failed; a missing or rotated key means none, never spoofed. Both header forms are handled: plain `"https://…"` and the dictionary `sig1="https://…"` with `;key=` component parameters.
+- **Proxies and CDNs.**
+  - Cloudflare's `CF-Connecting-IP` is used automatically, but only when the connection comes from Cloudflare's published ranges (refreshed weekly, with a bundled fallback).
+  - Other proxies need the header and trusted ranges set in Settings.
+  - If forwarding headers are present but not configured, live verification is skipped (`none`), so real crawlers are never called impostors. A site finding then explains the setup.
+- **Reverse DNS** uses a PTR query (`dns_get_record`), so a lookup failure is retried rather than read as "no PTR". Failures are cached for 1 day, passes for 7.
 
 Only `ai` and `spoofed`/`potential` (and `search`, if the owner enables it) get per-page rows. Everything else is one counter upsert per day. Addresses flooding more than 600 unverified requests in 10 minutes stop getting per-page rows for an hour.
 
 Privacy: the stored address is the network (/24, /48, or nothing) plus a keyed hash. The full address lives only in `verify_queue` until its check completes, and checks expire after 2 days.
+
+Imported logs add only per-page rows, which can be de-duplicated. They never add counters (search/SEO/unknown bots, user-agent hit counts). Each 2,000-line batch carries a key derived from the file (name, size, date) and the batch number. A batch already imported is skipped, so re-running an import changes nothing. Lines without a user agent are refused with a message, because Common Log Format cannot identify crawlers.
 
 ## Registry
 
@@ -137,9 +144,13 @@ All tables are prefixed `{$wpdb->prefix}rfaib_`. See `class-installer.php` for c
 | alerts | notifications | Alerts | 180 d |
 | snapshots | daily metrics for trends | Analytics | `retention_history` |
 
-Aggregation moves a watermark by compare-and-swap inside the same transaction as the rollups. A chunk is therefore folded in exactly once, even when two workers overlap (tested with two processes), and a crash rolls back both. Events still waiting for a verdict hold the watermark back for at most 15 minutes.
+Aggregation moves a watermark by compare-and-swap inside the same transaction as the rollups. Every statement is checked; `wpdb` never throws, so any error raises and rolls the chunk back. A chunk is therefore folded in exactly once, even when two workers overlap (tested with two processes). A failed statement or a crash rolls back both the rollups and the watermark.
 
-Options read on every page view are autoloaded and always present: `rfaib_settings`, `rfaib_matcher`, `rfaib_throttle`, `rfaib_iponly`, `rfaib_db_version` and `rfaib_secret`. A missing option costs a query per page view. Everything else is non-autoloaded. Schema changes bump `RFAIB_DB_VERSION`; `Installer::migrate()` runs data migrations (v2 backfilled `daily_pages` from `daily`).
+Events still waiting for a verdict hold the watermark back, live or imported, until the verifier settles them or their check expires after 2 days. Pending events whose check is no longer queued are repaired.
+
+Page analysis writes a page's terms, links and facts in one transaction. A deadlock with a concurrent re-check leaves the page queued for the next run.
+
+Options read on every page view are autoloaded and always present: `rfaib_settings`, `rfaib_matcher`, `rfaib_throttle`, `rfaib_iponly`, `rfaib_db_version` and `rfaib_secret`. A missing option costs a query per page view. Everything else is non-autoloaded. Schema changes bump `RFAIB_DB_VERSION`; `Installer::migrate()` runs data migrations (v2 backfilled `daily_pages` from `daily`; v3 added the Cloudflare ranges option).
 
 ## Findings, scores, recommendations, alerts
 
@@ -161,7 +172,8 @@ The REST payloads keep these in separate keys (`observed` / `inferred`). Every U
 
 ## Security
 
-- **REST.** `rankyfy-aib/v1` uses cookie auth plus the REST nonce. Every route checks the capability (`manage_options`, filter `rfaib_capability`) and is rate limited per user. Arguments are validated or allow-listed. No full address, token or secret is ever returned (tested).
+- **Backend.** The `aibotdetection` routes in contentai require the service's exact key pair, compared in constant time. **The service-wide API-key layer (`middleware/cors_origin.rs`) lets any pair of key headers through, which exposes every other contentai route. That needs fixing separately; the gateway never relies on it.**
+- **REST.** `rankyfy-aib/v1` uses cookie auth plus the REST nonce. The UI renews an expired nonce once (`rest-nonce`) and retries. Every route checks the capability (`manage_options`, filter `rfaib_capability`) and is rate limited per user. Arguments are validated or allow-listed. No full address, token or secret is ever returned (tested).
 - **Untrusted text.** User agents and paths are scrubbed of control characters and length-bounded before storage (no log forging). The CSV export neutralises spreadsheet formulas. The UI inserts server values with `textContent` only.
 - **Proxy headers.** These are honoured only when the connection comes from a configured trusted proxy CIDR, taking the right-most untrusted hop.
 - **Outbound requests.** Webhook URLs must be https with a public hostname; they are re-checked at send time by `wp_safe_remote_post`. Key directories must be https. Range files go through `wp_safe_remote_get` with size limits.
@@ -189,7 +201,7 @@ cd contentai && cargo test --lib aibotdetection
 cd rankyfy-backend && venv/bin/python -m pytest test_wp_gateway_aicrawlers.py test_wp_gateway.py test_wp_gateway_config.py
 ```
 
-PHP (47 tests):
+PHP (55 tests, including regressions from review: Cloudflare and unknown-proxy handling, failed-verdict expiry, signature key rotation and the dictionary form, a failed statement rolling back a whole chunk, idempotent import, held imported events, and two concurrent page analyses):
 
 - known / unknown / potential / spoofed user agents and false positives;
 - range, rDNS and signature verification;
@@ -205,13 +217,19 @@ PHP (47 tests):
 - backend outage and timeout, registry updates;
 - activation, upgrade, autoload footprint, uninstall.
 
-Rust (17 tests) covers registry validity, the classifier (including browser false positives), CIDR sets, range freshness, the handlers, ETag and limits. Gateway (9 new, plus the 34 existing) covers the public cached registry, ETag, outage fallback, auth, payload cleaning, and batch and rate limits.
+Rust (19 tests) covers registry validity, the classifier (including browser false positives), CIDR sets, range freshness, the handlers, ETag, limits, the service-key guard and per-batch deduplication. Gateway (11 new, plus the 34 existing) covers:
+
+- the public cached registry and ETag;
+- outage fallback without hammering a failing upstream;
+- auth, payload cleaning and non-finite numbers;
+- batch and rate limits.
 
 Lint: `php -l` on PHP 7.4 and 8.2; `node --check` on both scripts.
 
 ## Known limitations
 
-- Requests answered by a page cache or CDN never reach WordPress. Import access logs (Settings) to cover them. Live tracking sees only what PHP serves; static files never reach PHP, and neither does a physical `robots.txt`.
+- Behind a proxy other than Cloudflare, crawlers stay "user agent only" until the proxy header and trusted ranges are set in Settings.
+- Requests answered by a page cache or CDN never reach WordPress. Import access logs (Settings) to cover them; imports add AI crawler requests (per page), not search/SEO bot counters. Live tracking sees only what PHP serves; static files never reach PHP, and neither does a physical `robots.txt`.
 - Several operators (Meta, ByteDance, Mistral, Cohere…) publish no verification data; their visits are "user agent only".
 - AI assistants do not share the questions people ask. User-triggered fetches show *that* a conversation involved a page, not *what* was asked.
 - Content analysis of unfetched pages does not run shortcodes or dynamic blocks; important pages are read as served.
