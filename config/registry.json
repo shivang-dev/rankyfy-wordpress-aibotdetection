@@ -1,0 +1,1437 @@
+{
+  "schema": 1,
+  "version": "2026.10.05.1",
+  "updated": "2026-10-05",
+  "_comment": "Canonical AI crawler registry. The same file is embedded in the RankyFy backend (contentai/src/aibotdetection/registry.json), which serves the live copy; the plugin ships this one as its offline fallback. patterns: case-insensitive literal user-agent substrings. robots_tokens: the names robots.txt groups use. verify.ranges: published IP-range files (JSON; any CIDR strings inside are used). verify.rdns: reverse-DNS host suffixes for forward-confirmed reverse DNS. verify.signature_hosts: Web Bot Auth (HTTP Message Signatures) Signature-Agent hosts; signed_only: recognised only by a valid signature. ip_only: the agent sends a normal browser user agent, so it can only be recognised by address. source: 'official' = checked against the operator's own documentation on verified_on; 'community' = no operator documentation, identified from public reports.",
+  "categories": {
+    "ai_training": "Collects content to train AI models",
+    "ai_search": "Indexes pages so an AI assistant can find and cite them",
+    "ai_user": "Fetches a page because a person asked an AI assistant something",
+    "ai_agent": "An AI agent browsing on a person's behalf",
+    "ai_other": "Other AI-related automated traffic",
+    "search": "Classic search engine crawler",
+    "seo": "SEO and marketing tool crawler",
+    "social": "Link-preview fetcher for social networks and messengers",
+    "monitor": "Uptime, feed or monitoring service"
+  },
+  "bots": [
+    {
+      "id": "gptbot",
+      "name": "GPTBot",
+      "provider": "OpenAI",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "GPTBot"
+      ],
+      "robots_tokens": [
+        "GPTBot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://openai.com/gptbot.json"
+        ]
+      },
+      "docs": "https://developers.openai.com/api/docs/bots",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Crawls content that may be used to train OpenAI's models."
+    },
+    {
+      "id": "oai-searchbot",
+      "name": "OAI-SearchBot",
+      "provider": "OpenAI",
+      "category": "ai_search",
+      "ai": true,
+      "patterns": [
+        "OAI-SearchBot"
+      ],
+      "robots_tokens": [
+        "OAI-SearchBot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://openai.com/searchbot.json"
+        ]
+      },
+      "docs": "https://developers.openai.com/api/docs/bots",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Indexes pages so they can appear and be cited in ChatGPT search answers."
+    },
+    {
+      "id": "chatgpt-user",
+      "name": "ChatGPT-User",
+      "provider": "OpenAI",
+      "category": "ai_user",
+      "ai": true,
+      "user_triggered": true,
+      "patterns": [
+        "ChatGPT-User"
+      ],
+      "robots_tokens": [
+        "ChatGPT-User"
+      ],
+      "respects_robots": false,
+      "verify": {
+        "ranges": [
+          "https://openai.com/chatgpt-user.json"
+        ]
+      },
+      "docs": "https://developers.openai.com/api/docs/bots",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Visits a page when a ChatGPT user's request needs it. Each visit means a real conversation involved this page."
+    },
+    {
+      "id": "chatgpt-agent",
+      "name": "ChatGPT agent",
+      "provider": "OpenAI",
+      "category": "ai_agent",
+      "ai": true,
+      "user_triggered": true,
+      "patterns": [],
+      "robots_tokens": [],
+      "respects_robots": false,
+      "verify": {
+        "signature_hosts": [
+          "chatgpt.com"
+        ]
+      },
+      "docs": "https://help.openai.com/en/articles/11845367-chatgpt-agent-allowlisting",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "ChatGPT's agent browsing for a user. It uses a browser user agent and identifies itself by cryptographically signing its requests (Web Bot Auth).",
+      "signed_only": true
+    },
+    {
+      "id": "oai-adsbot",
+      "name": "OAI-AdsBot",
+      "provider": "OpenAI",
+      "category": "ai_other",
+      "ai": true,
+      "patterns": [
+        "OAI-AdsBot"
+      ],
+      "robots_tokens": [
+        "OAI-AdsBot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://openai.com/adsbot.json"
+        ]
+      },
+      "docs": "https://developers.openai.com/api/docs/bots",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Checks landing pages of ads shown in ChatGPT."
+    },
+    {
+      "id": "claudebot",
+      "name": "ClaudeBot",
+      "provider": "Anthropic",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "ClaudeBot"
+      ],
+      "robots_tokens": [
+        "ClaudeBot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://claude.com/crawling/bots.json"
+        ]
+      },
+      "docs": "https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Collects web content that may be used to train Anthropic's Claude models."
+    },
+    {
+      "id": "claude-searchbot",
+      "name": "Claude-SearchBot",
+      "provider": "Anthropic",
+      "category": "ai_search",
+      "ai": true,
+      "patterns": [
+        "Claude-SearchBot"
+      ],
+      "robots_tokens": [
+        "Claude-SearchBot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://claude.com/crawling/bots.json"
+        ]
+      },
+      "docs": "https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Indexes pages to improve the quality of search results in Claude."
+    },
+    {
+      "id": "claude-user",
+      "name": "Claude-User",
+      "provider": "Anthropic",
+      "category": "ai_user",
+      "ai": true,
+      "user_triggered": true,
+      "patterns": [
+        "Claude-User"
+      ],
+      "robots_tokens": [
+        "Claude-User"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://claude.com/crawling/bots.json"
+        ]
+      },
+      "docs": "https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Fetches a page when a Claude user asks a question that needs it."
+    },
+    {
+      "id": "anthropic-legacy",
+      "name": "anthropic-ai / Claude-Web (legacy)",
+      "provider": "Anthropic",
+      "category": "ai_training",
+      "ai": true,
+      "deprecated": true,
+      "patterns": [
+        "anthropic-ai",
+        "Claude-Web"
+      ],
+      "robots_tokens": [
+        "anthropic-ai",
+        "Claude-Web"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Older Anthropic user agents. Requests using them today are often impersonations."
+    },
+    {
+      "id": "perplexitybot",
+      "name": "PerplexityBot",
+      "provider": "Perplexity",
+      "category": "ai_search",
+      "ai": true,
+      "patterns": [
+        "PerplexityBot"
+      ],
+      "robots_tokens": [
+        "PerplexityBot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://www.perplexity.com/perplexitybot.json"
+        ]
+      },
+      "docs": "https://docs.perplexity.ai/guides/bots",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Indexes pages so Perplexity can surface and link them in answers. Not used for model training."
+    },
+    {
+      "id": "perplexity-user",
+      "name": "Perplexity-User",
+      "provider": "Perplexity",
+      "category": "ai_user",
+      "ai": true,
+      "user_triggered": true,
+      "patterns": [
+        "Perplexity-User"
+      ],
+      "robots_tokens": [
+        "Perplexity-User"
+      ],
+      "respects_robots": false,
+      "verify": {
+        "ranges": [
+          "https://www.perplexity.com/perplexity-user.json"
+        ]
+      },
+      "docs": "https://docs.perplexity.ai/guides/bots",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Visits a page when a Perplexity user asks a question. Generally ignores robots.txt because a person triggered it."
+    },
+    {
+      "id": "googlebot",
+      "name": "Googlebot",
+      "provider": "Google",
+      "category": "search",
+      "ai": false,
+      "patterns": [
+        "Googlebot"
+      ],
+      "robots_tokens": [
+        "Googlebot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://developers.google.com/static/crawling/ipranges/common-crawlers.json"
+        ],
+        "rdns": [
+          ".googlebot.com",
+          ".google.com"
+        ]
+      },
+      "docs": "https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Google Search crawler. Pages Googlebot indexes also feed AI Overviews and AI Mode; there is no separate crawler for those."
+    },
+    {
+      "id": "google-extended",
+      "name": "Google-Extended",
+      "provider": "Google",
+      "category": "ai_training",
+      "ai": true,
+      "robots_only": true,
+      "patterns": [],
+      "robots_tokens": [
+        "Google-Extended"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "A robots.txt token only. It controls whether content Google crawls may be used to train Gemini. It never appears as a visitor."
+    },
+    {
+      "id": "googleother",
+      "name": "GoogleOther",
+      "provider": "Google",
+      "category": "ai_other",
+      "ai": true,
+      "patterns": [
+        "GoogleOther"
+      ],
+      "robots_tokens": [
+        "GoogleOther"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://developers.google.com/static/crawling/ipranges/common-crawlers.json"
+        ],
+        "rdns": [
+          ".googlebot.com",
+          ".google.com"
+        ]
+      },
+      "docs": "https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Generic Google crawler used by product teams, including research and development."
+    },
+    {
+      "id": "google-cloudvertexbot",
+      "name": "Google-CloudVertexBot",
+      "provider": "Google",
+      "category": "ai_search",
+      "ai": true,
+      "patterns": [
+        "Google-CloudVertexBot"
+      ],
+      "robots_tokens": [
+        "Google-CloudVertexBot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://developers.google.com/static/crawling/ipranges/common-crawlers.json",
+          "https://developers.google.com/static/crawling/ipranges/special-crawlers.json"
+        ],
+        "rdns": [
+          ".googlebot.com",
+          ".google.com"
+        ]
+      },
+      "docs": "https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Crawls on behalf of site owners who build Vertex AI agents."
+    },
+    {
+      "id": "google-agent",
+      "name": "Google-Agent",
+      "provider": "Google",
+      "category": "ai_agent",
+      "ai": true,
+      "user_triggered": true,
+      "ip_only": true,
+      "patterns": [],
+      "robots_tokens": [],
+      "respects_robots": false,
+      "verify": {
+        "ranges": [
+          "https://developers.google.com/static/crawling/ipranges/user-triggered-agents.json"
+        ]
+      },
+      "docs": "https://developers.google.com/search/docs/crawling-indexing/google-user-triggered-fetchers",
+      "confidence": "medium",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Google's AI agents browsing for a user. They send a normal Chrome user agent, so they are recognised only by Google's published addresses."
+    },
+    {
+      "id": "google-user-fetchers",
+      "name": "Google user-triggered fetchers",
+      "provider": "Google",
+      "category": "ai_user",
+      "ai": true,
+      "user_triggered": true,
+      "patterns": [
+        "Google-NotebookLM",
+        "Gemini-Notebook",
+        "Google-Read-Aloud"
+      ],
+      "robots_tokens": [],
+      "respects_robots": false,
+      "verify": {
+        "ranges": [
+          "https://developers.google.com/static/crawling/ipranges/user-triggered-fetchers-google.json",
+          "https://developers.google.com/static/crawling/ipranges/user-triggered-fetchers.json"
+        ]
+      },
+      "docs": "https://developers.google.com/search/docs/crawling-indexing/google-user-triggered-fetchers",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Fetches made because a person used a Google AI product (for example a notebook source or read-aloud)."
+    },
+    {
+      "id": "bingbot",
+      "name": "Bingbot",
+      "provider": "Microsoft",
+      "category": "search",
+      "ai": false,
+      "patterns": [
+        "bingbot"
+      ],
+      "robots_tokens": [
+        "bingbot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://www.bing.com/toolbox/bingbot.json"
+        ],
+        "rdns": [
+          ".search.msn.com"
+        ]
+      },
+      "docs": "https://www.bing.com/webmasters/help/which-crawlers-does-bing-use-8c184ec0",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Bing's crawler. Microsoft Copilot answers are grounded in the Bing index, so Bingbot access is what makes pages available to Copilot."
+    },
+    {
+      "id": "meta-externalagent",
+      "name": "Meta-ExternalAgent",
+      "provider": "Meta",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "meta-externalagent"
+      ],
+      "robots_tokens": [
+        "meta-externalagent"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "https://developers.facebook.com/docs/sharing/webmasters/web-crawlers/",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Collects content for training Meta's AI models and improving products. Meta publishes no address list, so visits cannot be verified."
+    },
+    {
+      "id": "meta-externalfetcher",
+      "name": "Meta-ExternalFetcher",
+      "provider": "Meta",
+      "category": "ai_user",
+      "ai": true,
+      "user_triggered": true,
+      "patterns": [
+        "meta-externalfetcher"
+      ],
+      "robots_tokens": [
+        "meta-externalfetcher"
+      ],
+      "respects_robots": false,
+      "verify": {},
+      "docs": "https://developers.facebook.com/docs/sharing/webmasters/web-crawlers/",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Fetches links a person asked Meta AI about. May bypass robots.txt."
+    },
+    {
+      "id": "meta-webindexer",
+      "name": "Meta-WebIndexer",
+      "provider": "Meta",
+      "category": "ai_search",
+      "ai": true,
+      "patterns": [
+        "meta-webindexer"
+      ],
+      "robots_tokens": [
+        "meta-webindexer"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "https://developers.facebook.com/docs/sharing/webmasters/web-crawlers/",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Indexes pages to improve Meta AI search results."
+    },
+    {
+      "id": "facebookbot",
+      "name": "FacebookBot (legacy)",
+      "provider": "Meta",
+      "category": "ai_training",
+      "ai": true,
+      "deprecated": true,
+      "patterns": [
+        "FacebookBot"
+      ],
+      "robots_tokens": [
+        "FacebookBot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "https://developers.facebook.com/docs/sharing/webmasters/web-crawlers/",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Older Meta crawler associated with language-model training."
+    },
+    {
+      "id": "applebot",
+      "name": "Applebot",
+      "provider": "Apple",
+      "category": "search",
+      "ai": false,
+      "patterns": [
+        "Applebot"
+      ],
+      "robots_tokens": [
+        "Applebot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://search.developer.apple.com/applebot.json"
+        ],
+        "rdns": [
+          ".applebot.apple.com"
+        ]
+      },
+      "docs": "https://support.apple.com/en-us/119829",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Apple's crawler for Siri and Spotlight suggestions. Whether its content may train Apple Intelligence is controlled separately by Applebot-Extended."
+    },
+    {
+      "id": "applebot-extended",
+      "name": "Applebot-Extended",
+      "provider": "Apple",
+      "category": "ai_training",
+      "ai": true,
+      "robots_only": true,
+      "patterns": [],
+      "robots_tokens": [
+        "Applebot-Extended"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "https://support.apple.com/en-us/119829",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "A robots.txt token only. It controls whether Applebot's crawl may be used to train Apple's foundation models."
+    },
+    {
+      "id": "amazonbot",
+      "name": "Amazonbot",
+      "provider": "Amazon",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "Amazonbot"
+      ],
+      "robots_tokens": [
+        "Amazonbot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "rdns": [
+          ".crawl.amazonbot.amazon"
+        ]
+      },
+      "docs": "https://developer.amazon.com/amazonbot",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Amazon's crawler for Alexa answers and Amazon AI models."
+    },
+    {
+      "id": "bytespider",
+      "name": "Bytespider",
+      "provider": "ByteDance",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "Bytespider"
+      ],
+      "robots_tokens": [
+        "Bytespider"
+      ],
+      "respects_robots": null,
+      "verify": {},
+      "docs": "",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "ByteDance crawler associated with AI model training. No operator documentation; robots.txt compliance is disputed."
+    },
+    {
+      "id": "ccbot",
+      "name": "CCBot",
+      "provider": "Common Crawl",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "CCBot"
+      ],
+      "robots_tokens": [
+        "CCBot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://index.commoncrawl.org/ccbot.json"
+        ]
+      },
+      "docs": "https://commoncrawl.org/ccbot",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Builds the open Common Crawl corpus, which many AI models are trained on."
+    },
+    {
+      "id": "duckassistbot",
+      "name": "DuckAssistBot",
+      "provider": "DuckDuckGo",
+      "category": "ai_search",
+      "ai": true,
+      "patterns": [
+        "DuckAssistBot"
+      ],
+      "robots_tokens": [
+        "DuckAssistBot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://duckduckgo.com/duckassistbot.json"
+        ]
+      },
+      "docs": "https://duckduckgo.com/duckduckgo-help-pages/results/duckassistbot",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Fetches pages in real time for DuckDuckGo's AI-assisted answers."
+    },
+    {
+      "id": "mistralai-user",
+      "name": "MistralAI-User",
+      "provider": "Mistral AI",
+      "category": "ai_user",
+      "ai": true,
+      "user_triggered": true,
+      "patterns": [
+        "MistralAI-User"
+      ],
+      "robots_tokens": [
+        "MistralAI-User"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "https://docs.mistral.ai/robots",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Fetches pages when a Le Chat user's question needs them."
+    },
+    {
+      "id": "cohere",
+      "name": "Cohere crawlers",
+      "provider": "Cohere",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "cohere-training-data-crawler",
+        "cohere-ai"
+      ],
+      "robots_tokens": [
+        "cohere-ai",
+        "cohere-training-data-crawler"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Cohere's crawlers for model training and retrieval."
+    },
+    {
+      "id": "youbot",
+      "name": "YouBot",
+      "provider": "You.com",
+      "category": "ai_search",
+      "ai": true,
+      "patterns": [
+        "YouBot"
+      ],
+      "robots_tokens": [
+        "YouBot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "https://about.you.com/youbot/",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Indexes pages for You.com's AI search."
+    },
+    {
+      "id": "ai2bot",
+      "name": "AI2Bot",
+      "provider": "Allen Institute for AI",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "AI2Bot"
+      ],
+      "robots_tokens": [
+        "AI2Bot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "https://allenai.org/crawler",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Collects open web data for AI research models."
+    },
+    {
+      "id": "diffbot",
+      "name": "Diffbot",
+      "provider": "Diffbot",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "Diffbot"
+      ],
+      "robots_tokens": [
+        "Diffbot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "https://docs.diffbot.com/docs/getting-started-with-crawl",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Extracts structured data and builds a knowledge graph used by AI products."
+    },
+    {
+      "id": "timpibot",
+      "name": "Timpibot",
+      "provider": "Timpi",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "Timpibot"
+      ],
+      "robots_tokens": [
+        "Timpibot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Decentralised index crawler that also supplies AI training data."
+    },
+    {
+      "id": "omgili",
+      "name": "Omgilibot / Webz.io",
+      "provider": "Webz.io",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "omgilibot",
+        "omgili",
+        "Webzio-Extended"
+      ],
+      "robots_tokens": [
+        "omgilibot",
+        "Webzio-Extended"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Collects web data that Webz.io sells, including for AI training."
+    },
+    {
+      "id": "imagesiftbot",
+      "name": "ImagesiftBot",
+      "provider": "ImageSift",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "ImagesiftBot"
+      ],
+      "robots_tokens": [
+        "ImagesiftBot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Image crawler whose data is used for AI products."
+    },
+    {
+      "id": "petalbot",
+      "name": "PetalBot",
+      "provider": "Huawei",
+      "category": "search",
+      "ai": false,
+      "patterns": [
+        "PetalBot"
+      ],
+      "robots_tokens": [
+        "PetalBot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "rdns": [
+          ".petalsearch.com"
+        ]
+      },
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Huawei Petal Search crawler."
+    },
+    {
+      "id": "pangubot",
+      "name": "PanguBot",
+      "provider": "Huawei",
+      "category": "ai_training",
+      "ai": true,
+      "patterns": [
+        "PanguBot"
+      ],
+      "robots_tokens": [
+        "PanguBot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Huawei crawler associated with the PanGu AI models."
+    },
+    {
+      "id": "duckduckbot",
+      "name": "DuckDuckBot",
+      "provider": "DuckDuckGo",
+      "category": "search",
+      "ai": false,
+      "patterns": [
+        "DuckDuckBot"
+      ],
+      "robots_tokens": [
+        "DuckDuckBot"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "ranges": [
+          "https://duckduckgo.com/duckduckbot.json"
+        ]
+      },
+      "docs": "https://duckduckgo.com/duckduckgo-help-pages/results/duckduckbot",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "DuckDuckGo search crawler."
+    },
+    {
+      "id": "yandexbot",
+      "name": "YandexBot",
+      "provider": "Yandex",
+      "category": "search",
+      "ai": false,
+      "patterns": [
+        "YandexBot",
+        "YandexMobileBot"
+      ],
+      "robots_tokens": [
+        "Yandex"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "rdns": [
+          ".yandex.ru",
+          ".yandex.net",
+          ".yandex.com"
+        ]
+      },
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Yandex search crawler."
+    },
+    {
+      "id": "baiduspider",
+      "name": "Baiduspider",
+      "provider": "Baidu",
+      "category": "search",
+      "ai": false,
+      "patterns": [
+        "Baiduspider"
+      ],
+      "robots_tokens": [
+        "Baiduspider"
+      ],
+      "respects_robots": true,
+      "verify": {
+        "rdns": [
+          ".baidu.com",
+          ".baidu.jp"
+        ]
+      },
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Baidu search crawler."
+    },
+    {
+      "id": "seznambot",
+      "name": "SeznamBot",
+      "provider": "Seznam",
+      "category": "search",
+      "ai": false,
+      "patterns": [
+        "SeznamBot"
+      ],
+      "robots_tokens": [
+        "SeznamBot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Seznam search crawler."
+    },
+    {
+      "id": "naver-yeti",
+      "name": "Yeti (Naver)",
+      "provider": "Naver",
+      "category": "search",
+      "ai": false,
+      "patterns": [
+        "Yeti/"
+      ],
+      "robots_tokens": [
+        "Yeti"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Naver search crawler."
+    },
+    {
+      "id": "ahrefsbot",
+      "name": "AhrefsBot",
+      "provider": "Ahrefs",
+      "category": "seo",
+      "ai": false,
+      "patterns": [
+        "AhrefsBot",
+        "AhrefsSiteAudit"
+      ],
+      "robots_tokens": [
+        "AhrefsBot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Ahrefs SEO tool crawler."
+    },
+    {
+      "id": "semrushbot",
+      "name": "SemrushBot",
+      "provider": "Semrush",
+      "category": "seo",
+      "ai": false,
+      "patterns": [
+        "SemrushBot",
+        "SiteAuditBot"
+      ],
+      "robots_tokens": [
+        "SemrushBot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Semrush SEO tool crawler."
+    },
+    {
+      "id": "mj12bot",
+      "name": "MJ12bot",
+      "provider": "Majestic",
+      "category": "seo",
+      "ai": false,
+      "patterns": [
+        "MJ12bot"
+      ],
+      "robots_tokens": [
+        "MJ12bot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Majestic backlink crawler."
+    },
+    {
+      "id": "dotbot",
+      "name": "DotBot",
+      "provider": "Moz",
+      "category": "seo",
+      "ai": false,
+      "patterns": [
+        "DotBot",
+        "rogerbot"
+      ],
+      "robots_tokens": [
+        "DotBot",
+        "rogerbot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Moz SEO crawlers."
+    },
+    {
+      "id": "dataforseobot",
+      "name": "DataForSeoBot",
+      "provider": "DataForSEO",
+      "category": "seo",
+      "ai": false,
+      "patterns": [
+        "DataForSeoBot"
+      ],
+      "robots_tokens": [
+        "DataForSeoBot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "DataForSEO crawler."
+    },
+    {
+      "id": "blexbot",
+      "name": "BLEXBot",
+      "provider": "WebMeUp",
+      "category": "seo",
+      "ai": false,
+      "patterns": [
+        "BLEXBot"
+      ],
+      "robots_tokens": [
+        "BLEXBot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Backlink crawler."
+    },
+    {
+      "id": "screamingfrog",
+      "name": "Screaming Frog SEO Spider",
+      "provider": "Screaming Frog",
+      "category": "seo",
+      "ai": false,
+      "patterns": [
+        "Screaming Frog SEO Spider"
+      ],
+      "robots_tokens": [
+        "Screaming Frog SEO Spider"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Desktop SEO crawler."
+    },
+    {
+      "id": "rankyfy",
+      "name": "RankyFy Site Audit",
+      "provider": "RankyFy",
+      "category": "seo",
+      "ai": false,
+      "patterns": [
+        "RankyFy"
+      ],
+      "robots_tokens": [
+        "RankyFy"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "https://rankyfy.com/",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "RankyFy's own site audit crawler."
+    },
+    {
+      "id": "facebookexternalhit",
+      "name": "facebookexternalhit",
+      "provider": "Meta",
+      "category": "social",
+      "ai": false,
+      "patterns": [
+        "facebookexternalhit",
+        "meta-externalads"
+      ],
+      "robots_tokens": [
+        "facebookexternalhit"
+      ],
+      "respects_robots": false,
+      "verify": {},
+      "docs": "https://developers.facebook.com/docs/sharing/webmasters/web-crawlers/",
+      "confidence": "high",
+      "source": "official",
+      "verified_on": "2026-10-05",
+      "description": "Builds link previews when a page is shared on Meta's apps."
+    },
+    {
+      "id": "twitterbot",
+      "name": "Twitterbot",
+      "provider": "X",
+      "category": "social",
+      "ai": false,
+      "patterns": [
+        "Twitterbot"
+      ],
+      "robots_tokens": [
+        "Twitterbot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Link previews on X."
+    },
+    {
+      "id": "linkedinbot",
+      "name": "LinkedInBot",
+      "provider": "LinkedIn",
+      "category": "social",
+      "ai": false,
+      "patterns": [
+        "LinkedInBot"
+      ],
+      "robots_tokens": [
+        "LinkedInBot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Link previews on LinkedIn."
+    },
+    {
+      "id": "slackbot",
+      "name": "Slackbot",
+      "provider": "Slack",
+      "category": "social",
+      "ai": false,
+      "patterns": [
+        "Slackbot"
+      ],
+      "robots_tokens": [
+        "Slackbot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Link previews in Slack."
+    },
+    {
+      "id": "discordbot",
+      "name": "Discordbot",
+      "provider": "Discord",
+      "category": "social",
+      "ai": false,
+      "patterns": [
+        "Discordbot"
+      ],
+      "robots_tokens": [
+        "Discordbot"
+      ],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "high",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Link previews in Discord."
+    },
+    {
+      "id": "messengers",
+      "name": "Messenger link previews",
+      "provider": "Various",
+      "category": "social",
+      "ai": false,
+      "patterns": [
+        "WhatsApp/",
+        "TelegramBot",
+        "SkypeUriPreview",
+        "Pinterestbot"
+      ],
+      "robots_tokens": [],
+      "respects_robots": true,
+      "verify": {},
+      "docs": "",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Link previews in messaging apps."
+    },
+    {
+      "id": "uptime",
+      "name": "Uptime and feed monitors",
+      "provider": "Various",
+      "category": "monitor",
+      "ai": false,
+      "patterns": [
+        "UptimeRobot",
+        "Pingdom",
+        "StatusCake",
+        "Site24x7",
+        "Feedly",
+        "Jetpack by WordPress.com"
+      ],
+      "robots_tokens": [],
+      "respects_robots": null,
+      "verify": {},
+      "docs": "",
+      "confidence": "medium",
+      "source": "community",
+      "verified_on": "2026-10-05",
+      "description": "Monitoring and feed services."
+    }
+  ],
+  "referrers": [
+    {
+      "id": "chatgpt",
+      "name": "ChatGPT",
+      "hosts": [
+        "chatgpt.com",
+        "chat.openai.com"
+      ],
+      "utm": [
+        "chatgpt.com"
+      ]
+    },
+    {
+      "id": "perplexity",
+      "name": "Perplexity",
+      "hosts": [
+        "perplexity.ai",
+        "www.perplexity.ai"
+      ],
+      "utm": [
+        "perplexity",
+        "perplexity.ai"
+      ]
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini",
+      "hosts": [
+        "gemini.google.com",
+        "bard.google.com"
+      ],
+      "utm": []
+    },
+    {
+      "id": "copilot",
+      "name": "Microsoft Copilot",
+      "hosts": [
+        "copilot.microsoft.com",
+        "copilot.cloud.microsoft",
+        "edgeservices.bing.com"
+      ],
+      "utm": [
+        "copilot.com"
+      ]
+    },
+    {
+      "id": "claude",
+      "name": "Claude",
+      "hosts": [
+        "claude.ai"
+      ],
+      "utm": [
+        "claude.ai"
+      ]
+    },
+    {
+      "id": "meta-ai",
+      "name": "Meta AI",
+      "hosts": [
+        "meta.ai",
+        "www.meta.ai"
+      ],
+      "utm": []
+    },
+    {
+      "id": "mistral",
+      "name": "Le Chat (Mistral)",
+      "hosts": [
+        "chat.mistral.ai"
+      ],
+      "utm": []
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "hosts": [
+        "chat.deepseek.com"
+      ],
+      "utm": []
+    },
+    {
+      "id": "grok",
+      "name": "Grok",
+      "hosts": [
+        "grok.com"
+      ],
+      "utm": [
+        "grok.com"
+      ]
+    },
+    {
+      "id": "you",
+      "name": "You.com",
+      "hosts": [
+        "you.com"
+      ],
+      "utm": []
+    },
+    {
+      "id": "poe",
+      "name": "Poe",
+      "hosts": [
+        "poe.com"
+      ],
+      "utm": []
+    },
+    {
+      "id": "phind",
+      "name": "Phind",
+      "hosts": [
+        "phind.com",
+        "www.phind.com"
+      ],
+      "utm": []
+    }
+  ],
+  "heuristics": {
+    "bot": "bot\\b|bot/|crawl|spider|slurp|scrap|fetcher|archiver|indexer|python-|python/|curl/|wget|go-http-client|java/|okhttp|axios|node-fetch|undici|headless|phantomjs|httpclient|libwww|scrapy|aiohttp|httpx|guzzle|^mozilla/5\\.0$|^$",
+    "ai_hint": "(?:^|[^a-z])(?:ai|llm|gpt|genai|openai|anthropic|claude|gemini|mistral|cohere|perplexity|grok|xai|deepseek|qwen|llama|rag|agent|assistant)(?:[^a-z]|$)|ai-?bot|aicrawler|ai-crawler"
+  }
+}
