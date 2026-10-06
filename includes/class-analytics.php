@@ -109,6 +109,7 @@ class Analytics {
 				'score_trend' => self::snapshot_series( 'aeo_score', 90 ),
 				'readiness'   => Readiness::summary(),
 				'readiness_trend' => self::snapshot_series( 'readiness', 90 ),
+				'llms_enabled'    => (bool) Settings::get( 'llms_enabled' ),
 				'findings'    => Findings::counts(),
 				'next_steps'  => self::recommendations( array( 'limit' => 5 ) )['items'],
 				'alerts'      => Alerts::list( '', 5 ),

@@ -191,12 +191,81 @@
 	}
 
 	// ── feedback ─────────────────────────────────────────────────────────────
+	var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+	/** Run after the element is in the page, so CSS transitions start from the first state. */
+	function later(fn) { setTimeout(fn, reduceMotion ? 0 : 30); }
+	function countUp(el, to) {
+		if (reduceMotion || !isFinite(to) || to <= 0) { el.textContent = String(to); return; }
+		var start = null;
+		(function step(t) {
+			start = start || t;
+			var p = Math.min(1, (t - start) / 700);
+			el.textContent = String(Math.round(to * (1 - Math.pow(1 - p, 3))));
+			if (p < 1) { requestAnimationFrame(step); }
+		})(performance.now());
+	}
+
 	var toastBox = null;
-	function toast(msg, kind) {
+	/** opts.undo: a function; shows an Undo button and keeps the toast up longer. */
+	function toast(msg, kind, opts) {
+		opts = opts || {};
 		if (!toastBox) { toastBox = h('div', { 'class': 'rf-toasts', role: 'status', 'aria-live': 'polite' }); document.body.appendChild(toastBox); }
 		var t = h('div', { 'class': 'rf-toast rf-toast-' + (kind || 'info') }, icon(kind === 'error' ? 'xCircle' : 'checkCircle'), h('span', { text: msg }));
+		var gone = false;
+		var leave = function () {
+			if (gone) { return; }
+			gone = true;
+			if (reduceMotion) { t.remove(); return; }
+			t.classList.add('is-leaving');
+			setTimeout(function () { t.remove(); }, 200);
+		};
+		if (opts.undo) {
+			t.appendChild(h('button', { type: 'button', 'class': 'rf-toast-btn', onclick: function () { leave(); opts.undo(); } }, __('Undo')));
+		}
 		toastBox.appendChild(t);
-		setTimeout(function () { t.remove(); }, kind === 'error' ? 7000 : 4000);
+		setTimeout(leave, opts.undo ? 8000 : kind === 'error' ? 7000 : 4000);
+	}
+
+	/**
+	 * A panel that slides in from the right. Esc, the backdrop and the close
+	 * button close it; focus stays inside while it is open and returns to
+	 * where it was.
+	 */
+	var openDrawer = null;
+	function drawer(title, sub) {
+		if (openDrawer) { openDrawer.close(true); }
+		var prev = document.activeElement;
+		var head = h('div', null, h('h2', { text: title }), sub ? h('p', { text: sub }) : null);
+		var body = h('div', { 'class': 'rf-drawer-body' });
+		var foot = h('footer', null);
+		var panel = h('aside', { 'class': 'rf-drawer', role: 'dialog', 'aria-modal': 'true', 'aria-label': title, tabindex: '-1' },
+			h('header', null, head, h('button', { type: 'button', 'class': 'rf-x', 'aria-label': __('Close'), onclick: function () { api_.close(); } }, icon('x', 18))), body, foot);
+		var wrap = h('div', { 'class': 'rf-drawer-wrap' }, h('div', { 'class': 'rf-drawer-back', onclick: function () { api_.close(); } }), panel);
+		var onKey = function (e) {
+			if (e.key === 'Escape') { api_.close(); return; }
+			if (e.key !== 'Tab') { return; }
+			var f = panel.querySelectorAll('a[href],button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])');
+			if (!f.length) { return; }
+			if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+			else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+		};
+		var api_ = {
+			body: body, foot: foot, head: head,
+			setTitle: function (t, sb) { clear(head); add(head, [h('h2', { text: t }), sb ? h('p', { text: sb }) : null]); panel.setAttribute('aria-label', t); },
+			close: function (instant) {
+				if (openDrawer !== api_) { return; }
+				openDrawer = null;
+				document.removeEventListener('keydown', onKey);
+				wrap.classList.remove('is-open');
+				setTimeout(function () { wrap.remove(); }, instant || reduceMotion ? 0 : 260);
+				if (prev && prev.focus && document.contains(prev)) { prev.focus(); }
+			}
+		};
+		document.body.appendChild(wrap);
+		document.addEventListener('keydown', onKey);
+		later(function () { wrap.classList.add('is-open'); panel.focus(); });
+		openDrawer = api_;
+		return api_;
 	}
 	function dialog(title, body, actions) {
 		var prev = document.activeElement;
@@ -241,7 +310,58 @@
 		var level = opts.level || (p >= 70 ? 'good' : p >= 40 ? 'warn' : 'crit');
 		return h('div', { 'class': 'rf-meter' },
 			h('div', { 'class': 'rf-meter-top' }, h('span', { text: label }), h('span', { 'class': 'rf-meter-val', text: opts.text || (num(value) + ' / ' + num(max)) })),
-			h('div', { 'class': 'rf-meter-track rf-meter-' + level, role: 'meter', 'aria-valuemin': 0, 'aria-valuemax': max, 'aria-valuenow': value, 'aria-label': label }, h('div', { 'class': 'rf-meter-fill', style: 'width:' + p.toFixed(1) + '%' })));
+			h('div', { 'class': 'rf-meter-track rf-meter-' + level, role: 'meter', 'aria-valuemin': 0, 'aria-valuemax': max, 'aria-valuenow': value, 'aria-label': label }, (function () {
+				var fill = h('div', { 'class': 'rf-meter-fill', style: 'width:' + (reduceMotion ? p.toFixed(1) : 0) + '%' });
+				if (!reduceMotion) { later(function () { fill.style.width = p.toFixed(1) + '%'; }); }
+				return fill;
+			})()));
+	}
+	/** Readiness score as a ring, with a worded status beside it (never colour alone). */
+	function scoreLevel(v) { return !has(v) ? 'none' : v >= 75 ? 'good' : v >= 50 ? 'warn' : 'crit'; }
+	function scoreRing(v, opts) {
+		opts = opts || {};
+		var size = opts.size || 116, sw = opts.size && opts.size < 90 ? 8 : 10, r = (size - sw) / 2, c = 2 * Math.PI * r, lvl = scoreLevel(v);
+		var arc = s('circle', { 'class': 'rf-ring-val', cx: size / 2, cy: size / 2, r: r, 'stroke-width': sw, 'stroke-dasharray': c.toFixed(1), 'stroke-dashoffset': c.toFixed(1) });
+		var n = h('span', { 'class': 'rf-ring-num', text: reduceMotion && has(v) ? String(v) : (has(v) ? '0' : '—') });
+		var el = h('div', { 'class': 'rf-ring rf-ring-' + lvl + (size < 90 ? ' rf-ring-sm' : ''), role: 'img', 'aria-label': has(v) ? sprintf(__('Score %1$d out of 100: %2$s'), v, scoreWord(v)) : __('Not scored yet') },
+			s('svg', { 'class': 'rf-ring-svg', width: size, height: size, viewBox: '0 0 ' + size + ' ' + size, 'aria-hidden': 'true' },
+				s('circle', { 'class': 'rf-ring-track', cx: size / 2, cy: size / 2, r: r, 'stroke-width': sw }), arc),
+			h('div', { 'class': 'rf-ring-center', 'aria-hidden': 'true' }, n, has(v) ? h('small', { text: '/100' }) : null));
+		if (has(v)) { later(function () { arc.setAttribute('stroke-dashoffset', (c * (1 - Math.max(0, Math.min(100, v)) / 100)).toFixed(1)); countUp(n, v); }); }
+		return el;
+	}
+	function scoreWord(v) { return { good: __('Good'), warn: __('Needs work'), crit: __('Poor'), none: __('Not scored yet') }[scoreLevel(v)]; }
+	function scoreStatus(v) {
+		var l = scoreLevel(v);
+		return h('span', { 'class': 'rf-chip' + (l === 'none' ? '' : ' rf-chip-' + l) }, icon(l === 'good' ? 'checkCircle' : l === 'none' ? 'minus' : 'alert', 12), scoreWord(v));
+	}
+	/** Change against the value about a week earlier in a [{day, value}] series. */
+	function weekDelta(trend, now) {
+		if (!trend || trend.length < 2 || !has(now)) { return null; }
+		var cutoff = Date.now() - 6.5 * 86400000, base = null;
+		trend.forEach(function (p) { var d = toDate(p.day); if (d && d.getTime() <= cutoff) { base = p.value; } });
+		if (base === null) { base = trend[0].value; }
+		var d = Math.round(now - base);
+		if (!d) { return h('span', { 'class': 'rf-delta' }, icon('minus', 12), __('no change this week')); }
+		return h('span', { 'class': 'rf-delta ' + (d > 0 ? 'rf-up-good' : 'rf-up-bad') }, icon(d > 0 ? 'arrowUp' : 'arrowDown', 12), sprintf(d > 0 ? __('up %d this week') : __('down %d this week'), Math.abs(d)));
+	}
+	/**
+	 * Staged edits: count what differs from the saved values and show it next
+	 * to the save button; nothing is written until Save.
+	 */
+	function staged(form, container, saveBtn, label) {
+		var initial = {};
+		Object.keys(form).forEach(function (k) { initial[k] = JSON.stringify(form[k]()); });
+		var update = function () {
+			var n = Object.keys(form).filter(function (k) { return JSON.stringify(form[k]()) !== initial[k]; }).length;
+			label.hidden = !n;
+			label.textContent = sprintf(_n('%d unsaved change', '%d unsaved changes', n), n);
+			saveBtn.disabled = !n;
+		};
+		container.addEventListener('input', update);
+		container.addEventListener('change', update);
+		update();
+		return { reset: function () { Object.keys(form).forEach(function (k) { initial[k] = JSON.stringify(form[k]()); }); update(); } };
 	}
 	function empty(text, extra) { return h('div', { 'class': 'rf-empty' }, icon('info', 20), h('p', { text: text }), extra || null); }
 	function button(label, onclick, opts) {
@@ -284,7 +404,59 @@
 	function pageLink(p) {
 		var title = p.title || p.label || pagePath(p.path);
 		var id = p.page_id || p.id;
-		return h('div', { 'class': 'rf-pagecell' }, id ? link(title, '/pages/' + id) : h('span', { text: title }), h('span', { 'class': 'rf-mono rf-muted', text: pagePath(p.path) }));
+		return h('div', { 'class': 'rf-pagecell' }, id ? pageAnchor(title, id) : h('span', { text: title }), h('span', { 'class': 'rf-mono rf-muted', text: pagePath(p.path) }));
+	}
+	/** Link to a page's details: a plain click opens the quick view; Ctrl/⌘-click or a new tab opens the full screen. */
+	function pageAnchor(text, id) {
+		return h('a', { href: '#/pages/' + id, text: text, onclick: function (e) {
+			if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) { return; }
+			e.preventDefault();
+			pageDrawer(id);
+		} });
+	}
+	function pageDrawer(id) {
+		var d = drawer(__('Loading…'));
+		d.body.appendChild(h('div', { 'class': 'rf-skeleton' }, h('div'), h('div')));
+		api('/pages/' + id).then(function (x) {
+			if (openDrawer !== d) { return; }
+			var p = x.page, obs = x.observed, bots = obs.crawlers.filter(function (b) { return b.hits > 0; }).sort(function (a, b) { return b.hits - a.hits; });
+			var total = bots.reduce(function (a, b) { return a + b.hits; }, 0), first = null;
+			bots.forEach(function (b) { if (b.first_seen && (!first || b.first_seen < first.first_seen)) { first = b; } });
+			var max = bots.length ? bots[0].hits : 1;
+			var visits = obs.referrals.reduce(function (a, r) { return a + r.visits; }, 0);
+			d.setTitle(p.title || pagePath(p.path), pagePath(p.path));
+			clear(d.body);
+			var bars = bots.slice(0, 6).map(function (b) {
+				var bar = h('i');
+				later(function () { bar.style.width = (100 * b.hits / max).toFixed(1) + '%'; });
+				return [h('span', { text: b.name }), h('div', { 'class': 'rf-bar' }, bar), h('b', { text: num(b.hits) })];
+			});
+			add(d.body, [
+				h('dl', { 'class': 'rf-facts' },
+					h('dt', { text: __('Readiness') }), h('dd', null, x.score ? scoreChip(x.score.score) : h('span', { 'class': 'rf-muted', text: __('not analysed yet') }), x.score ? ' ' + scoreWord(x.score.score) : null),
+					h('dt', { text: __('AI crawler requests') }), h('dd', { text: total ? sprintf(_n('%1$s from %2$d crawler', '%1$s from %2$d crawlers', bots.length), num(total), bots.length) : __('none yet') }),
+					h('dt', { text: __('First read') }), h('dd', { text: first ? fmtDay(first.first_seen) + ' · ' + first.name : __('never') }),
+					h('dt', { text: __('Importance') }), h('dd', { text: String(p.importance) + (p.reasons.length ? ' · ' + p.reasons.map(function (r) { return REASONS[r] || r; }).join(', ') : '') })),
+				bots.length ? h('section', null, h('h3', { text: __('Requests by crawler') }), h('div', { 'class': 'rf-bars' }, bars)) : null,
+				obs.recent.length ? h('section', null, h('h3', { text: __('Recent requests') }), table([
+					{ label: __('When'), render: function (e) { return ago(e.ts); } },
+					{ label: __('Crawler'), render: function (e) { return e.name || '—'; } },
+					{ label: __('Status'), render: function (e) { return statusChip(e.status); } },
+					{ label: __('Via'), render: function (e) { return h('span', { 'class': 'rf-chip', text: e.source === 'import' ? __('log') : __('live') }); } }
+				], obs.recent.slice(0, 5), { compact: true })) : null,
+				x.findings.length ? h('section', null, h('h3', { text: sprintf(__('Open issues (%d)'), x.findings.length) }), h('ul', { 'class': 'rf-alerts-mini' }, x.findings.slice(0, 4).map(function (f) { return h('li', null, sev(f.severity), h('span', { text: f.title })); }))) : h('p', { 'class': 'rf-note-good' }, icon('checkCircle', 14), ' ', __('No open issues on this page.')),
+				visits ? h('p', { 'class': 'rf-note-good' }, sprintf(__('%1$s visits arrived from AI assistants in the last 30 days — mostly %2$s.'), num(visits), obs.referrals.slice().sort(function (a, b) { return b.visits - a.visits; })[0].name)) : null
+			]);
+			add(d.foot, [
+				h('a', { 'class': 'rf-btn rf-btn-primary', href: '#/pages/' + p.id, onclick: function () { d.close(true); } }, __('Full details')),
+				p.edit ? h('a', { 'class': 'rf-btn', href: p.edit }, __('Edit')) : null,
+				h('a', { 'class': 'rf-btn rf-btn-ghost', href: p.view, target: '_blank', rel: 'noopener' }, icon('external', 14), __('View')),
+				h('span', { 'class': 'rf-hint', text: __('Esc to close') })
+			]);
+		}).catch(function (e) {
+			if (openDrawer !== d) { return; }
+			clear(d.body).appendChild(h('div', { 'class': 'rf-error' }, icon('xCircle', 20), h('p', { text: e.message })));
+		});
 	}
 
 	// ── charts ───────────────────────────────────────────────────────────────
@@ -490,7 +662,9 @@
 			var hero = card(__('AI search readiness'), { cls: 'rf-hero', tools: link(__('All 18 checks'), '/readiness'), sub: __('How ready your site is to be found, read and cited by AI search. Built from measured evidence — not a prediction of rankings.') });
 			if (ready && has(ready.score)) {
 				add(hero.body, [
-					h('div', { 'class': 'rf-hero-row' }, h('div', { 'class': 'rf-hero-num' }, h('span', { text: String(ready.score) }), h('small', { text: '/100' })), groupMeters(ready.groups)),
+					h('div', { 'class': 'rf-hero-row' },
+						h('div', { 'class': 'rf-scoremeta' }, scoreRing(ready.score), scoreStatus(ready.score), weekDelta(o.readiness_trend, ready.score)),
+						groupMeters(ready.groups)),
 					ready.queue.length ? h('div', null, h('span', { 'class': 'rf-lbl', text: __('Fix first') }), h('ul', { 'class': 'rf-items' }, ready.queue.map(function (qi) { return h('li', null, h('a', { href: '#/readiness', text: qi.title }), h('span', { 'class': 'rf-muted', text: ' · ' + sprintf(__('+%s points'), qi.gain) })); }))) : null,
 					o.readiness_trend && o.readiness_trend.length > 1 ? line(o.readiness_trend, { label: __('AI search readiness'), max: 100 }) : null
 				]);
@@ -553,6 +727,32 @@
 			var refs = card(__('Visits from AI assistants'), { prov: 'observed', sub: __('People who clicked a link to your site inside an AI assistant.') });
 			refs.body.appendChild(table([{ label: __('Assistant'), key: 'name' }, { label: __('Visits'), num: true, render: function (r) { return num(r.visits); } }, { label: __('Landing pages'), num: true, render: function (r) { return num(r.pages); } }], o.referrals, { empty: __('No visits from AI assistants recorded in this period.') }));
 
+			// Before the first AI crawler: say capture is working, and offer what can be done without crawl data.
+			if (!obs.ai_requests && !o.top_bots.some(function (b) { return b.ai; })) {
+				var since = state.status && state.status.monitoring_since;
+				var listen = card(null);
+				add(listen.body, [h('div', { 'class': 'rf-listen' },
+					h('span', { 'class': 'rf-pulse', 'aria-hidden': 'true' }),
+					h('span', { 'class': 'rf-hint', text: since ? sprintf(__('Listening for AI crawlers since %s'), fmtDate(since)) : __('Listening for AI crawlers') }),
+					h('h4', { text: __('No AI crawler has visited yet — this is normal') }),
+					h('p', { text: __('Most sites see their first AI crawler within a few days. Visits show up here within minutes of happening, and you get an alert when a new crawler arrives.') }),
+					button(__('Test how your server answers AI crawlers'), function () {
+						return api('/technical/refresh', { method: 'POST' }).then(function (t) {
+							var r = (t.probe && t.probe.results) || [], refused = r.filter(function (x) { return x.refused; }).length;
+							if (t.probe && t.probe.available === false) { toast(__('Your server cannot request its own pages, so this test is not available here.'), 'error'); return; }
+							toast(refused ? sprintf(__('%1$d of %2$d test requests were refused — see Technical.'), refused, r.length) : sprintf(__('All %d test requests as AI crawlers got through.'), r.length), refused ? 'error' : 'info');
+						});
+					}, { icon: 'refresh' }))]);
+				var todo = card(__('Meanwhile: worth doing now'), { sub: __('None of these need crawl data.') });
+				var items = [];
+				if (ready && ready.queue.length) { items.push([sprintf(__('Your readiness score is %d'), ready.score), sprintf(_n('%d issue to look at', '%d issues to look at', ready.queue.length), ready.queue.length), __('Fix now'), '#/readiness', true]); }
+				if (!o.llms_enabled) { items.push([__('No llms.txt yet'), __('Generate one from your pages — preview it before it goes live.'), __('Set up'), '#/ai-files']); }
+				items.push([__('Check which AI crawlers may read the site'), __('robots.txt rules per crawler, and what blocking each one costs.'), __('Review'), '#/technical']);
+				items.push([__('Pages served from a cache are invisible here'), __('Import a server access log to fill the gap.'), __('Import'), '#/settings']);
+				todo.body.appendChild(h('ul', { 'class': 'rf-todo' }, items.map(function (it) { return h('li', null, h('div', null, h('strong', { text: it[0] }), h('span', { text: it[1] })), h('a', { 'class': 'rf-btn rf-btn-sm' + (it[4] ? ' rf-btn-primary' : ''), href: it[3] }, it[2])); })));
+				add(body, [h('div', { 'class': 'rf-grid rf-grid-hero' }, hero, h('div', { 'class': 'rf-stack' }, listen, todo)), h('div', { 'class': 'rf-grid' }, next, h('div', { 'class': 'rf-stack' }, alerts, refs))]);
+				return;
+			}
 			add(body, [h('div', { 'class': 'rf-grid rf-grid-hero' }, hero, h('div', { 'class': 'rf-stack' }, tiles, covCard)), tl, h('div', { 'class': 'rf-grid' }, bots, pages), h('div', { 'class': 'rf-grid' }, next, h('div', { 'class': 'rf-stack' }, alerts, refs))]);
 		}).catch(function (e) { if (live()) { fail(e, viewOverview); } });
 	}
@@ -779,7 +979,7 @@
 			body.appendChild(h('div', { 'class': 'rf-filterbar' }, segmented(filters, pagesState.filter, function (v) { goPages({ filter: v, page: 1 }); }, __('Filter')), search, sort));
 			var c = card(sprintf(_n('%s page', '%s pages', d.total), num(d.total)), { prov: 'observed' });
 			c.body.appendChild(table([
-				{ label: __('Page'), render: function (p) { return h('div', { 'class': 'rf-pagecell' }, link(p.title || p.path, '/pages/' + p.id), h('span', { 'class': 'rf-mono rf-muted', text: p.path }), p.important ? h('span', { 'class': 'rf-hint', text: p.reasons.map(function (r) { return REASONS[r] || r; }).join(' · ') }) : null); } },
+				{ label: __('Page'), render: function (p) { return h('div', { 'class': 'rf-pagecell' }, pageAnchor(p.title || p.path, p.id), h('span', { 'class': 'rf-mono rf-muted', text: p.path }), p.important ? h('span', { 'class': 'rf-hint', text: p.reasons.map(function (r) { return REASONS[r] || r; }).join(' · ') }) : null); } },
 				{ label: __('Importance'), num: true, render: function (p) { return p.pinned > 0 ? h('span', { title: __('Marked important') }, icon('pin', 12), ' 100') : p.pinned < 0 ? __('excluded') : String(p.importance); } },
 				{ label: __('AEO'), num: true, render: function (p) { return has(p.score) ? scoreChip(p.score) : h('span', { 'class': 'rf-muted', text: __('pending') }); } },
 				{ label: sprintf(__('AI requests (%dd)'), d.days), num: true, render: function (p) { return num(p.hits); } },
@@ -835,7 +1035,7 @@
 			var findings = card(__('Issues and recommendations'));
 			findings.body.appendChild(d.findings.length ? h('ol', { 'class': 'rf-recs' }, d.findings.map(function (f) {
 				var li = recItem(f);
-				li.appendChild(h('div', { 'class': 'rf-row' }, button(__('Ignore'), function () { return api('/findings/' + f.id, { method: 'POST', body: { status: 'ignored' } }).then(function () { viewPage(id); }); }, { small: true, ghost: true })));
+				li.appendChild(h('div', { 'class': 'rf-row' }, button(__('Ignore'), function () { return api('/findings/' + f.id, { method: 'POST', body: { status: 'ignored' } }).then(function () { viewPage(id); toast(__('Ignored.'), 'info', { undo: function () { api('/findings/' + f.id, { method: 'POST', body: { status: 'open' } }).then(function () { viewPage(id); }); } }); }); }, { small: true, ghost: true })));
 				return li;
 			})) : empty(__('No open issues on this page.')));
 			if (d.resolved.length) {
@@ -1020,7 +1220,7 @@
 			var c = card(sprintf(_n('%s open item', '%s open items', d.total), num(d.total)));
 			c.body.appendChild(d.items.length ? h('ol', { 'class': 'rf-recs' }, d.items.map(function (f) {
 				var li = recItem(f);
-				li.appendChild(h('div', { 'class': 'rf-row' }, button(__('Ignore'), function () { return api('/findings/' + f.id, { method: 'POST', body: { status: 'ignored' } }).then(function () { toast(__('Ignored. It will not be shown again unless it changes.')); viewRecommendations(); }); }, { small: true, ghost: true })));
+				li.appendChild(h('div', { 'class': 'rf-row' }, button(__('Ignore'), function () { return api('/findings/' + f.id, { method: 'POST', body: { status: 'ignored' } }).then(function () { viewRecommendations(); toast(__('Ignored. It will not be shown again unless it changes.'), 'info', { undo: function () { api('/findings/' + f.id, { method: 'POST', body: { status: 'open' } }).then(viewRecommendations); } }); }); }, { small: true, ghost: true })));
 				return li;
 			})) : empty(__('Nothing here. Change the filters, or check back after the next analysis.')));
 			if (recState.code) { body.insertBefore(h('div', { 'class': 'rf-banner rf-banner-info' }, icon('info'), h('span', { text: __('Showing one issue type.') }), button(__('Show all'), function () { goRecs({ code: '', page: 1 }); }, { small: true, ghost: true })), c); }
@@ -1030,6 +1230,17 @@
 	}
 
 	// ── Technical ────────────────────────────────────────────────────────────
+	/** What blocking a crawler costs, in plain words. [text, serious?] */
+	function consequence(r) {
+		var who = r.provider || r.name;
+		switch (r.category) {
+			case 'ai_training': return [__('Stops use for training future models. No effect on AI search answers.'), false];
+			case 'ai_search': return [sprintf(__('You disappear from %s\'s AI search answers.'), who), true];
+			case 'ai_user': case 'ai_agent': return [sprintf(__('%s can\'t open your pages when a user asks about them.'), who), true];
+			case 'search': return [sprintf(__('Drops you from %s search — and the AI answers built on it.'), who), true];
+		}
+		return [__('Little visible effect.'), false];
+	}
 	function viewTechnical() {
 		var live = begin('/technical');
 		if (!live) { return; }
@@ -1049,6 +1260,7 @@
 				{ label: __('Token'), render: function (r) { return h('span', { 'class': 'rf-mono', text: r.token }); } },
 				{ label: __('Whole site'), render: function (r) { return r.site_allowed ? h('span', { 'class': 'rf-chip rf-chip-good' }, icon('check', 12), __('Allowed')) : h('span', { 'class': 'rf-chip ' + (r.category === 'ai_training' ? 'rf-chip-warn' : 'rf-chip-crit') }, icon('ban', 12), __('Blocked')); } },
 				{ label: __('Rule'), render: function (r) { return r.rule ? h('span', { 'class': 'rf-mono', text: r.rule + (r.group ? '  (' + r.group + ')' : '') }) : h('span', { 'class': 'rf-muted', text: r.group ? __('no matching rule') : __('no group applies') }); } },
+				{ label: __('If blocked'), render: function (r) { var c = consequence(r); return h('span', { 'class': 'rf-consequence' + (c[1] && !r.site_allowed ? ' is-bad' : ''), text: (r.site_allowed ? '' : __('Blocked now: ')) + c[0] }); } },
 				{ label: __('Important pages blocked'), num: true, render: function (r) { return r.blocked_pages ? h('span', { 'class': 'rf-crit-text', text: num(r.blocked_pages) }) : '0'; } },
 				{ label: __('Obeys robots.txt'), render: function (r) { return r.respects === true ? __('yes') : r.respects === false ? __('no (user-triggered)') : __('unknown'); } }
 			], t.matrix.sort(function (a, b) { return (b.priority - a.priority) || a.name.localeCompare(b.name); }), { compact: true }));
@@ -1100,54 +1312,86 @@
 			return has(g.score) ? meter(g.score, 100, GROUP[k], { text: g.score + '%' }) : meter(0, 100, GROUP[k], { text: __('n/a'), level: 'info' });
 		}));
 	}
-	function queueItem(qi, onAccept) {
+	var readyState = { sev: '' };
+	var SEVWORD = { critical: __('Critical'), warning: __('Warning'), info: __('Notice') };
+	/** One row of the issue queue; "How to fix" opens the details in place. */
+	function issueRow(qi, onAccept, startOpen) {
 		var pages = qi.pages || [];
-		return h('li', { 'class': 'rf-rec rf-rec-' + qi.severity },
-			h('div', { 'class': 'rf-rec-head' }, sev(qi.severity), h('strong', { text: qi.title }),
-				h('span', { 'class': 'rf-chip rf-chip-good', title: __('Points the AI readiness score would gain if this were fully fixed.') }, icon('arrowUp', 12), sprintf(__('+%s points'), qi.gain)),
-				h('span', { 'class': 'rf-chip' }, EFFORT[qi.effort] || qi.effort), h('span', { 'class': 'rf-chip' }, GROUP[qi.group] || qi.group)),
-			h('p', { 'class': 'rf-why' }, h('span', { 'class': 'rf-lbl', text: __('What we found') }), qi.evidence),
-			h('p', { 'class': 'rf-why' }, h('span', { 'class': 'rf-lbl', text: __('Why it matters') }), qi.why),
-			h('p', { 'class': 'rf-action' }, h('span', { 'class': 'rf-lbl', text: __('What to do') }), qi.action),
-			pages.length ? h('div', null, h('span', { 'class': 'rf-lbl', text: __('Pages') }), h('ul', { 'class': 'rf-items' }, pages.slice(0, 5).map(function (p) { return h('li', null, link(p.title || pagePath(p.path), '/pages/' + p.page_id), h('span', { 'class': 'rf-muted rf-mono', text: ' ' + pagePath(p.path) })); }).concat(qi.affected > 5 ? [h('li', { 'class': 'rf-muted', text: sprintf(__('and %s more'), num(qi.affected - Math.min(5, pages.length))) })] : []))) : null,
-			h('div', { 'class': 'rf-row' },
-				qi.route ? h('a', { 'class': 'rf-btn rf-btn-sm', href: qi.route }, __('Open')) : null,
-				onAccept ? button(__('Accept as intended'), function () { return onAccept(qi.id); }, { small: true, ghost: true, title: __('For a deliberate choice (for example, blocking a crawler on purpose). Removes it from the queue and the score.') }) : null,
-				qi.since ? h('span', { 'class': 'rf-muted', text: sprintf(__('since %s'), fmtDay(qi.since)) }) : null));
+		var id = 'rf-acc-' + qi.id;
+		var acc = h('div', { 'class': 'rf-acc' + (startOpen ? ' is-open' : ''), id: id },
+			h('div', null, h('div', { 'class': 'rf-acc-inner' },
+				h('p', null, h('span', { 'class': 'rf-lbl', text: __('Why it matters') }), qi.why),
+				h('p', null, h('span', { 'class': 'rf-lbl', text: __('What to do') }), qi.action),
+				pages.length ? h('div', null, h('span', { 'class': 'rf-lbl', text: __('Start with') }), h('ul', { 'class': 'rf-items' }, pages.slice(0, 5).map(function (p) { return h('li', null, pageAnchor(p.title || pagePath(p.path), p.page_id), h('span', { 'class': 'rf-muted rf-mono', text: ' ' + pagePath(p.path) })); }).concat(qi.affected > pages.slice(0, 5).length ? [h('li', { 'class': 'rf-muted', text: sprintf(__('and %s more'), num(qi.affected - pages.slice(0, 5).length)) })] : []))) : null,
+				h('div', { 'class': 'rf-row' },
+					qi.route ? h('a', { 'class': 'rf-btn rf-btn-sm', href: qi.route }, qi.route.indexOf('/recommendations') >= 0 ? __('See every affected page') : __('Go there')) : null,
+					button(__('Accept as intended'), function () { return onAccept(qi); }, { small: true, ghost: true, title: __('For a deliberate choice, such as blocking a crawler on purpose. It leaves the queue and stops counting towards the score; you can undo it any time.') }),
+					qi.since ? h('span', { 'class': 'rf-muted', text: sprintf(__('open since %s'), fmtDay(qi.since)) }) : null))));
+		var toggle = h('button', { type: 'button', 'class': 'rf-btn rf-btn-sm rf-disclose', 'aria-expanded': startOpen ? 'true' : 'false', 'aria-controls': id, onclick: function () {
+			var open = toggle.getAttribute('aria-expanded') !== 'true';
+			toggle.setAttribute('aria-expanded', String(open));
+			acc.classList.toggle('is-open', open);
+		} }, __('How to fix'), icon('arrowDown', 12));
+		return h('li', { 'class': 'rf-issue' },
+			h('div', { 'class': 'rf-issue-row' },
+				h('span', { 'class': 'rf-chip ' + (qi.severity === 'critical' ? 'rf-chip-crit' : qi.severity === 'warning' ? 'rf-chip-warn' : '') }, icon(SEV[qi.severity][0], 12), SEVWORD[qi.severity]),
+				h('div', { 'class': 'rf-issue-main' }, h('strong', { text: qi.title }), h('span', { text: qi.evidence })),
+				h('div', { 'class': 'rf-issue-side' },
+					h('span', { 'class': 'rf-issue-aff', text: qi.of > 1 && qi.affected ? sprintf(_n('%s page', '%s pages', qi.affected), num(qi.affected)) : __('Site-wide') }),
+					h('span', { 'class': 'rf-chip rf-chip-good rf-gain', title: __('Points the score would gain once this is fully fixed.') }, sprintf(__('+%s pts'), qi.gain)),
+					h('span', { 'class': 'rf-chip', text: EFFORT[qi.effort] || qi.effort }),
+					toggle)),
+			acc);
 	}
 	function viewReadiness() {
 		var live = begin('/readiness');
 		if (!live) { return; }
 		loading();
-		var setStatus = function (id, status) { return api('/readiness/' + id, { method: 'POST', body: { status: status } }).then(function () { toast(status === 'accepted' ? __('Accepted. It no longer counts towards the score.') : __('Reopened.')); viewReadiness(); }); };
+		var setStatus = function (id, status) { return api('/readiness/' + id, { method: 'POST', body: { status: status } }); };
+		var accept = function (qi) {
+			return setStatus(qi.id, 'accepted').then(function () {
+				viewReadiness();
+				toast(sprintf(__('"%s" accepted as intended.'), qi.title), 'info', { undo: function () { setStatus(qi.id, 'open').then(viewReadiness).catch(function (e) { toast(e.message, 'error'); }); } });
+			});
+		};
 		api('/readiness').then(function (d) {
 			if (!live()) { return; }
-			var body = view(__('AI readiness'), __('18 checks of what lets AI search find, read and cite your site, with the fixes that gain the most first.'), button(__('Check again now'), function () { return api('/readiness/run', { method: 'POST' }).then(function () { toast(__('Checked.')); viewReadiness(); }); }, { icon: 'refresh' }));
-			var hero = card(__('AI readiness score'), { cls: 'rf-hero', sub: (d.scope.basis === 'important' ? sprintf(__('Page checks cover your %s important pages.'), num(d.scope.pages)) : sprintf(__('Page checks cover all %s pages (fewer than 5 are marked important so far).'), num(d.scope.pages))) + ' ' + __('Built only from measured evidence — not a prediction of rankings or citations.') });
+			var body = view(__('AI readiness'), __('18 checks of what lets AI search find, read and cite your site — fixes that gain the most first.'), button(__('Re-run checks'), function () { return api('/readiness/run', { method: 'POST' }).then(function () { toast(__('Checks re-run.')); viewReadiness(); }); }, { icon: 'refresh' }));
+			var n = { critical: 0, warning: 0, info: 0 };
+			d.queue.forEach(function (qi) { n[qi.severity]++; });
+
+			var hero = card(null, { cls: 'rf-hero' });
 			add(hero.body, [
-				h('div', { 'class': 'rf-hero-row' }, h('div', { 'class': 'rf-hero-num' }, h('span', { text: has(d.score) ? String(d.score) : '—' }), h('small', { text: '/100' })), groupMeters(d.groups)),
-				h('div', { 'class': 'rf-row' },
-					h('span', { 'class': 'rf-chip rf-chip-good' }, icon('check', 12), sprintf(__('%d passed'), d.counts.pass)),
-					d.counts.warn ? h('span', { 'class': 'rf-chip rf-chip-warn' }, icon('alert', 12), sprintf(__('%d warnings'), d.counts.warn)) : null,
-					d.counts.fail ? h('span', { 'class': 'rf-chip rf-chip-crit' }, icon('xCircle', 12), sprintf(__('%d problems'), d.counts.fail)) : null,
-					d.counts.na ? h('span', { 'class': 'rf-chip' }, sprintf(__('%d not applicable yet'), d.counts.na)) : null,
-					d.counts.accepted ? h('span', { 'class': 'rf-chip' }, sprintf(__('%d accepted'), d.counts.accepted)) : null,
-					h('span', { 'class': 'rf-muted', text: sprintf(__('checked %s'), ago(d.computed_at)) })),
-				d.trend && d.trend.length > 1 ? line(d.trend, { label: __('AI readiness'), max: 100 }) : null
+				h('div', { 'class': 'rf-scorehead' },
+					scoreRing(d.score),
+					h('div', { 'class': 'rf-scoremeta' }, scoreStatus(d.score), weekDelta(d.trend, d.score), h('span', { 'class': 'rf-hint', text: sprintf(__('Checked %s'), ago(d.computed_at)) })),
+					h('div', { 'class': 'rf-counts' },
+						h('div', { 'class': 'is-crit' }, h('span', { text: __('Critical') }), h('b', { text: String(n.critical) })),
+						h('div', { 'class': 'is-warn' }, h('span', { text: __('Warnings') }), h('b', { text: String(n.warning) })),
+						h('div', { 'class': 'is-info' }, h('span', { text: __('Notices') }), h('b', { text: String(n.info) })),
+						h('div', { 'class': 'is-good' }, h('span', { text: __('Passing') }), h('b', { text: String(d.counts.pass) })))),
+				groupMeters(d.groups),
+				h('p', { 'class': 'rf-hint', text: (d.scope.basis === 'important' ? sprintf(__('Page checks cover your %s important pages.'), num(d.scope.pages)) : sprintf(__('Page checks cover all %s pages (fewer than 5 are marked important so far).'), num(d.scope.pages))) + ' ' + __('Built only from measured evidence — not a prediction of rankings or citations.') })
 			]);
-			var queue = card(__('Issue queue'), { sub: __('Critical problems first, then by the points each fix would recover.') });
-			queue.body.appendChild(d.queue.length ? h('ol', { 'class': 'rf-recs' }, d.queue.map(function (qi) { return queueItem(qi, function (id) { return setStatus(id, 'accepted'); }); })) : empty(__('Nothing in the queue. Every check passes or was accepted.')));
-			var all = card(__('All checks'));
-			all.body.appendChild(table([
+
+			var shown = d.queue.filter(function (qi) { return !readyState.sev || qi.severity === readyState.sev; });
+			var list = h('ol', { 'class': 'rf-issues' });
+			var queue = card(__('Issue queue'), { sub: __('Critical problems first, then by the points each fix recovers.'), tools: d.queue.length ? segmented([['', sprintf(__('All %d'), d.queue.length)], ['critical', sprintf(__('Critical %d'), n.critical)], ['warning', sprintf(__('Warnings %d'), n.warning)], ['info', sprintf(__('Notices %d'), n.info)]], readyState.sev, function (v) { readyState.sev = v; viewReadiness(); }, __('Severity')) : null });
+			shown.forEach(function (qi, i) { list.appendChild(issueRow(qi, accept, i === 0 && !readyState.sev)); });
+			queue.body.appendChild(d.queue.length ? (shown.length ? list : empty(__('Nothing at this severity.'))) : h('div', { 'class': 'rf-listen' }, icon('checkCircle', 28), h('h4', { text: __('Nothing in the queue') }), h('p', { text: __('Every check passes or was accepted as intended. The checks run again every hour.') })));
+
+			var all = card(__('All 18 checks'));
+			var det = h('details', { 'class': 'rf-details' }, h('summary', { text: sprintf(__('Show all checks (%1$d passing, %2$d not applicable yet)'), d.counts.pass, d.counts.na) }), table([
 				{ label: __('Check'), render: function (c) { return h('div', { 'class': 'rf-pagecell' }, h('strong', { text: c.title }), h('span', { 'class': 'rf-muted', text: GROUP[c.group] })); } },
 				{ label: __('Result'), render: checkChip },
 				{ label: __('Evidence'), render: function (c) { return c.evidence; } },
 				{ label: __('Points'), num: true, render: function (c) { return c.status === 'na' || c.accepted ? '—' : (Math.round(c.weight * c.frac * 10) / 10) + ' / ' + c.weight; } },
-				{ label: '', render: function (c) { return c.accepted ? button(__('Reopen'), function () { return setStatus(c.id, 'open'); }, { small: true, ghost: true }) : (c.route ? h('a', { href: c.route, text: __('Details') }) : ''); } }
+				{ label: '', render: function (c) { return c.accepted ? button(__('Reopen'), function () { return setStatus(c.id, 'open').then(function () { toast(__('Reopened.')); viewReadiness(); }); }, { small: true, ghost: true }) : ''; } }
 			], d.checks, { compact: true }));
+			all.body.appendChild(det);
 			var fixed = card(__('Recently fixed'));
-			fixed.body.appendChild(d.resolved.length ? h('ul', { 'class': 'rf-items' }, d.resolved.map(function (r) { return h('li', null, icon('checkCircle', 12), ' ', r.title, h('span', { 'class': 'rf-muted', text: ' · ' + fmtDay(r.at) })); })) : empty(__('Checks that start passing are listed here.')));
-			add(body, [h('div', { 'class': 'rf-grid rf-grid-hero' }, hero, fixed), queue, all]);
+			fixed.body.appendChild(d.resolved.length ? h('ul', { 'class': 'rf-items' }, d.resolved.map(function (r) { return h('li', null, r.title, h('span', { 'class': 'rf-muted', text: ' · ' + fmtDay(r.at) })); })) : empty(__('Checks that start passing are listed here.')));
+			add(body, [hero, queue, h('div', { 'class': 'rf-grid' }, all, fixed)]);
 		}).catch(function (e) { if (live()) { fail(e, viewReadiness); } });
 	}
 
@@ -1161,59 +1405,125 @@
 		if (!p) { return h('span', { 'class': 'rf-chip' }, icon('refresh', 12), __('Not checked yet')); }
 		return h('span', { 'class': 'rf-chip rf-chip-crit', title: p.error || '' }, icon('xCircle', 12), p.status ? sprintf(__('Not reachable (HTTP %d)'), p.status) : __('Not reachable'));
 	}
+	/** Accessible tabs: arrow keys move between them, the panel follows. */
+	function tabs(items, current, onPick) {
+		var list = h('div', { 'class': 'rf-ctabs', role: 'tablist' });
+		var btns = items.map(function (it, i) {
+			var b = h('button', { type: 'button', role: 'tab', 'class': 'rf-ctab', 'aria-selected': String(it.id === current), tabindex: it.id === current ? '0' : '-1', onclick: function () { onPick(it.id); },
+				onkeydown: function (e) {
+					var d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+					if (!d) { return; }
+					e.preventDefault();
+					var n = items[(i + d + items.length) % items.length];
+					onPick(n.id, true);
+				} }, it.dot !== undefined ? h('i', { 'class': 'rf-dot-s' + (it.dot ? ' is-on' : ''), 'aria-hidden': 'true' }) : null, it.label);
+			list.appendChild(b);
+			return b;
+		});
+		list.focusCurrent = function () { btns.forEach(function (b) { if (b.getAttribute('aria-selected') === 'true') { b.focus(); } }); };
+		return list;
+	}
+	var filesState = { tab: 'llms.txt' };
 	function viewAiFiles() {
 		var live = begin('/ai-files');
 		if (!live) { return; }
 		loading();
-		var recheck = function () { return api('/ai-files/check', { method: 'POST' }).then(function () { toast(__('Checked.')); viewAiFiles(); }); };
+		var recheck = function () { return api('/ai-files/check', { method: 'POST' }).then(function () { toast(__('Rebuilt and checked.')); viewAiFiles(); }); };
 		api('/ai-files').then(function (d) {
 			if (!live()) { return; }
-			var st = d.settings, form = {};
-			var body = view(__('AI files'), __('llms.txt points language models at your best pages; ai.txt states your policy on AI training. Both are generated from your pages and kept up to date.'), button(__('Check again'), recheck, { icon: 'refresh' }));
+			var st = d.settings, form = {}, inputs = {};
+			var body = view(__('AI files'), __('llms.txt points AI assistants at your best pages; ai.txt states your policy on AI training. Both are built from your pages and kept up to date.'), button(__('Rebuild and check'), recheck, { icon: 'refresh' }));
 			if (d.subdir) { body.appendChild(h('div', { 'class': 'rf-banner rf-banner-warn' }, icon('alert'), h('span', { text: __('WordPress runs in a subfolder, so these files are served there. Crawlers look for them at the root of the domain — copy them there or ask your host for a rewrite.') }))); }
-			if (d.conflicts.length) { body.appendChild(h('div', { 'class': 'rf-banner rf-banner-info' }, icon('info'), h('span', { text: sprintf(__('%s also generates llms.txt. Use one generator: while this one is on, it answers the request first (a physical file still wins).'), d.conflicts.join(', ')) }))); }
+			if (d.conflicts.length) { body.appendChild(h('div', { 'class': 'rf-banner rf-banner-info' }, icon('info'), h('span', { text: sprintf(__('%s also generates llms.txt. Use one generator: while this one is on, it answers first (a real file on the server still wins).'), d.conflicts.join(', ')) }))); }
 
-			function toggle(key, label, hint) { var el = h('input', { type: 'checkbox', checked: !!st[key] }); form[key] = function () { return el.checked; }; return h('label', { 'class': 'rf-check' }, el, h('span', null, h('strong', { text: label }), hint ? h('span', { 'class': 'rf-hint', text: hint }) : null)); }
-			function field(key, label, input, hint) { form[key] = function () { return input.type === 'number' ? Number(input.value) : input.value; }; return h('label', { 'class': 'rf-field' }, h('strong', { text: label }), input, hint ? h('span', { 'class': 'rf-hint', text: hint }) : null); }
+			// ── settings (staged: nothing is written until Save) ──
+			function toggle(key, label, hint) { var el = h('input', { type: 'checkbox', checked: !!st[key] }); inputs[key] = el; form[key] = function () { return el.checked; }; return h('label', { 'class': 'rf-check' }, el, h('span', null, h('strong', { text: label }), hint ? h('span', { 'class': 'rf-hint', text: hint }) : null)); }
+			function field(key, label, input, hint) { inputs[key] = input; form[key] = function () { return input.type === 'number' ? Number(input.value) : input.value; }; return h('label', { 'class': 'rf-field' }, h('strong', { text: label }), input, hint ? h('span', { 'class': 'rf-hint', text: hint }) : null); }
 			var chosen = (st.llms_types || '').split(',').filter(Boolean);
 			var typeBoxes = d.types.map(function (t) { var el = h('input', { type: 'checkbox', value: t.id, checked: chosen.indexOf(t.id) >= 0 }); return h('label', { 'class': 'rf-check rf-check-sm' }, el, h('span', { text: t.label + (t.kind === 'taxonomy' ? ' ' + __('(archive)') : '') })); });
 			form.llms_types = function () { return typeBoxes.map(function (l) { return l.querySelector('input'); }).filter(function (i) { return i.checked; }).map(function (i) { return i.value; }).join(','); };
+			var policy = h('select', { 'class': 'rf-input' }, [['allow', __('Allow training on all content')], ['no_media', __('Allow text, not images, audio or video')], ['no_training', __('Do not use any content for training')]].map(function (o) { return h('option', { value: o[0], text: o[1], selected: st.ai_txt_policy === o[0] }); }));
+			form.ai_txt_policy = function () { return policy.value; };
 
-			var cfgCard = card(__('Settings'), { sub: __('These files are public. Nothing is served until you switch it on.') });
+			var dirty = h('span', { 'class': 'rf-dirty', 'aria-live': 'polite', hidden: true });
+			var save = button(__('Save and check'), function () {
+				var out = {};
+				Object.keys(form).forEach(function (k) { out[k] = form[k](); });
+				return api('/settings', { method: 'POST', body: out }).then(function () { return api('/ai-files/check', { method: 'POST' }); }).then(function () { toast(__('Saved. The files were rebuilt and checked.')); viewAiFiles(); });
+			}, { primary: true });
+			var discard = button(__('Discard'), function () { viewAiFiles(); }, { ghost: true });
+			var cfgCard = card(__('What\'s included'), { sub: __('These files are public; nothing is served until you switch it on.') });
 			add(cfgCard.body, [
-				toggle('llms_enabled', __('Serve /llms.txt'), __('A Markdown list of your most important pages with their descriptions. Pages that are noindex, erroring, canonicalised elsewhere or closed to AI search crawlers are left out.')),
-				toggle('llms_full', __('Also serve /llms-full.txt'), __('The text of your top pages in one file, for tools that read everything at once.')),
-				field('llms_summary', __('One-line summary'), h('input', { type: 'text', 'class': 'rf-input', value: st.llms_summary, placeholder: d.tagline || __('What the site is about, in one sentence') }), __('Leave empty to use the site tagline.')),
-				field('llms_intro', __('Notes for language models (optional)'), h('textarea', { 'class': 'rf-input', rows: 3, value: st.llms_intro, placeholder: __('For example: prices include VAT; we ship within the EU only.') })),
-				field('llms_max_links', __('Pages to list'), h('input', { type: 'number', min: 10, max: 500, 'class': 'rf-input', value: st.llms_max_links }), __('The most important pages first; a shorter "Optional" section follows.')),
-				h('strong', { text: __('Content to include') }), h('p', { 'class': 'rf-hint', text: __('None ticked: every public content type, with archives under "Optional".') }), h('div', { 'class': 'rf-checks' }, typeBoxes),
-				toggle('ai_txt_enabled', __('Serve /ai.txt'), __('Advisory. Crawlers obey robots.txt, which still decides who may read the site.')),
-				h('label', { 'class': 'rf-field' }, h('strong', { text: __('AI training policy') }), (function () {
-					var sel = h('select', { 'class': 'rf-input' }, [['allow', __('Allow training on all content')], ['no_media', __('Allow text, not images, audio or video')], ['no_training', __('Do not use any content for training')]].map(function (o) { return h('option', { value: o[0], text: o[1], selected: st.ai_txt_policy === o[0] }); }));
-					form.ai_txt_policy = function () { return sel.value; };
-					return sel;
-				})()),
-				h('div', { 'class': 'rf-savebar' }, button(__('Save and check'), function () {
-					var out = {};
-					Object.keys(form).forEach(function (k) { out[k] = form[k](); });
-					return api('/settings', { method: 'POST', body: out }).then(function () { return api('/ai-files/check', { method: 'POST' }); }).then(function () { toast(__('Saved and checked.')); viewAiFiles(); });
-				}, { primary: true }))
+				h('div', { 'class': 'rf-section-label', text: 'llms.txt' }),
+				toggle('llms_enabled', __('Serve /llms.txt'), __('Your most important pages first, with descriptions. Pages that are noindex, erroring, canonicalised elsewhere or closed to AI search crawlers are left out.')),
+				toggle('llms_full', __('Also serve /llms-full.txt'), __('The text of your top pages in one file.')),
+				field('llms_summary', __('One-line summary'), h('input', { type: 'text', 'class': 'rf-input', value: st.llms_summary, placeholder: d.tagline || __('What the site is about, in one sentence') }), __('Empty: your site tagline.')),
+				field('llms_intro', __('Notes for AI assistants (optional)'), h('textarea', { 'class': 'rf-input', rows: 3, value: st.llms_intro, placeholder: __('For example: prices include VAT; we ship within the EU only.') })),
+				field('llms_max_links', __('Pages to list'), h('input', { type: 'number', min: 10, max: 500, 'class': 'rf-input', value: st.llms_max_links })),
+				h('strong', { text: __('Content to include') }), h('div', { 'class': 'rf-checks' }, typeBoxes), h('span', { 'class': 'rf-hint', text: __('None ticked: every public content type, with archives under "Optional".') }),
+				h('div', { 'class': 'rf-section-label', text: 'ai.txt' }),
+				toggle('ai_txt_enabled', __('Serve /ai.txt'), __('Advisory. robots.txt still decides which crawlers may read the site.')),
+				h('label', { 'class': 'rf-field' }, h('strong', { text: __('AI training policy') }), policy),
+				h('div', { 'class': 'rf-savebar' }, save, discard, dirty)
 			]);
+			staged(form, cfgCard.body, save, dirty);
 
-			var cards = d.files.map(function (f) {
-				var c = card(f.file, { prov: 'observed', tools: fileState(f) });
-				var p = f.probe, fx = f.fetches;
-				add(c.body, [
+			// ── the files ──
+			var byName = {};
+			d.files.forEach(function (f) { byName[f.file] = f; });
+			var panel = h('div', { 'class': 'rf-stack', role: 'tabpanel' });
+			var tabBar = null;
+			var turnOn = function (key) {
+				inputs[key].checked = true;
+				inputs[key].dispatchEvent(new Event('change', { bubbles: true }));
+				if (key === 'llms_full' && !inputs.llms_enabled.checked) { inputs.llms_enabled.checked = true; inputs.llms_enabled.dispatchEvent(new Event('change', { bubbles: true })); }
+				save.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+				save.focus();
+				toast(__('Ticked. Review the settings, then Save.'));
+			};
+			var show = function (id, focus) {
+				filesState.tab = id;
+				var nt = tabs([
+					{ id: 'llms.txt', label: 'llms.txt', dot: byName['llms.txt'].enabled },
+					{ id: 'llms-full.txt', label: 'llms-full.txt', dot: byName['llms-full.txt'].enabled },
+					{ id: 'ai.txt', label: 'ai.txt', dot: byName['ai.txt'].enabled },
+					{ id: 'about', label: __('What is this?') }
+				], id, show);
+				if (tabBar) { tabBar.replaceWith(nt); }
+				tabBar = nt;
+				if (focus) { nt.focusCurrent(); }
+				clear(panel);
+				if (id === 'about') {
+					add(panel, [
+						h('p', { text: __('llms.txt is a short Markdown file at the root of a site that tells AI assistants and agents what the site is and which pages matter most, with a link and a one-line description for each. It is a proposed convention (llmstxt.org): cheap to provide, and some AI tools read it.') }),
+						h('p', { text: __('llms-full.txt puts the text of your main pages in one file, for tools that read everything at once.') }),
+						h('p', { text: __('ai.txt (from Spawning) states whether your content may be used to train AI models, by file type. It is a request, not a block: crawlers follow robots.txt, which you can review under Technical.') }),
+						h('p', { 'class': 'rf-hint', text: __('Everything here is generated from your published pages and rebuilt when they change. The "Live" badge means a real request to the address returned the file.') })
+					]);
+					return;
+				}
+				var f = byName[id], fx = f.fetches, p = f.probe;
+				var enableKey = id === 'ai.txt' ? 'ai_txt_enabled' : id === 'llms-full.txt' ? 'llms_full' : 'llms_enabled';
+				var copy = button(__('Copy'), function () {
+					return (navigator.clipboard ? navigator.clipboard.writeText(f.preview) : Promise.reject(new Error(__('Copying is not available in this browser.')))).then(function () { toast(__('Copied.')); });
+				}, { small: true, ghost: true });
+				var dl = h('a', { 'class': 'rf-btn rf-btn-sm rf-btn-ghost', href: f.truncated ? f.url : URL.createObjectURL(new Blob([f.preview], { type: 'text/plain' })), download: f.file }, icon('download', 14), __('Download'));
+				add(panel, [
+					h('div', { 'class': 'rf-toolbar' },
+						h('div', { 'class': 'rf-row' }, fileState(f), h('a', { href: f.url, target: '_blank', rel: 'noopener', 'class': 'rf-mono', text: f.url })),
+						f.preview ? h('div', { 'class': 'rf-row' }, copy, dl) : null),
+					f.preview ? h('pre', { 'class': 'rf-pre', style: 'max-height:440px', text: f.preview + (f.truncated ? '\n…' : '') })
+						: h('div', { 'class': 'rf-listen' }, icon('file', 26), h('h4', { text: sprintf(__('%s is off'), f.file) }), h('p', { text: __('Switch it on to generate it from your pages. You will see the result here before anything is public.') }), button(__('Turn on'), function () { turnOn(enableKey); }, { primary: true })),
 					h('dl', { 'class': 'rf-facts' },
-						h('dt', { text: __('Address') }), h('dd', null, h('a', { href: f.url, target: '_blank', rel: 'noopener', 'class': 'rf-mono', text: f.url })),
 						f.enabled ? h('dt', { text: __('Generated') }) : null, f.enabled ? h('dd', { text: (f.built_at ? ago(f.built_at) : '—') + ' · ' + num(f.bytes) + ' ' + __('bytes') + (f.links ? ' · ' + sprintf(_n('%s page', '%s pages', f.links), num(f.links)) : '') }) : null,
 						h('dt', { text: __('Last checked') }), h('dd', { text: p ? ago(p.checked_at) + (p.status ? ' · HTTP ' + p.status : '') : __('not yet') }),
-						h('dt', { text: __('AI crawler requests (30 days)') }), h('dd', { text: fx.hits ? num(fx.hits) + ' · ' + fx.bots.map(function (b) { return b.name + ' (' + num(b.hits) + ')'; }).join(', ') : __('none recorded') })),
-					f.preview ? h('details', { 'class': 'rf-details', open: f.enabled && f.file === 'llms.txt' ? true : null }, h('summary', { text: f.enabled ? __('Preview') : __('Preview (not served)') }), h('pre', { 'class': 'rf-pre', text: f.preview + (f.truncated ? '\n…' : '') })) : (f.enabled ? null : h('p', { 'class': 'rf-hint', text: __('Switch it on to see a preview.') }))
+						h('dt', { text: __('Fetched by AI crawlers (30 days)') }), h('dd', { text: fx.hits ? num(fx.hits) + ' · ' + fx.bots.map(function (b) { return b.name + ' (' + num(b.hits) + ')'; }).join(', ') : __('not yet') }))
 				]);
-				return c;
-			});
-			add(body, [h('div', { 'class': 'rf-grid' }, cfgCard, h('div', { 'class': 'rf-stack' }, cards))]);
+			};
+			var filesCard = card(null);
+			show(filesState.tab);
+			add(filesCard.body, [tabBar, panel]);
+			add(body, [h('div', { 'class': 'rf-grid rf-grid-hero' }, filesCard, cfgCard)]);
 		}).catch(function (e) { if (live()) { fail(e, viewAiFiles); } });
 	}
 
@@ -1266,7 +1576,7 @@
 					h('p', null, h('span', { 'class': 'rf-lbl', text: __('What to do') }), a.action),
 					h('div', { 'class': 'rf-row' }, a.route ? h('a', { 'class': 'rf-btn rf-btn-sm', href: a.route, onclick: function () { if (a.status === 'unread') { mark('read', false); } } }, __('Open')) : null,
 						a.status === 'unread' ? button(__('Mark as read'), function () { return mark('read'); }, { small: true, ghost: true }) : null,
-						button(__('Dismiss'), function () { return mark('dismissed'); }, { small: true, ghost: true })));
+						button(__('Dismiss'), function () { var was = a.status; return mark('dismissed').then(function () { toast(__('Alert dismissed.'), 'info', { undo: function () { mark(was === 'unread' ? 'unread' : 'read'); } }); }); }, { small: true, ghost: true })));
 			})));
 		}).catch(function (e) { if (live()) { fail(e, viewAlerts); } });
 	}
@@ -1357,7 +1667,10 @@
 					return res;
 				});
 			}
-			var saveBar = h('div', { 'class': 'rf-savebar' }, button(__('Save settings'), saveAndReport, { primary: true }));
+			var saveBtn = button(__('Save settings'), function () { return saveAndReport().then(function () { setTimeout(stg.reset, 0); }); }, { primary: true });
+			var dirty = h('span', { 'class': 'rf-dirty', 'aria-live': 'polite', hidden: true });
+			var saveBar = h('div', { 'class': 'rf-savebar' }, saveBtn, button(__('Discard'), function () { viewSettings(); }, { ghost: true }), dirty);
+			var stg = null;
 
 			var imp = card(__('Import a server access log'), { sub: __('Pages served from a page cache or CDN never reach WordPress, so their crawler visits are missed. Import an access log to fill the gap. The file is read in your browser — it is not uploaded; only crawler lines are sent to your site.') });
 			imp.body.appendChild(importer());
@@ -1375,6 +1688,7 @@
 			var lg = card(__('Diagnostics log'));
 			lg.body.appendChild(table([{ label: __('Time'), render: function (e) { return fmtDate(e.t); } }, { label: __('Level'), key: 'l' }, { label: __('Message'), key: 'm' }, { label: __('Details'), render: function (e) { return h('span', { 'class': 'rf-mono', text: JSON.stringify(e.ctx) }); } }], log.slice(0, 30), { compact: true, empty: __('Nothing logged.') }));
 			add(body, [h('div', { 'class': 'rf-grid' }, h('div', { 'class': 'rf-stack' }, tracking, verify), h('div', { 'class': 'rf-stack' }, privacy, notify, rk)), h('div', { 'class': 'rf-grid' }, important, guard), saveBar, h('div', { 'class': 'rf-grid' }, imp, h('div', { 'class': 'rf-stack' }, exp, sys)), lg]);
+			stg = staged(form, body, saveBtn, dirty);
 		}).catch(function (e) { if (live()) { fail(e, viewSettings); } });
 	}
 

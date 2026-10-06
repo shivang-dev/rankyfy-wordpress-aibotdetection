@@ -97,6 +97,10 @@ class Guard {
 			'counts'    => $counts,
 			'needs_ack' => 'confirm' === $mode && $counts['fail'] > 0,
 			'redirects' => self::redirects_for( $post->ID ),
+			// The saved slug, so the editor can offer "keep the old URL".
+			'old_slug'  => $saved && Util::normalize_path( $saved ) !== $path ? (string) $post->post_name : '',
+			// What AI crawlers did with this post's live URL (observed).
+			'crawl'     => $saved ? self::crawl_history( Util::normalize_path( $saved ) ) : null,
 		);
 	}
 
@@ -293,17 +297,21 @@ class Guard {
 		global $wpdb;
 		$hash = Util::url_hash( $path );
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT bot, hits, last_seen FROM ' . Installer::table( 'page_bots' ) . ' WHERE url_hash = %s', $hash ), ARRAY_A );
-		$out  = array( 'hits' => 0, 'last' => 0, 'bots' => array(), 'referrals' => 0 );
+		$out  = array( 'hits' => 0, 'last' => 0, 'bots' => array(), 'by_bot' => array(), 'referrals' => 0 );
 		foreach ( (array) $rows as $r ) {
 			$b = Registry::get( $r['bot'] );
 			if ( ! $b || ! $b['ai'] ) {
 				continue;
 			}
-			$out['hits']  += (int) $r['hits'];
-			$out['last']   = max( $out['last'], (int) $r['last_seen'] );
-			$out['bots'][] = $b['name'];
+			$out['hits']    += (int) $r['hits'];
+			$out['last']     = max( $out['last'], (int) $r['last_seen'] );
+			$out['by_bot'][] = array( 'name' => $b['name'], 'hits' => (int) $r['hits'], 'last' => (int) $r['last_seen'] );
 		}
-		$out['bots']      = array_slice( array_unique( $out['bots'] ), 0, 6 );
+		usort( $out['by_bot'], static function ( $a, $b ) {
+			return $b['hits'] <=> $a['hits'];
+		} );
+		$out['by_bot']    = array_slice( $out['by_bot'], 0, 6 );
+		$out['bots']      = array_column( $out['by_bot'], 'name' );
 		$out['referrals'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(hits) FROM ' . Installer::table( 'referrals' ) . ' WHERE url_hash = %s AND day >= %s', $hash, wp_date( 'Y-m-d', time() - 30 * DAY_IN_SECONDS ) ) );
 		return $out;
 	}

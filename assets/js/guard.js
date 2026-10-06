@@ -45,6 +45,13 @@
 		});
 	}
 
+	/** Put the saved slug back: the URL stays as it is and nothing needs redirecting. */
+	function keepOldUrl(slug, after) {
+		wp.data.dispatch('core/editor').editPost({ slug: slug });
+		wp.data.dispatch('core/notices').createNotice('info', __('The old URL is back. Nothing will need a redirect.'), { type: 'snackbar', id: 'rfaib-guard-slug' });
+		if (after) { setTimeout(after, 50); }
+	}
+
 	function Results(props) {
 		var res = props.result;
 		return el('ul', { style: { margin: 0 } }, res.checks.map(function (c) {
@@ -54,8 +61,22 @@
 				el('strong', { style: { color: st[1] } }, el('span', { 'aria-hidden': 'true' }, st[0] + ' '), el('span', { className: 'screen-reader-text' }, st[2] + ': '), c.title),
 				// A passing URL change still says where the redirect goes.
 				c.detail && (c.status !== 'pass' || c.id === 'url_change') ? el('div', null, c.detail) : null,
-				c.action && problem ? el('div', { style: { fontStyle: 'italic' } }, c.action) : null);
+				c.action && problem ? el('div', { style: { fontStyle: 'italic' } }, c.action) : null,
+				c.id === 'url_change' && res.old_slug ? el(C.Button, { variant: 'secondary', size: 'small', style: { marginTop: '6px' }, onClick: function () { keepOldUrl(res.old_slug, props.onChange); } }, __('Keep the old URL')) : null);
 		}));
+	}
+
+	/** Observed: what AI crawlers did with this post's live URL. */
+	function Crawl(props) {
+		var c = props.crawl;
+		if (!c) { return null; }
+		if (!c.hits) { return el('p', { style: { color: '#646970', margin: '8px 0' } }, __('No AI crawler has read this page yet.')); }
+		return el('div', { style: { margin: '10px 0' } },
+			el('strong', null, sprintf(__('AI crawlers on this page: %d requests'), c.hits)),
+			el('ul', { style: { margin: '4px 0 0' } }, c.by_bot.slice(0, 3).map(function (b) {
+				return el('li', { key: b.name }, b.name + ' — ' + b.hits);
+			})),
+			c.referrals ? el('div', { style: { color: '#00702a' } }, sprintf(__('%d visits from AI assistants in 30 days'), c.referrals)) : null);
 	}
 
 	function Redirects(props) {
@@ -92,7 +113,7 @@
 		if (chk.error) { return el(C.Notice, { status: 'warning', isDismissible: false }, chk.error); }
 		if (!chk.result) { return null; }
 		return el('div', null,
-			el(Results, { result: chk.result }),
+			el(Results, { result: chk.result, onChange: chk.run }),
 			needsAck ? el(C.CheckboxControl, { label: __('I understand — publish anyway'), checked: ack, onChange: setAck }) : null,
 			el(C.Button, { variant: 'link', onClick: chk.run, disabled: chk.busy }, __('Check again')));
 	}
@@ -101,7 +122,8 @@
 		var chk = useCheck(true);
 		return el('div', null,
 			chk.error ? el(C.Notice, { status: 'warning', isDismissible: false }, chk.error) : null,
-			chk.result ? el(Results, { result: chk.result }) : (chk.busy ? el(C.Spinner) : null),
+			chk.result ? el(Results, { result: chk.result, onChange: chk.run }) : (chk.busy ? el(C.Spinner) : null),
+			chk.result ? el(Crawl, { crawl: chk.result.crawl }) : null,
 			chk.result ? el(Redirects, { items: chk.result.redirects }) : null,
 			el(C.Button, { variant: 'secondary', onClick: chk.run, isBusy: chk.busy, disabled: chk.busy }, __('Check now')));
 	}
