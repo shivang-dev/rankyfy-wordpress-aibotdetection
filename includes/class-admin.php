@@ -53,6 +53,32 @@ class Admin {
 			'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="black" d="M10 2a3 3 0 0 1 3 3v1h2a2 2 0 0 1 2 2v6a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8a2 2 0 0 1 2-2h2V5a3 3 0 0 1 3-3zm0 1.6A1.4 1.4 0 0 0 8.6 5v1h2.8V5A1.4 1.4 0 0 0 10 3.6zM7.5 10a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zm5 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM7 14.5v1h6v-1z"/></svg>' ),
 			58
 		);
+		// Sections of the app as submenu items. The first one is the app page
+		// itself; the others link to its routes (#/…), so moving between them
+		// does not reload the page. admin.js keeps the highlight in step.
+		$sections = array(
+			''                 => __( 'Overview', 'rankyfy-ai-crawlers' ),
+			'/readiness'       => __( 'AI readiness', 'rankyfy-ai-crawlers' ),
+			'/crawlers'        => __( 'Crawlers', 'rankyfy-ai-crawlers' ),
+			'/pages'           => __( 'Pages', 'rankyfy-ai-crawlers' ),
+			'/opportunities'   => __( 'Opportunities', 'rankyfy-ai-crawlers' ),
+			'/recommendations' => __( 'Recommendations', 'rankyfy-ai-crawlers' ),
+			'/technical'       => __( 'Technical', 'rankyfy-ai-crawlers' ),
+			'/ai-files'        => __( 'AI files', 'rankyfy-ai-crawlers' ),
+			'/history'         => __( 'History', 'rankyfy-ai-crawlers' ),
+			'/alerts'          => __( 'Alerts', 'rankyfy-ai-crawlers' ) . $badge,
+			'/settings'        => __( 'Settings', 'rankyfy-ai-crawlers' ),
+		);
+		foreach ( $sections as $route => $label ) {
+			add_submenu_page(
+				self::SLUG,
+				__( 'AI Crawlers', 'rankyfy-ai-crawlers' ),
+				$label,
+				Rest::capability(),
+				'' === $route ? self::SLUG : 'admin.php?page=' . self::SLUG . '#' . $route,
+				'' === $route ? array( __CLASS__, 'render' ) : null
+			);
+		}
 	}
 
 	public static function action_links( $links ) {
@@ -88,6 +114,7 @@ class Admin {
 				'siteUrl'   => home_url( '/' ),
 				'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
 				'version'   => RFAIB_VERSION,
+				'slug'      => self::SLUG,
 				'importBatch' => Importer::BATCH,
 			)
 		);

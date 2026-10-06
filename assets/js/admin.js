@@ -317,7 +317,7 @@
 			})()));
 	}
 	/** Readiness score as a ring, with a worded status beside it (never colour alone). */
-	function scoreLevel(v) { return !has(v) ? 'none' : v >= 75 ? 'good' : v >= 50 ? 'warn' : 'crit'; }
+	function scoreLevel(v) { return !has(v) ? 'none' : v >= 70 ? 'good' : v >= 40 ? 'warn' : 'crit'; } // same bands as meter()
 	function scoreRing(v, opts) {
 		opts = opts || {};
 		var size = opts.size || 116, sw = opts.size && opts.size < 90 ? 8 : 10, r = (size - sw) / 2, c = 2 * Math.PI * r, lvl = scoreLevel(v);
@@ -444,8 +444,8 @@
 					{ label: __('Status'), render: function (e) { return statusChip(e.status); } },
 					{ label: __('Via'), render: function (e) { return h('span', { 'class': 'rf-chip', text: e.source === 'import' ? __('log') : __('live') }); } }
 				], obs.recent.slice(0, 5), { compact: true })) : null,
-				x.findings.length ? h('section', null, h('h3', { text: sprintf(__('Open issues (%d)'), x.findings.length) }), h('ul', { 'class': 'rf-alerts-mini' }, x.findings.slice(0, 4).map(function (f) { return h('li', null, sev(f.severity), h('span', { text: f.title })); }))) : h('p', { 'class': 'rf-note-good' }, icon('checkCircle', 14), ' ', __('No open issues on this page.')),
-				visits ? h('p', { 'class': 'rf-note-good' }, sprintf(__('%1$s visits arrived from AI assistants in the last 30 days — mostly %2$s.'), num(visits), obs.referrals.slice().sort(function (a, b) { return b.visits - a.visits; })[0].name)) : null
+				x.findings.length ? h('section', null, h('h3', { text: sprintf(__('Open issues (%d)'), x.findings.length) }), h('ul', { 'class': 'rf-alerts-mini' }, x.findings.slice(0, 4).map(function (f) { return h('li', null, sev(f.severity), h('span', { text: f.title })); }))) : h('div', { 'class': 'rf-banner rf-banner-info' }, icon('checkCircle'), h('span', { text: __('No open issues on this page.') })),
+				visits ? h('div', { 'class': 'rf-banner rf-banner-info' }, icon('info'), h('span', null, sprintf(__('%1$s visits arrived from AI assistants in the last 30 days — mostly %2$s.'), num(visits), obs.referrals.slice().sort(function (a, b) { return b.visits - a.visits; })[0].name))) : null
 			]);
 			add(d.foot, [
 				h('a', { 'class': 'rf-btn rf-btn-primary', href: '#/pages/' + p.id, onclick: function () { d.close(true); } }, __('Full details')),
@@ -583,27 +583,50 @@
 	// ── app shell ────────────────────────────────────────────────────────────
 	var root = document.getElementById('rfaib-app');
 	var state = { days: 30, status: null };
-	var TABS = [
-		['/', __('Overview')], ['/readiness', __('AI readiness')], ['/crawlers', __('Crawlers')], ['/pages', __('Pages')], ['/opportunities', __('Opportunities')],
-		['/recommendations', __('Recommendations')], ['/technical', __('Technical')], ['/ai-files', __('AI files')], ['/history', __('History')], ['/alerts', __('Alerts')], ['/settings', __('Settings')]
-	];
-	var shell = { nav: null, main: null, banner: null };
+	// Sections live in the WordPress admin menu (AI Crawlers → …), registered in class-admin.php.
+	var SECTIONS = ['/', '/readiness', '/crawlers', '/pages', '/opportunities', '/recommendations', '/technical', '/ai-files', '/history', '/alerts', '/settings'];
+	var shell = { main: null, banner: null };
 	function buildShell() {
 		clear(root);
-		shell.nav = h('nav', { 'class': 'rf-tabs', 'aria-label': __('AI Crawler Monitor sections') });
 		shell.banner = h('div', { 'class': 'rf-banners' });
 		shell.main = h('main', { 'class': 'rf-main', tabindex: '-1' });
-		add(root, [h('header', { 'class': 'rf-top' }, h('div', { 'class': 'rf-brand' }, icon('robot', 22), h('div', null, h('strong', { text: __('AI Crawler Monitor') }), h('span', { 'class': 'rf-hint', text: __('by RankyFy') }))), shell.nav), shell.banner, shell.main]);
+		add(root, [h('header', { 'class': 'rf-top' }, h('div', { 'class': 'rf-brand' }, icon('robot', 22), h('div', null, h('strong', { text: __('AI Crawler Monitor') }), h('span', { 'class': 'rf-hint', text: __('by RankyFy') })))), shell.banner, shell.main]);
 	}
 	function route() { var hsh = location.hash.replace(/^#/, '') || '/'; return hsh.split('?')[0]; }
+	/** The section a route belongs to: /pages/12 → /pages. */
+	function section(r) {
+		for (var i = SECTIONS.length - 1; i > 0; i--) { if (r === SECTIONS[i] || r.indexOf(SECTIONS[i] + '/') === 0) { return SECTIONS[i]; } }
+		return '/';
+	}
+	/**
+	 * Highlight the current section in the WordPress admin menu and keep the
+	 * Alerts count there up to date. WordPress marks the menu once per page
+	 * load; routes change without a reload, so this follows them.
+	 */
 	function renderNav() {
-		var cur = route();
-		clear(shell.nav);
-		TABS.forEach(function (t) {
-			var on = t[0] === '/' ? cur === '/' : cur.indexOf(t[0]) === 0;
-			var badge = t[0] === '/alerts' && state.status && state.status.unread_alerts ? h('span', { 'class': 'rf-count', text: num(state.status.unread_alerts) }) : null;
-			shell.nav.appendChild(h('a', { href: '#' + t[0], 'class': 'rf-tab' + (on ? ' is-on' : ''), 'aria-current': on ? 'page' : null }, t[1], badge));
+		var cur = section(route());
+		var items = document.querySelectorAll('#toplevel_page_' + cfg.slug + ' .wp-submenu li');
+		Array.prototype.forEach.call(items, function (li) {
+			var a = li.querySelector('a');
+			if (!a) { return; }
+			var href = a.getAttribute('href') || '';
+			var i = href.indexOf('#');
+			var target = i >= 0 ? href.slice(i + 1) : (href.indexOf('page=' + cfg.slug) >= 0 ? '/' : null);
+			if (target === null) { return; }
+			var on = target === cur;
+			li.classList.toggle('current', on);
+			a.classList.toggle('current', on);
+			if (on) { a.setAttribute('aria-current', 'page'); } else { a.removeAttribute('aria-current'); }
+			if (target === '/alerts' && state.status) {
+				var n = state.status.unread_alerts || 0, badge = a.querySelector('.awaiting-mod');
+				if (n && !badge) { a.appendChild(document.createTextNode(' ')); badge = a.appendChild(h('span', { 'class': 'awaiting-mod' }, h('span', { 'class': 'pending-count' }))); }
+				if (badge) { badge.hidden = !n; badge.querySelector('.pending-count').textContent = num(n); }
+			}
 		});
+		// Browser tab title: the section's name, as WordPress would set it on a page load.
+		var current = document.querySelector('#toplevel_page_' + cfg.slug + ' .wp-submenu a.current');
+		var name = current && current.firstChild && current.firstChild.nodeType === 3 ? current.firstChild.nodeValue.trim() : '';
+		if (name) { document.title = document.title.replace(/^[^‹]*‹/, name + ' ‹'); }
 	}
 	function renderBanners() {
 		clear(shell.banner);
@@ -1313,7 +1336,6 @@
 		}));
 	}
 	var readyState = { sev: '' };
-	var SEVWORD = { critical: __('Critical'), warning: __('Warning'), info: __('Notice') };
 	/** One row of the issue queue; "How to fix" opens the details in place. */
 	function issueRow(qi, onAccept, startOpen) {
 		var pages = qi.pages || [];
@@ -1334,11 +1356,11 @@
 		} }, __('How to fix'), icon('arrowDown', 12));
 		return h('li', { 'class': 'rf-issue' },
 			h('div', { 'class': 'rf-issue-row' },
-				h('span', { 'class': 'rf-chip ' + (qi.severity === 'critical' ? 'rf-chip-crit' : qi.severity === 'warning' ? 'rf-chip-warn' : '') }, icon(SEV[qi.severity][0], 12), SEVWORD[qi.severity]),
+				h('span', null, sev(qi.severity)),
 				h('div', { 'class': 'rf-issue-main' }, h('strong', { text: qi.title }), h('span', { text: qi.evidence })),
 				h('div', { 'class': 'rf-issue-side' },
 					h('span', { 'class': 'rf-issue-aff', text: qi.of > 1 && qi.affected ? sprintf(_n('%s page', '%s pages', qi.affected), num(qi.affected)) : __('Site-wide') }),
-					h('span', { 'class': 'rf-chip rf-chip-good rf-gain', title: __('Points the score would gain once this is fully fixed.') }, sprintf(__('+%s pts'), qi.gain)),
+					h('span', { 'class': 'rf-chip rf-gain', title: __('Points the score would gain once this is fully fixed.') }, sprintf(__('+%s pts'), qi.gain)),
 					h('span', { 'class': 'rf-chip', text: EFFORT[qi.effort] || qi.effort }),
 					toggle)),
 			acc);
@@ -1757,7 +1779,8 @@
 		else if (r === '/alerts') { viewAlerts(); }
 		else if (r === '/settings') { viewSettings(); }
 		else { location.hash = '#/'; }
-		if (shell.main && document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('rf-tab')) { shell.main.focus({ preventScroll: true }); }
+		// Chosen from the admin menu: move focus to the content, as a page load would.
+		if (shell.main && document.activeElement && document.activeElement.closest && document.activeElement.closest('#adminmenu')) { shell.main.focus({ preventScroll: true }); }
 	}
 	if (root) {
 		buildShell();
