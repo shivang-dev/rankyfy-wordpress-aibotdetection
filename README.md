@@ -20,15 +20,35 @@ Open **AI Crawlers** in the admin menu.
 
 | Screen | What it answers |
 |---|---|
-| **Overview** | AI search readiness score, AI crawler requests, crawlers seen, fetches made for assistant users, visits from AI assistants, crawled vs. not crawled, the crawling timeline, top crawlers and pages, what to do next, latest alerts |
+| **Overview** | AI readiness score with what to fix first, AI crawler requests, crawlers seen, fetches made for assistant users, visits from AI assistants, crawled vs. not crawled, the crawling timeline, top crawlers and pages, what to do next, latest alerts |
+| **AI readiness** | 18 checks across access, discovery, content and trust, a score out of 100 and an **issue queue**: critical problems first, then the fixes that gain the most points. Each item shows what was found, why it matters, what to do and the pages involved. A deliberate choice (for example blocking a crawler on purpose) can be *accepted* so it stops counting |
 | **Crawlers** | Every crawler that visited: what it is for, how many requests, how many were **verified**, impersonations, pages, response times, robots.txt status. Per crawler: sessions, pages, responses, networks, user agents, latest requests. Also **Unrecognised bots** and the **Registry** |
 | **Pages** | Which pages AI crawlers read and which they ignore: filters for important, crawled, not crawled, never crawled, no longer crawled, errors and blocked. Per page: which crawlers read it and when, robots.txt per crawler, what crawlers find on the page, issues, internal-link suggestions, AI analysis |
 | **Opportunities** | What AI assistants fetched for their users, visits from AI assistants, topics your content covers, internal links to add, and — clearly separated — AI-suggested keywords, questions and content gaps |
 | **Recommendations** | Every open issue, ordered by severity and page importance, each with *why it matters* and *what to do* |
-| **Technical** | robots.txt by crawler, how your server/CDN answers AI crawlers, page-level issues, crawler verification data, your robots.txt |
+| **Technical** | robots.txt by crawler, how your server/CDN answers AI crawlers, page-level issues, redirects added for changed addresses, crawler verification data, your robots.txt |
+| **AI files** | Generate and serve `/llms.txt` (your most important pages with descriptions, for language models), `/llms-full.txt` (the text of your top pages) and `/ai.txt` (your AI-training policy). Previews, a live check of each address, and how often AI crawlers fetched them |
 | **History** | Activity by day/week/month, readiness and coverage over time, growth by crawler, new crawlers, fixed issues |
 | **Alerts** | Notifications with what happened, why it matters, affected pages and what to do |
-| **Settings** | Tracking, privacy and retention, verification, priority crawlers, notifications, log import, CSV export, status |
+| **Settings** | Tracking, the publish check, privacy and retention, verification, priority crawlers, notifications, log import, CSV export, status |
+
+### Publish check (in the editor)
+
+When you publish or update a page, the editor shows an **AI crawler check**:
+
+- **noindex** from Yoast SEO, Rank Math, SEOPress or All in One SEO (for the page or its content type), or *Discourage search engines* in Settings → Reading
+- **robots.txt** rules that block your priority AI crawlers from the page's address
+- a **canonical URL** that points to another page
+- an **address change** on a published page, with how often AI crawlers read the old address
+- **thin content**, or an important page that lost most of its text
+
+By default it warns. In **Settings → Publish check** you can make it ask for confirmation before publishing a page with a problem that keeps it out of AI search. Critical problems on important pages also raise an alert, whichever editor or tool published the page. The classic editor shows the same check in a side box.
+
+When a published page's address changes (its slug or its parent page), the old address redirects permanently (301) to the new one, and so do the addresses of the pages below it. The redirect is used only when the old address would otherwise be *not found*, so a page you later publish at that address always wins. You can see and remove redirects under **Technical**, or turn them off in Settings.
+
+### llms.txt and ai.txt
+
+Nothing is served until you switch it on in **AI files**. `llms.txt` lists your most important pages first, with descriptions; it leaves out pages that are noindex, erroring, canonicalised elsewhere or closed to AI search crawlers. It updates when your content changes. A real `llms.txt` file in your site's root folder is served by the web server first and always wins; the screen tells you when that happens, and when another SEO plugin also generates one. `ai.txt` only states your training policy; **robots.txt still decides which crawlers may read the site.**
 
 ### Observed vs. suggested
 
@@ -72,6 +92,7 @@ If a page cache or CDN serves a page, WordPress never sees the request, so the c
 
 - **Numbers do not move / "Background processing has not run"** — WP-Cron is not running. Ask your host to call `wp-cron.php` every 5 minutes.
 - **Few or no crawler visits although crawlers come** — a page cache or CDN answers them before WordPress. Import an access log, or check the **Technical** screen for blocks.
+- **llms.txt shows "Not reachable"** — the server does not pass `.txt` requests to WordPress. Turn on pretty permalinks (Settings → Permalinks), or on Nginx make sure unknown files fall through to `index.php`. If WordPress runs in a subfolder, the file is served there, not at the domain root.
 - **"Your server or CDN refuses requests that identify as …"** — check bot-protection settings in your CDN (for example Cloudflare's AI bot blocking), firewall and security plugins.
 - **"Your site is behind a proxy or CDN that is not set up here"** — crawlers cannot be verified through an unknown proxy, so they show as "user agent only". Set the visitor address header and the proxy's address ranges in Settings. Cloudflare is recognised automatically.
 

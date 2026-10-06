@@ -42,6 +42,19 @@ class Settings {
 			'ai_auto'             => array( false, 'bool' ),   // spend RankyFy credits on AI analysis of top pages automatically
 			'ai_auto_pages'       => array( 10, 'int', array( 1, 100 ) ),
 			'priority_bots'       => array( 'oai-searchbot,chatgpt-user,claude-searchbot,claude-user,perplexitybot,perplexity-user,googlebot,bingbot', 'csv' ),
+			// Publish-time guard.
+			'guard_mode'          => array( 'warn', 'enum', array( 'off', 'warn', 'confirm' ) ), // confirm: critical problems must be acknowledged before publishing
+			'guard_redirects'     => array( true, 'bool' ),    // 301 from a published URL that changed (slug or parent) to the new one
+			'guard_thin_words'    => array( 300, 'int', array( 50, 3000 ) ),
+			// llms.txt / ai.txt (served only when switched on: they are public files).
+			'llms_enabled'        => array( false, 'bool' ),
+			'llms_full'           => array( false, 'bool' ),   // also /llms-full.txt with the text of the top pages
+			'llms_summary'        => array( '', 'text' ),      // the "> summary" line; empty = site tagline
+			'llms_intro'          => array( '', 'text' ),      // optional notes under the summary
+			'llms_max_links'      => array( 80, 'int', array( 10, 500 ) ),
+			'llms_types'          => array( '', 'csv' ),       // post types to list; empty = every public type
+			'ai_txt_enabled'      => array( false, 'bool' ),
+			'ai_txt_policy'       => array( 'allow', 'enum', array( 'allow', 'no_media', 'no_training' ) ),
 		);
 	}
 
@@ -126,6 +139,8 @@ class Settings {
 			case 'csv':
 				$parts = array_filter( array_map( 'sanitize_key', explode( ',', (string) $v ) ) );
 				return implode( ',', array_slice( array_unique( $parts ), 0, 40 ) );
+			case 'text':
+				return substr( sanitize_textarea_field( (string) $v ), 0, 2000 );
 			case 'lines':
 				$lines = preg_split( '/\r\n|\r|\n/', (string) $v );
 				$lines = array_filter( array_map( static function ( $l ) {

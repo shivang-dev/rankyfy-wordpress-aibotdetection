@@ -34,13 +34,13 @@ class Rest {
 		return current_user_can( self::capability() );
 	}
 
-	private static function route( $path, $methods, $callback, array $args = array(), $limit = null ) {
+	private static function route( $path, $methods, $callback, array $args = array(), $limit = null, $permission = null ) {
 		register_rest_route(
 			self::NS,
 			$path,
 			array(
 				'methods'             => $methods,
-				'permission_callback' => array( __CLASS__, 'can' ),
+				'permission_callback' => $permission ? $permission : array( __CLASS__, 'can' ),
 				'args'                => $args,
 				'callback'            => static function ( WP_REST_Request $r ) use ( $callback, $methods, $limit ) {
 					$action = $limit ? $limit : ( WP_REST_Server::READABLE === $methods ? 'read' : 'write' );
@@ -112,6 +112,30 @@ class Rest {
 		self::route( '/settings', WP_REST_Server::READABLE, array( $c, 'get_settings' ) );
 		self::route( '/settings', WP_REST_Server::CREATABLE, array( $c, 'save_settings' ) );
 		self::route( '/log', WP_REST_Server::READABLE, array( $c, 'log' ) );
+
+		self::route( '/readiness', WP_REST_Server::READABLE, array( $c, 'readiness' ) );
+		self::route( '/readiness/run', WP_REST_Server::CREATABLE, array( $c, 'readiness_run' ), array(), 'analyze' );
+		self::route( '/readiness/(?P<check>[a-z_]{2,40})', WP_REST_Server::CREATABLE, array( $c, 'readiness_status' ) );
+		self::route( '/ai-files', WP_REST_Server::READABLE, array( $c, 'ai_files' ) );
+		self::route( '/ai-files/check', WP_REST_Server::CREATABLE, array( $c, 'ai_files_check' ), array(), 'sync' );
+		self::route( '/redirects', WP_REST_Server::READABLE, array( $c, 'redirects' ) );
+		self::route( '/redirects/(?P<id>\d+)', WP_REST_Server::DELETABLE, array( $c, 'redirect_delete' ), $id );
+		// The publish guard is used by whoever edits the post, not only administrators.
+		self::route(
+			'/guard/(?P<id>\d+)',
+			WP_REST_Server::CREATABLE,
+			array( $c, 'guard' ),
+			$id + array(
+				'title'   => array( 'type' => 'string' ),
+				'content' => array( 'type' => 'string' ),
+				'slug'    => array( 'type' => 'string' ),
+				'parent'  => array( 'type' => 'integer', 'minimum' => 0 ),
+			),
+			'guard',
+			static function ( WP_REST_Request $r ) {
+				return current_user_can( 'edit_post', (int) $r['id'] );
+			}
+		);
 	}
 
 	// ── handlers ───────────────────────────────────────────────────────────
@@ -425,11 +449,85 @@ class Rest {
 	public static function save_settings( WP_REST_Request $r ) {
 		$in = (array) $r->get_json_params();
 		Settings::update( $in );
+		if ( preg_grep( '/^(llms_|ai_txt_)/', array_keys( $in ) ) ) {
+			Llms::stale();
+		}
 		Analytics::bust();
 		return self::get_settings();
 	}
 
 	public static function log() {
 		return array( 'items' => Log::entries() );
+	}
+
+	// ── AI readiness ───────────────────────────────────────────────────────
+
+	public static function readiness() {
+		$out          = Readiness::get();
+		$out['trend'] = array();
+		foreach ( Analytics::snapshots( 180 ) as $s ) {
+			if ( isset( $s['readiness'] ) && null !== $s['readiness'] ) {
+				$out['trend'][] = array( 'day' => $s['day'], 'value' => $s['readiness'] );
+			}
+		}
+		return $out;
+	}
+
+	public static function readiness_run() {
+		Coverage::site();
+		Readiness::compute();
+		Analytics::bust();
+		return self::readiness();
+	}
+
+	public static function readiness_status( WP_REST_Request $r ) {
+		if ( ! Readiness::set_status( (string) $r['check'], sanitize_key( (string) $r['status'] ) ) ) {
+			return new WP_Error( 'rfaib_invalid', __( 'Unknown check or status.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+		}
+		Readiness::compute();
+		Analytics::bust();
+		return self::readiness();
+	}
+
+	// ── llms.txt / ai.txt ──────────────────────────────────────────────────
+
+	public static function ai_files() {
+		return Llms::status();
+	}
+
+	public static function ai_files_check() {
+		Llms::stale();
+		Llms::rebuild();
+		Llms::probe();
+		Readiness::compute();
+		Analytics::bust();
+		return Llms::status();
+	}
+
+	// ── publish guard ──────────────────────────────────────────────────────
+
+	public static function redirects( WP_REST_Request $r ) {
+		return Guard::redirects( max( 1, (int) $r['page'] ) );
+	}
+
+	public static function redirect_delete( WP_REST_Request $r ) {
+		return array( 'ok' => Guard::delete_redirect( (int) $r['id'] ) ) + Guard::redirects( 1 );
+	}
+
+	public static function guard( WP_REST_Request $r ) {
+		$post = get_post( (int) $r['id'] );
+		if ( ! $post ) {
+			return new WP_Error( 'rfaib_not_found', __( 'Post not found.', 'rankyfy-ai-crawlers' ), array( 'status' => 404 ) );
+		}
+		if ( ! in_array( $post->post_type, Inventory::post_types(), true ) ) {
+			return new WP_Error( 'rfaib_invalid', __( 'This content type is not public, so it is not checked.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+		}
+		$edits = array();
+		foreach ( array( 'title', 'content', 'slug', 'parent' ) as $k ) {
+			if ( $r->has_param( $k ) ) {
+				$edits[ $k ] = $r[ $k ];
+			}
+		}
+		return Guard::check( $post, $edits );
 	}
 }

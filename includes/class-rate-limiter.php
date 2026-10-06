@@ -24,6 +24,7 @@ class Rate_Limiter {
 		'import'     => array( 2000, HOUR_IN_SECONDS ), // batches of parsed log lines
 		'export'     => array( 30, HOUR_IN_SECONDS ),
 		'test'       => array( 10, HOUR_IN_SECONDS ),   // test notification
+		'guard'      => array( 600, HOUR_IN_SECONDS ),  // publish-time checks from the editor
 	);
 
 	/** @return true|WP_Error */

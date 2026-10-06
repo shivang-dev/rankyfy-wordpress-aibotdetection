@@ -23,6 +23,9 @@
  * Notifications and history:
  *   alerts, snapshots
  *
+ * Publish guard:
+ *   redirects     old URL → post, written when a published URL changes (slug or parent)
+ *
  * @package RankyfyAIB
  */
 
@@ -32,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Installer {
 
-	const TABLES = array( 'events', 'verify_queue', 'ip_verdicts', 'agents', 'referrals', 'daily', 'daily_pages', 'daily_bots', 'page_bots', 'bots_seen', 'sessions', 'pages', 'page_terms', 'terms', 'links', 'findings', 'alerts', 'snapshots' );
+	const TABLES = array( 'events', 'verify_queue', 'ip_verdicts', 'agents', 'referrals', 'daily', 'daily_pages', 'daily_bots', 'page_bots', 'bots_seen', 'sessions', 'pages', 'page_terms', 'terms', 'links', 'findings', 'alerts', 'snapshots', 'redirects' );
 
 	public static function table( $name ) {
 		global $wpdb;
@@ -387,6 +390,25 @@ class Installer {
 			day date NOT NULL,
 			metrics longtext NULL,
 			PRIMARY KEY  (day)
+		) {$c};"
+		);
+
+		// Redirects for published URLs that changed. Read only when WordPress is
+		// about to answer 404, so ordinary page views never touch this table.
+		dbDelta(
+			"CREATE TABLE {$t['redirects']} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			source_hash char(32) NOT NULL,
+			source varchar(512) NOT NULL DEFAULT '',
+			post_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			reason varchar(10) NOT NULL DEFAULT 'slug',
+			created_at int(10) unsigned NOT NULL,
+			hits int(10) unsigned NOT NULL DEFAULT 0,
+			bot_hits int(10) unsigned NOT NULL DEFAULT 0,
+			last_hit int(10) unsigned NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			UNIQUE KEY source_hash (source_hash),
+			KEY post (post_id)
 		) {$c};"
 		);
 

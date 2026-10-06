@@ -107,6 +107,8 @@ class Analytics {
 				'top_pages'   => self::top_pages( $days, 10 ),
 				'score'       => Scorer::site(),
 				'score_trend' => self::snapshot_series( 'aeo_score', 90 ),
+				'readiness'   => Readiness::summary(),
+				'readiness_trend' => self::snapshot_series( 'readiness', 90 ),
 				'findings'    => Findings::counts(),
 				'next_steps'  => self::recommendations( array( 'limit' => 5 ) )['items'],
 				'alerts'      => Alerts::list( '', 5 ),
@@ -952,6 +954,7 @@ class Analytics {
 		global $wpdb;
 		$ov    = self::coverage( 30 );
 		$score = Scorer::site();
+		$ready = Readiness::get();
 		$db    = Installer::table( 'daily_bots' );
 		$ai    = self::ai_in();
 		$y     = wp_date( 'Y-m-d', time() - DAY_IN_SECONDS );
@@ -966,6 +969,10 @@ class Analytics {
 			'coverage'         => $ov['important'] ? round( 100 * $ov['important_crawled'] / $ov['important'], 1 ) : null,
 			'aeo_score'        => $score ? $score['score'] : null,
 			'aeo_parts'        => $score ? $score['parts'] : null,
+			'readiness'        => $ready['score'],
+			'readiness_groups' => array_map( static function ( $g ) {
+				return $g['score'];
+			}, $ready['groups'] ),
 			'findings'         => Findings::counts(),
 			'referrals_7d'     => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(hits) FROM ' . Installer::table( 'referrals' ) . ' WHERE day >= %s', self::since( 7 ) ) ),
 		);

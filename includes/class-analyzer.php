@@ -423,14 +423,7 @@ class Analyzer {
 		if ( $facts['fetched'] || ! $post ) {
 			return false;
 		}
-		if ( '1' === (string) get_post_meta( $post->ID, '_yoast_wpseo_meta-robots-noindex', true ) ) {
-			return true;
-		}
-		$rm = get_post_meta( $post->ID, 'rank_math_robots', true );
-		if ( is_array( $rm ) && in_array( 'noindex', $rm, true ) ) {
-			return true;
-		}
-		if ( 'yes' === get_post_meta( $post->ID, '_seopress_robots_index', true ) ) {
+		if ( Guard::seo_meta( $post )['noindex'] ) {
 			return true;
 		}
 		return '0' === (string) get_option( 'blog_public' );

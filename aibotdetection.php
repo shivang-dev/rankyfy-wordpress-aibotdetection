@@ -16,7 +16,7 @@
 defined( 'ABSPATH' ) || exit;
 
 define( 'RFAIB_VERSION', '1.0.0' );
-define( 'RFAIB_DB_VERSION', '3' );
+define( 'RFAIB_DB_VERSION', '4' );
 define( 'RFAIB_FILE', __FILE__ );
 define( 'RFAIB_DIR', plugin_dir_path( __FILE__ ) );
 define( 'RFAIB_URL', plugin_dir_url( __FILE__ ) );

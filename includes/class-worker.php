@@ -8,10 +8,12 @@
  *               alerts (new crawler, first crawl of an important page) →
  *               throttle flooding impostors → inventory and page analysis
  *               batches
- *   hourly      coverage/score refresh, periodic alert rules, robots.txt
- *               check, RankyFy registry/ranges sync, publisher range refresh
- *   daily       retention, history snapshot, probes, link suggestions,
- *               unknown-agent classification, email digest
+ *   hourly      coverage/score refresh, AI readiness checks, periodic alert
+ *               rules, robots.txt check, RankyFy registry/ranges sync,
+ *               publisher range refresh
+ *   daily       retention, history snapshot, probes (crawlers, llms.txt and
+ *               ai.txt), link suggestions, unknown-agent classification,
+ *               email digest
  *
  * Nothing here runs in a visitor's request.
  *
@@ -108,6 +110,7 @@ class Worker {
 			if ( $left() > 2 && self::due( 'hourly', HOUR_IN_SECONDS ) ) {
 				Robots::refresh();
 				Coverage::run( max( 3, min( 15, $left() ) ) );
+				Readiness::compute();
 				Alerts::periodic();
 				Rankyfy::sync_registry();
 				Ranges::refresh_direct( min( 10, $left() ) );
@@ -115,6 +118,7 @@ class Worker {
 			if ( $left() > 2 && self::due( 'daily', DAY_IN_SECONDS ) ) {
 				Aggregator::prune();
 				Probe::run( min( 10, $left() ) );
+				Llms::probe();
 				Linker::rebuild( min( 8, $left() ) );
 				Rankyfy::share_unknown_agents();
 				Rankyfy::auto_ai_analysis();

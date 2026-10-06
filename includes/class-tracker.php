@@ -66,6 +66,14 @@ class Tracker {
 		add_action( 'shutdown', array( __CLASS__, 'record' ), PHP_INT_MAX );
 	}
 
+	/** The registered crawler making the current request, or '' (visitors, unknown bots). */
+	public static function current_bot() {
+		if ( ! is_array( self::$hit ) || empty( self::$hit['bot'] ) || 'spoofed' === ( self::$hit['cls'] ?? '' ) ) {
+			return '';
+		}
+		return (string) self::$hit['bot'];
+	}
+
 	private static function should_track() {
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			return false;

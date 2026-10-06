@@ -17,6 +17,8 @@ class Plugin {
 
 		Worker::init();
 		Inventory::init();
+		Guard::init();
+		Llms::init();
 		Rest::init();
 		if ( is_admin() ) {
 			Admin::init();
