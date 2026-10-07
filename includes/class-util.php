@@ -115,6 +115,11 @@ class Util {
 	 * headers are present, but the address in use is the connection's. Crawler
 	 * verification would then test the proxy's address, so it is skipped.
 	 */
+	/** This request came through Cloudflare (it adds CF-Ray to every request it proxies). */
+	public static function cloudflare_seen() {
+		return ! empty( $_SERVER['HTTP_CF_RAY'] ) || ! empty( $_SERVER['HTTP_CF_CONNECTING_IP'] );
+	}
+
 	public static function proxy_suspected() {
 		if ( null === self::$forwarded ) {
 			self::client_ip();

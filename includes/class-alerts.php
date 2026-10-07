@@ -101,7 +101,10 @@ class Alerts {
 
 	// ── stream rules ───────────────────────────────────────────────────────
 
+	const FIRST_HIT = 'rfaib_first_hit_email'; // address to tell once, when the first AI crawler arrives
+
 	public static function stream( array $new_bots, array $first_crawls ) {
+		self::first_hit( $new_bots );
 		foreach ( array_keys( $new_bots ) as $id ) {
 			$b = Registry::get( $id );
 			if ( ! $b ) {
@@ -498,6 +501,29 @@ class Alerts {
 				'#/crawlers?tab=unknown',
 				YEAR_IN_SECONDS
 			);
+		}
+	}
+
+	/** The one-off "your first AI crawler arrived" email the owner asked for on the empty dashboard. */
+	private static function first_hit( array $new_bots ) {
+		$to = (string) get_option( self::FIRST_HIT, '' );
+		if ( '' === $to ) {
+			return;
+		}
+		foreach ( array_keys( $new_bots ) as $id ) {
+			$b = Registry::get( $id );
+			if ( ! $b || empty( $b['ai'] ) ) {
+				continue;
+			}
+			delete_option( self::FIRST_HIT ); // once per site, whatever happens to the mail
+			wp_mail(
+				$to,
+				/* translators: 1: crawler, 2: site */
+				sprintf( __( '[%2$s] First AI crawler: %1$s', 'rankyfy-ai-crawlers' ), $b['name'], wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+				/* translators: 1: crawler, 2: company, 3: link */
+				sprintf( __( "%1\$s (%2\$s) has just made its first visit to your site.\n\nSee what it read: %3\$s\n\nYou asked for this one email on the RankyFy dashboard; you won't get it again.", 'rankyfy-ai-crawlers' ), $b['name'], $b['provider'], admin_url( 'admin.php?page=' . Admin::SLUG . '#/crawlers/' . $id ) )
+			);
+			return;
 		}
 	}
 

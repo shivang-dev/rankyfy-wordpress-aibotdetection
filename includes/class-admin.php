@@ -45,34 +45,21 @@ class Admin {
 		$n     = self::unread();
 		$badge = $n ? ' <span class="awaiting-mod count-' . (int) $n . '"><span class="pending-count">' . number_format_i18n( $n ) . '</span></span>' : '';
 		add_menu_page(
-			__( 'AI Crawlers', 'rankyfy-ai-crawlers' ),
-			__( 'AI Crawlers', 'rankyfy-ai-crawlers' ) . $badge,
+			__( 'RankyFy', 'rankyfy-ai-crawlers' ),
+			__( 'RankyFy', 'rankyfy-ai-crawlers' ) . $badge,
 			Rest::capability(),
 			self::SLUG,
 			array( __CLASS__, 'render' ),
 			'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="black" d="M10 2a3 3 0 0 1 3 3v1h2a2 2 0 0 1 2 2v6a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8a2 2 0 0 1 2-2h2V5a3 3 0 0 1 3-3zm0 1.6A1.4 1.4 0 0 0 8.6 5v1h2.8V5A1.4 1.4 0 0 0 10 3.6zM7.5 10a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zm5 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM7 14.5v1h6v-1z"/></svg>' ),
-			58
+			81 // just below Settings: a plugin that pushes itself up the menu is the most-complained-about behaviour
 		);
-		// Sections of the app as submenu items. The first one is the app page
-		// itself; the others link to its routes (#/…), so moving between them
-		// does not reload the page. admin.js keeps the highlight in step.
-		$sections = array(
-			''                 => __( 'Overview', 'rankyfy-ai-crawlers' ),
-			'/readiness'       => __( 'AI readiness', 'rankyfy-ai-crawlers' ),
-			'/crawlers'        => __( 'Crawlers', 'rankyfy-ai-crawlers' ),
-			'/pages'           => __( 'Pages', 'rankyfy-ai-crawlers' ),
-			'/opportunities'   => __( 'Opportunities', 'rankyfy-ai-crawlers' ),
-			'/recommendations' => __( 'Recommendations', 'rankyfy-ai-crawlers' ),
-			'/technical'       => __( 'Technical', 'rankyfy-ai-crawlers' ),
-			'/ai-files'        => __( 'AI files', 'rankyfy-ai-crawlers' ),
-			'/history'         => __( 'History', 'rankyfy-ai-crawlers' ),
-			'/alerts'          => __( 'Alerts', 'rankyfy-ai-crawlers' ) . $badge,
-			'/settings'        => __( 'Settings', 'rankyfy-ai-crawlers' ),
-		);
-		foreach ( $sections as $route => $label ) {
+		// One top-level entry, seven children. The first is the app page itself;
+		// the others link to its routes (#/…), so moving between them does not
+		// reload the page. admin.js keeps the highlight in step.
+		foreach ( self::sections() as $route => $label ) {
 			add_submenu_page(
 				self::SLUG,
-				__( 'AI Crawlers', 'rankyfy-ai-crawlers' ),
+				__( 'RankyFy', 'rankyfy-ai-crawlers' ),
 				$label,
 				Rest::capability(),
 				'' === $route ? self::SLUG : 'admin.php?page=' . self::SLUG . '#' . $route,
@@ -81,13 +68,27 @@ class Admin {
 		}
 	}
 
+	/** Menu sections: route => label. */
+	public static function sections() {
+		return array(
+			''           => __( 'Dashboard', 'rankyfy-ai-crawlers' ),
+			'/crawlers'  => __( 'AI Crawlers', 'rankyfy-ai-crawlers' ),
+			'/referrals' => __( 'AI Referrals', 'rankyfy-ai-crawlers' ),
+			'/readiness' => __( 'Readiness Score', 'rankyfy-ai-crawlers' ),
+			'/access'    => __( 'Access Manager', 'rankyfy-ai-crawlers' ),
+			'/llms'      => __( 'llms.txt', 'rankyfy-ai-crawlers' ),
+			'/visibility' => __( 'AI Visibility', 'rankyfy-ai-crawlers' ),
+			'/settings'  => __( 'Settings', 'rankyfy-ai-crawlers' ),
+		);
+	}
+
 	public static function action_links( $links ) {
 		array_unshift( $links, '<a href="' . esc_url( admin_url( 'admin.php?page=' . self::SLUG ) ) . '">' . esc_html__( 'Dashboard', 'rankyfy-ai-crawlers' ) . '</a>' );
 		return $links;
 	}
 
 	public static function render() {
-		echo '<div class="wrap rfaib-wrap"><h1 class="screen-reader-text">' . esc_html__( 'AI Crawler Monitor', 'rankyfy-ai-crawlers' ) . '</h1><hr class="wp-header-end"><div id="rfaib-app" class="rfaib-app" aria-live="polite"><p class="rfaib-boot">' . esc_html__( 'Loading…', 'rankyfy-ai-crawlers' ) . '</p></div></div>';
+		echo '<div class="wrap rfaib-wrap"><h1 class="screen-reader-text">' . esc_html__( 'RankyFy', 'rankyfy-ai-crawlers' ) . '</h1><hr class="wp-header-end"><div id="rfaib-app" class="rfaib-app" aria-live="polite"><p class="rfaib-boot">' . esc_html__( 'Loading…', 'rankyfy-ai-crawlers' ) . '</p></div></div>';
 	}
 
 	private static function version( $file ) {
@@ -172,7 +173,13 @@ class Admin {
 		$put = static function ( array $row ) use ( $out ) {
 			fputcsv( $out, array_map( array( Util::class, 'csv_cell' ), $row ) );
 		};
-		if ( 'pages' === $type ) {
+		if ( 'referrals' === $type ) {
+			$put( array( 'landing_page', 'engine', 'visits_' . $days . 'd' ) );
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT MAX(path) path, source, SUM(hits) h FROM ' . Installer::table( 'referrals' ) . ' WHERE day >= %s GROUP BY url_hash, source ORDER BY h DESC LIMIT 100000', wp_date( 'Y-m-d', time() - ( $days - 1 ) * DAY_IN_SECONDS ) ), ARRAY_A );
+			foreach ( (array) $rows as $r ) {
+				$put( array( $r['path'], Registry::referrer_name( $r['source'] ), $r['h'] ) );
+			}
+		} elseif ( 'pages' === $type ) {
 			$put( array( 'path', 'title', 'type', 'importance', 'aeo_score', 'words', 'internal_links_in', 'last_ai_crawl_utc', 'ai_requests_' . $days . 'd', 'crawlers' ) );
 			$offset = 0;
 			do {

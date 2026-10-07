@@ -78,6 +78,10 @@ class Readiness {
 			'groups'      => $r['groups'],
 			'counts'      => $r['counts'],
 			'queue'       => array_slice( $r['queue'], 0, 3 ),
+			'open'        => count( $r['queue'] ),
+			'quick'       => count( array_filter( $r['queue'], static function ( $q ) {
+				return 'quick' === $q['effort'];
+			} ) ),
 			'computed_at' => $r['computed_at'],
 		);
 	}

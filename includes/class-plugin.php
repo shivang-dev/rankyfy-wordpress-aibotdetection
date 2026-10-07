@@ -19,9 +19,11 @@ class Plugin {
 		Inventory::init();
 		Guard::init();
 		Llms::init();
+		Access::init();
 		Rest::init();
 		if ( is_admin() ) {
 			Admin::init();
+			Columns::init();
 		}
 		add_action(
 			'init',

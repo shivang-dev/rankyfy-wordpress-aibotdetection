@@ -30,6 +30,7 @@ defined( 'ABSPATH' ) || exit;
 class Llms {
 
 	const CACHE  = 'rfaib_llms_cache';
+	const OVERRIDE = 'rfaib_llms_override'; // hand-written llms.txt; served instead of the generated one
 	const STATUS = 'rfaib_llms_status';
 	const FILES  = array( 'llms.txt', 'llms-full.txt', 'ai.txt' );
 	const HEADER = 'X-RankyFy-Generated';
@@ -99,6 +100,10 @@ class Llms {
 			return;
 		}
 		$built = self::get( $file );
+		$over  = 'llms.txt' === $file ? self::override() : '';
+		if ( '' !== $over ) {
+			$built['body'] = $over; // the owner's own version always wins over a rebuild
+		}
 		$etag  = '"' . md5( $built['body'] ) . '"';
 		status_header( 200 );
 		header( 'Content-Type: text/plain; charset=utf-8' );
@@ -143,6 +148,7 @@ class Llms {
 					$s['llms_intro'],
 					$s['llms_max_links'],
 					$s['llms_types'],
+					$s['llms_min_words'],
 					$s['ai_txt_policy'],
 					$s['importance_min'],
 					$s['priority_bots'],
@@ -180,6 +186,20 @@ class Llms {
 		);
 		update_option( self::CACHE, $cache, false );
 		return $cache[ $file ];
+	}
+
+	public static function override() {
+		return (string) get_option( self::OVERRIDE, '' );
+	}
+
+	/** Save a hand-written llms.txt ('' goes back to the generated one). */
+	public static function set_override( $text ) {
+		$text = trim( str_replace( array( "\r\n", "\r" ), "\n", wp_strip_all_tags( (string) $text ) ) );
+		if ( '' === $text ) {
+			delete_option( self::OVERRIDE );
+		} else {
+			update_option( self::OVERRIDE, substr( $text, 0, 500000 ) . "\n", false );
+		}
 	}
 
 	public static function rebuild() {
@@ -222,8 +242,22 @@ class Llms {
 	 */
 	public static function candidates( $limit ) {
 		global $wpdb;
+		// Pages AI crawlers read most come first: the plugin knows what they care about.
+		$min   = (int) Settings::get( 'llms_min_words' );
 		$rows  = $wpdb->get_results(
-			$wpdb->prepare( 'SELECT id, object_type, object_id, subtype, path, title, importance, pinned, http_status, facts FROM ' . Installer::table( 'pages' ) . ' WHERE deleted = 0 AND pinned >= 0 AND noindex = 0 AND (http_status = 0 OR http_status = 200) ORDER BY pinned DESC, importance DESC, id ASC LIMIT %d', $limit * 3 ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare(
+				'SELECT p.id, p.object_type, p.object_id, p.subtype, p.path, p.title, p.importance, p.pinned, p.http_status, p.facts, COALESCE(h.hits, 0) ai_hits
+				 FROM ' . Installer::table( 'pages' ) . ' p
+				 LEFT JOIN (SELECT url_hash, SUM(hits) hits FROM ' . Installer::table( 'daily_pages' ) . ' WHERE day >= %s GROUP BY url_hash) h ON h.url_hash = p.url_hash
+				 WHERE p.deleted = 0 AND p.pinned >= 0 AND p.noindex = 0 AND (p.http_status = 0 OR p.http_status = 200)
+				   AND (p.object_type <> %s OR p.word_count >= %d OR p.analyzed_at = 0)
+				 ORDER BY p.pinned DESC, (p.object_type = %s) DESC, ai_hits DESC, p.importance DESC, p.id ASC LIMIT %d',
+				wp_date( 'Y-m-d', time() - 89 * DAY_IN_SECONDS ),
+				'post',
+				$min,
+				'home',
+				$limit * 3
+			),
 			ARRAY_A
 		);
 		$types   = self::types();
@@ -542,6 +576,9 @@ class Llms {
 			$active = self::active( $f );
 			$built  = $active ? self::get( $f ) : null;
 			$body   = $built ? $built['body'] : ( 'ai.txt' === $f ? self::build_ai_txt() : '' );
+			if ( 'llms.txt' === $f && '' !== self::override() ) {
+				$body = self::override();
+			}
 			$files[] = array(
 				'file'      => $f,
 				'url'       => home_url( '/' . $f ),
@@ -561,7 +598,9 @@ class Llms {
 			'files'     => $files,
 			'subdir'    => '' !== $base,
 			'conflicts' => self::conflicts(),
-			'settings'  => array_intersect_key( Settings::all(), array_flip( array( 'llms_enabled', 'llms_full', 'llms_summary', 'llms_intro', 'llms_max_links', 'llms_types', 'ai_txt_enabled', 'ai_txt_policy' ) ) ),
+			'override'  => '' !== self::override(),
+			'generated' => Settings::get( 'llms_enabled' ) ? self::get( 'llms.txt' )['body'] : self::build_llms(),
+			'settings'  => array_intersect_key( Settings::all(), array_flip( array( 'llms_enabled', 'llms_full', 'llms_summary', 'llms_intro', 'llms_max_links', 'llms_types', 'llms_min_words', 'ai_txt_enabled', 'ai_txt_policy' ) ) ),
 			'types'     => array_values(
 				array_merge(
 					array_map( static function ( $t ) {

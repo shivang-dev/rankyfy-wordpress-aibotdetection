@@ -16,21 +16,22 @@ Nothing to configure. A RankyFy account is optional: it adds AI analysis of page
 
 ## What you see
 
-Open **AI Crawlers** in the admin menu.
+Open **RankyFy** in the admin menu (just below Settings).
 
 | Screen | What it answers |
 |---|---|
-| **Overview** | AI readiness score with what to fix first, AI crawler requests, crawlers seen, fetches made for assistant users, visits from AI assistants, crawled vs. not crawled, the crawling timeline, top crawlers and pages, what to do next, latest alerts |
-| **AI readiness** | 18 checks across access, discovery, content and trust, a score out of 100 and an **issue queue**: critical problems first, then the fixes that gain the most points. Each item shows what was found, why it matters, what to do and the pages involved. A deliberate choice (for example blocking a crawler on purpose) can be *accepted* so it stops counting |
-| **Crawlers** | Every crawler that visited: what it is for, how many requests, how many were **verified**, impersonations, pages, response times, robots.txt status. Per crawler: sessions, pages, responses, networks, user agents, latest requests. Also **Unrecognised bots** and the **Registry** |
-| **Pages** | Which pages AI crawlers read and which they ignore: filters for important, crawled, not crawled, never crawled, no longer crawled, errors and blocked. Click a page title for a quick view (crawlers, recent requests, open issues) without leaving the list. Full page: which crawlers read it and when, robots.txt per crawler, what crawlers find on the page, issues, internal-link suggestions, AI analysis |
-| **Opportunities** | What AI assistants fetched for their users, visits from AI assistants, topics your content covers, internal links to add, and — clearly separated — AI-suggested keywords, questions and content gaps |
-| **Recommendations** | Every open issue, ordered by severity and page importance, each with *why it matters* and *what to do* |
-| **Technical** | robots.txt by crawler with what blocking each one would cost (training vs. search), how your server/CDN answers AI crawlers, page-level issues, redirects added for changed addresses, crawler verification data, your robots.txt |
-| **AI files** | Generate and serve `/llms.txt` (your most important pages with descriptions, for language models), `/llms-full.txt` (the text of your top pages) and `/ai.txt` (your AI-training policy). Previews, a live check of each address, and how often AI crawlers fetched them |
-| **History** | Activity by day/week/month, readiness and coverage over time, growth by crawler, new crawlers, fixed issues |
-| **Alerts** | Notifications with what happened, why it matters, affected pages and what to do |
-| **Settings** | Tracking, the publish check, privacy and retention, verification, priority crawlers, notifications, log import, CSV export, status |
+| **Dashboard** | AI crawler hits, pages ever read (and how many never were), visits from AI assistants, the share of verified hits; daily hits per crawler; the pages AI crawlers read most, with their top crawler and AI visits; your readiness score; visits by AI engine. In the first days, before any AI crawler arrives, it confirms capture is working, can email you on the first hit, runs a test request and lists what is worth doing meanwhile |
+| **AI Crawlers** | Every AI crawler request, verified against published addresses. By bot: purpose (training vs. search), access, hits, pages, 30-day trend — click a row to filter. By page: requests per crawler and the last answer they got, with **Add redirect** on addresses that answer "not found". Unverified requests are counted separately. Click any address for its detail panel. Also links to unrecognised bots and the crawler registry |
+| **AI Referrals** | Visits that arrived from ChatGPT, Perplexity, Gemini, Claude, Copilot…, by engine and landing page, beside the crawler hits for the same page; *crawled vs. cited* shows pages that are read but never send visitors |
+| **Readiness Score** | 18 checks, a score out of 100 and the open issues ranked by impact; *How to fix* explains each one with the pages to start with; accept a deliberate choice so it stops counting; history of the score and fixed checks |
+| **Access Manager** | Allow or block each AI crawler, grouped by operator, with its traffic and what blocking it costs. Presets (allow search, block training…), a preview of the exact robots.txt lines, nothing written until you save. RankyFy adds its own fenced block to robots.txt and touches nothing else |
+| **llms.txt** | The generated `/llms.txt` (your pages AI crawlers read most, with descriptions), `/llms-full.txt` and `/ai.txt`: what's included, a minimum length, manual edits that survive rebuilds, whether each file answers and which crawlers fetched it |
+| **AI Visibility** | With a RankyFy account: whether AI assistants mention you, in what position, and who they name instead |
+| **Settings** | General (notifications, publish check, important pages), Capture (how requests are caught, log import, storage, verification), Compatibility (which plugin handles what), Data & privacy (what is stored and sent, exports, status) |
+
+Deeper screens open from these: a crawler's detail, the page list and page detail, all recommendations, the technical robots.txt/server report, history and alerts.
+
+The posts list gets one narrow **AI** column: requests from AI crawlers in the last 30 days and the page's readiness, sortable.
 
 ### Publish check (in the editor)
 

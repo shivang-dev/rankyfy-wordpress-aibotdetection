@@ -113,6 +113,16 @@ class Rest {
 		self::route( '/settings', WP_REST_Server::CREATABLE, array( $c, 'save_settings' ) );
 		self::route( '/log', WP_REST_Server::READABLE, array( $c, 'log' ) );
 
+		self::route( '/crawlers/pages', WP_REST_Server::READABLE, array( $c, 'crawler_pages' ), $days );
+		self::route( '/crawlers/url/(?P<hash>[a-f0-9]{32})', WP_REST_Server::READABLE, array( $c, 'crawler_url' ) );
+		self::route( '/referrals', WP_REST_Server::READABLE, array( $c, 'referrals' ), $days );
+		self::route( '/access', WP_REST_Server::READABLE, array( $c, 'access' ) );
+		self::route( '/access', WP_REST_Server::CREATABLE, array( $c, 'access_save' ), array(), 'sync' );
+		self::route( '/compat', WP_REST_Server::READABLE, array( $c, 'compat' ) );
+		self::route( '/llms/override', WP_REST_Server::CREATABLE, array( $c, 'llms_override' ) );
+		self::route( '/first-hit', WP_REST_Server::CREATABLE, array( $c, 'first_hit' ) );
+		self::route( '/redirects', WP_REST_Server::CREATABLE, array( $c, 'redirect_add' ) );
+		self::route( '/prune', WP_REST_Server::CREATABLE, array( $c, 'prune' ), array(), 'sync' );
 		self::route( '/readiness', WP_REST_Server::READABLE, array( $c, 'readiness' ) );
 		self::route( '/readiness/run', WP_REST_Server::CREATABLE, array( $c, 'readiness_run' ), array(), 'analyze' );
 		self::route( '/readiness/(?P<check>[a-z_]{2,40})', WP_REST_Server::CREATABLE, array( $c, 'readiness_status' ) );
@@ -120,6 +130,16 @@ class Rest {
 		self::route( '/ai-files/check', WP_REST_Server::CREATABLE, array( $c, 'ai_files_check' ), array(), 'sync' );
 		self::route( '/redirects', WP_REST_Server::READABLE, array( $c, 'redirects' ) );
 		self::route( '/redirects/(?P<id>\d+)', WP_REST_Server::DELETABLE, array( $c, 'redirect_delete' ), $id );
+		self::route(
+			'/guard/(?P<id>\d+)/choice',
+			WP_REST_Server::CREATABLE,
+			array( $c, 'guard_choice' ),
+			$id,
+			'guard',
+			static function ( WP_REST_Request $r ) {
+				return current_user_can( 'edit_post', (int) $r['id'] );
+			}
+		);
 		// The publish guard is used by whoever edits the post, not only administrators.
 		self::route(
 			'/guard/(?P<id>\d+)',
@@ -460,6 +480,100 @@ class Rest {
 		return array( 'items' => Log::entries() );
 	}
 
+	// ── AI Crawlers, AI Referrals ──────────────────────────────────────────
+
+	public static function crawler_pages( WP_REST_Request $r ) {
+		return Analytics::crawler_pages(
+			array(
+				'days'   => (int) $r['days'],
+				'bot'    => preg_match( '/^[a-z0-9-]{2,40}$/', (string) $r['bot'] ) ? (string) $r['bot'] : '',
+				'status' => in_array( $r['status'], array( '2xx', '3xx', '4xx', '5xx' ), true ) ? $r['status'] : '',
+				'search' => substr( sanitize_text_field( (string) $r['search'] ), 0, 200 ),
+				'page'   => max( 1, (int) $r['page'] ),
+			)
+		);
+	}
+
+	public static function crawler_url( WP_REST_Request $r ) {
+		$d = Analytics::url_detail( (string) $r['hash'] );
+		return $d ? $d : new WP_Error( 'rfaib_not_found', __( 'No AI crawler has requested this address.', 'rankyfy-ai-crawlers' ), array( 'status' => 404 ) );
+	}
+
+	public static function referrals( WP_REST_Request $r ) {
+		return Analytics::referrals_view(
+			array(
+				'days'   => (int) $r['days'],
+				'engine' => preg_match( '/^[a-z0-9_-]{2,20}$/', (string) $r['engine'] ) ? (string) $r['engine'] : '',
+				'search' => substr( sanitize_text_field( (string) $r['search'] ), 0, 200 ),
+				'page'   => max( 1, (int) $r['page'] ),
+			)
+		);
+	}
+
+	// ── Access Manager ─────────────────────────────────────────────────────
+
+	public static function access() {
+		return Access::view();
+	}
+
+	public static function access_save( WP_REST_Request $r ) {
+		$rules = $r->get_param( 'rules' );
+		if ( ! is_array( $rules ) ) {
+			return new WP_Error( 'rfaib_invalid', __( 'Nothing to save.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+		}
+		Access::save( $rules );
+		// Read robots.txt again as crawlers get it, then everything that depends on it.
+		Robots::refresh();
+		Coverage::site();
+		Readiness::compute();
+		Analytics::bust();
+		return Access::view();
+	}
+
+	public static function compat() {
+		return Compat::view();
+	}
+
+	// ── llms.txt override, first-hit email, redirects, storage ─────────────
+
+	public static function llms_override( WP_REST_Request $r ) {
+		Llms::set_override( (string) $r['text'] );
+		Llms::probe();
+		Analytics::bust();
+		return Llms::status();
+	}
+
+	public static function first_hit( WP_REST_Request $r ) {
+		if ( rest_sanitize_boolean( $r['on'] ) ) {
+			update_option( Alerts::FIRST_HIT, (string) Settings::get( 'notify_email' ), false );
+		} else {
+			delete_option( Alerts::FIRST_HIT );
+		}
+		Analytics::bust();
+		return array( 'on' => '' !== (string) get_option( Alerts::FIRST_HIT, '' ), 'email' => (string) Settings::get( 'notify_email' ) );
+	}
+
+	/** "Add redirect" for a URL AI crawlers keep getting errors on. */
+	public static function redirect_add( WP_REST_Request $r ) {
+		$post   = get_post( (int) $r['post_id'] );
+		$source = Util::normalize_path( (string) $r['source'] );
+		if ( ! $post || 'publish' !== $post->post_status || '/' === $source ) {
+			return new WP_Error( 'rfaib_invalid', __( 'Choose a published page to send this address to.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+		}
+		if ( Util::normalize_path( (string) get_permalink( $post ) ) === $source ) {
+			return new WP_Error( 'rfaib_invalid', __( 'That page already lives at this address.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+		}
+		Guard::add_redirect( $source, $post->ID, 'manual' );
+		Analytics::bust();
+		return array( 'ok' => true ) + Guard::redirects( 1 );
+	}
+
+	public static function prune() {
+		Aggregator::prune();
+		Analytics::bust();
+		return self::status();
+	}
+
 	// ── AI readiness ───────────────────────────────────────────────────────
 
 	public static function readiness() {
@@ -512,6 +626,12 @@ class Rest {
 
 	public static function redirect_delete( WP_REST_Request $r ) {
 		return array( 'ok' => Guard::delete_redirect( (int) $r['id'] ) ) + Guard::redirects( 1 );
+	}
+
+	/** "Create 301 redirect" / "Change anyway" from the editor, applied on the next save. */
+	public static function guard_choice( WP_REST_Request $r ) {
+		Guard::set_choice( (int) $r['id'], (string) $r['choice'] );
+		return array( 'choice' => (string) get_transient( Guard::CHOICE . (int) $r['id'] ) );
 	}
 
 	public static function guard( WP_REST_Request $r ) {

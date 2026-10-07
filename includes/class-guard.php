@@ -35,9 +35,11 @@ class Guard {
 
 	const NOTICE = 'rfaib_guard_';
 	const LOCK   = 'rfaib-guard';
+	const CHOICE = 'rfaib_redirect_choice_'; // + post id: the editor's answer for the next save, 'yes' (create a 301) or 'no' (change anyway)
 
 	public static function init() {
-		add_action( 'post_updated', array( __CLASS__, 'on_post_updated' ), 10, 3 );
+		// After meta is saved, so the editor's redirect choice is known.
+		add_action( 'wp_after_insert_post', array( __CLASS__, 'on_post_updated' ), 10, 4 );
 		add_action( 'save_post', array( __CLASS__, 'on_save' ), 30, 2 );
 		add_action( 'wp_after_insert_post', array( __CLASS__, 'after_save' ), 20, 4 );
 		// Before core's canonical guessing (10): a recorded move is exact, a guess is not.
@@ -101,6 +103,9 @@ class Guard {
 			'old_slug'  => $saved && Util::normalize_path( $saved ) !== $path ? (string) $post->post_name : '',
 			// What AI crawlers did with this post's live URL (observed).
 			'crawl'     => $saved ? self::crawl_history( Util::normalize_path( $saved ) ) : null,
+			'score'     => $row && null !== $row['aeo_score'] ? (int) $row['aeo_score'] : null,
+			'redirects_on' => (bool) Settings::get( 'guard_redirects' ),
+			'seo'       => self::seo_owner(),
 		);
 	}
 
@@ -287,6 +292,12 @@ class Guard {
 		return $url ? (string) $url : (string) get_permalink( $post );
 	}
 
+	/** The SEO plugin that writes this post's title and meta description, if any. */
+	private static function seo_owner() {
+		$others = array_values( array_diff( Compat::seo_plugins(), array( 'RankyFy SEO' ) ) );
+		return $others ? $others[0] : '';
+	}
+
 	private static function page_row( $post_id ) {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'pages' ) . " WHERE object_type = 'post' AND object_id = %d AND deleted = 0", (int) $post_id ), ARRAY_A );
@@ -444,10 +455,30 @@ class Guard {
 
 	// ── redirects ──────────────────────────────────────────────────────────
 
-	/** A published post's URL changed: redirect the old URL (and its children's). */
-	public static function on_post_updated( $post_id, $after, $before ) {
-		if ( ! Settings::get( 'guard_redirects' ) || ! Installer::ready() || wp_is_post_revision( $post_id )
-			|| ! $after instanceof \WP_Post || ! $before instanceof \WP_Post
+	/** Remember the editor's answer for the next save of this post ('' forgets it). */
+	public static function set_choice( $post_id, $choice ) {
+		if ( in_array( $choice, array( 'yes', 'no' ), true ) ) {
+			set_transient( self::CHOICE . (int) $post_id, $choice, HOUR_IN_SECONDS );
+		} else {
+			delete_transient( self::CHOICE . (int) $post_id );
+		}
+	}
+
+	/**
+	 * A published post's URL changed: redirect the old URL (and its children's).
+	 * Automatic when the setting is on, unless the editor chose "Change anyway";
+	 * with the setting off, only when the editor chose "Create 301 redirect".
+	 */
+	public static function on_post_updated( $post_id, $after, $update = true, $before = null ) {
+		if ( ! Installer::ready() || wp_is_post_revision( $post_id ) || ! $after instanceof \WP_Post ) {
+			return;
+		}
+		$choice = (string) get_transient( self::CHOICE . (int) $post_id );
+		if ( '' !== $choice && ! wp_is_post_autosave( $post_id ) ) {
+			delete_transient( self::CHOICE . (int) $post_id ); // one answer, for this save only
+		}
+		$wanted = 'yes' === $choice || ( Settings::get( 'guard_redirects' ) && 'no' !== $choice );
+		if ( ! $wanted || ! $before instanceof \WP_Post
 			|| 'publish' !== $before->post_status || 'publish' !== $after->post_status || ! self::guarded_type( $after->post_type ) ) {
 			return;
 		}

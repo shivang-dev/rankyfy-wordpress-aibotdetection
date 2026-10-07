@@ -53,6 +53,7 @@ class Settings {
 			'llms_intro'          => array( '', 'text' ),      // optional notes under the summary
 			'llms_max_links'      => array( 80, 'int', array( 10, 500 ) ),
 			'llms_types'          => array( '', 'csv' ),       // post types to list; empty = every public type
+			'llms_min_words'      => array( 0, 'int', array( 0, 5000 ) ), // leave out posts shorter than this (0 = no minimum)
 			'ai_txt_enabled'      => array( false, 'bool' ),
 			'ai_txt_policy'       => array( 'allow', 'enum', array( 'allow', 'no_media', 'no_training' ) ),
 		);

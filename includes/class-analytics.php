@@ -108,6 +108,19 @@ class Analytics {
 				'score'       => Scorer::site(),
 				'score_trend' => self::snapshot_series( 'aeo_score', 90 ),
 				'readiness'   => Readiness::summary(),
+				'ai_referrals_prev' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(hits) FROM ' . Installer::table( 'referrals' ) . ' WHERE day >= %s AND day < %s', $prev, $since ) ),
+				'bot_series'  => self::bot_series( $days ),
+				'listening'   => array_values( array_map( static function ( $b ) {
+					return $b['name'];
+				}, array_filter( Registry::bots(), static function ( $b ) {
+					return ! empty( $b['ai'] );
+				} ) ) ),
+				'unread_alerts' => Alerts::unread_count(),
+				'rankyfy'     => Rankyfy::state(),
+				'host'        => (string) wp_parse_url( home_url(), PHP_URL_HOST ),
+				'caches'      => Compat::caches(),
+				'first_hit'   => '' !== (string) get_option( Alerts::FIRST_HIT, '' ),
+				'access_unreviewed' => count( array_diff_key( Access::manageable(), Access::choices() ) ),
 				'readiness_trend' => self::snapshot_series( 'readiness', 90 ),
 				'llms_enabled'    => (bool) Settings::get( 'llms_enabled' ),
 				'findings'    => Findings::counts(),
@@ -195,7 +208,7 @@ class Analytics {
 				$seen[ $r['bot'] ] = $r;
 			}
 			$spark = array();
-			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT bot, day, hits FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s', self::since( 14 ) ), ARRAY_A ) as $r ) {
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT bot, day, hits FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s', self::since( 30 ) ), ARRAY_A ) as $r ) {
 				$spark[ $r['bot'] ][ $r['day'] ] = (int) $r['hits'];
 			}
 			$matrix = Robots::matrix();
@@ -206,7 +219,7 @@ class Analytics {
 					continue;
 				}
 				$series = array();
-				for ( $i = 13; $i >= 0; $i-- ) {
+				for ( $i = 29; $i >= 0; $i-- ) {
 					$series[] = $spark[ $r['bot'] ][ wp_date( 'Y-m-d', time() - $i * DAY_IN_SECONDS ) ] ?? 0;
 				}
 				$out[] = array(
@@ -227,6 +240,9 @@ class Analytics {
 					'verifiable'   => $b ? ( (bool) $b['verify']['ranges'] || (bool) $b['verify']['rdns'] || (bool) $b['verify']['signature_hosts'] ) : false,
 					'robots'       => isset( $matrix['bots'][ $r['bot'] ] ) ? array( 'allowed' => $matrix['bots'][ $r['bot'] ]['site_allowed'], 'rule' => $matrix['bots'][ $r['bot'] ]['rule'] ) : null,
 					'spark'        => $series,
+					'slot'         => self::slot( $r['bot'] ),
+					'purpose'      => $b ? Access::purpose( $b['category'] ) : '',
+					'access'       => $b && ! empty( $b['robots_tokens'] ) ? ( isset( $matrix['bots'][ $r['bot'] ] ) ? ( $matrix['bots'][ $r['bot'] ]['site_allowed'] ? ( isset( Access::choices()[ $r['bot'] ] ) ? 'allowed' : 'unreviewed' ) : 'blocked' ) : 'unreviewed' ) : null,
 				);
 			}
 			usort( $out, static function ( $a, $b ) {
@@ -472,9 +488,23 @@ class Analytics {
 		foreach ( (array) $wpdb->get_results( 'SELECT pb.url_hash, MAX(pb.path) path, COUNT(*) nbots, MAX(p.id) page_id, MAX(p.title) title, MAX(p.importance) importance FROM ' . Installer::table( 'page_bots' ) . ' pb LEFT JOIN ' . Installer::table( 'pages' ) . " p ON p.url_hash = pb.url_hash AND p.deleted = 0 WHERE pb.url_hash IN ({$in}) AND pb.bot IN ({$ai}) AND pb.last_seen >= " . (int) ( time() - (int) $days * DAY_IN_SECONDS ) . ' GROUP BY pb.url_hash', ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$info[ $r['url_hash'] ] = $r;
 		}
-		return array_map( static function ( $r ) use ( $info ) {
+		$top = array();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT url_hash, bot, SUM(hits) h FROM ' . Installer::table( 'daily' ) . " WHERE url_hash IN ({$in}) AND bot IN ({$ai}) AND day >= %s GROUP BY url_hash, bot", self::since( $days ) ), ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			if ( ! isset( $top[ $r['url_hash'] ] ) || (int) $r['h'] > $top[ $r['url_hash'] ]['h'] ) {
+				$top[ $r['url_hash'] ] = array( 'bot' => $r['bot'], 'h' => (int) $r['h'] );
+			}
+		}
+		$visits = array();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT url_hash, SUM(hits) h FROM ' . Installer::table( 'referrals' ) . " WHERE url_hash IN ({$in}) AND day >= %s GROUP BY url_hash", self::since( $days ) ), ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$visits[ $r['url_hash'] ] = (int) $r['h'];
+		}
+		return array_map( static function ( $r ) use ( $info, $top, $visits ) {
 			$i = $info[ $r['url_hash'] ] ?? array();
+			$t = $top[ $r['url_hash'] ]['bot'] ?? '';
 			return array(
+				'hash'       => $r['url_hash'],
+				'top_bot'    => $t ? array( 'id' => $t, 'name' => Registry::label( $t ), 'slot' => self::slot( $t ) ) : null,
+				'visits'     => $visits[ $r['url_hash'] ] ?? 0,
 				'path'       => $i['path'] ?? '',
 				'title'      => $i['title'] ?? null,
 				'page_id'    => ! empty( $i['page_id'] ) ? (int) $i['page_id'] : null,
@@ -538,6 +568,7 @@ class Analytics {
 		return array(
 			'page'      => array(
 				'id'          => (int) $p['id'],
+				'hash'        => $p['url_hash'],
 				'type'        => $p['object_type'],
 				'subtype'     => $p['subtype'],
 				'object_id'   => (int) $p['object_id'],
@@ -864,6 +895,279 @@ class Analytics {
 				'queue'    => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Installer::table( 'verify_queue' ) ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 			),
 		);
+	}
+
+	// ── crawler colours ────────────────────────────────────────────────────
+
+	/**
+	 * Chart colour slot (1–4) of an AI crawler, or 0 for "Other". The four
+	 * crawlers with the most requests ever recorded get a slot, so a crawler
+	 * keeps its colour across screens and filters; everything else is grey.
+	 */
+	public static function slot( $bot ) {
+		static $slots = null;
+		if ( null === $slots ) {
+			global $wpdb;
+			$slots = array();
+			$ids   = $wpdb->get_col( 'SELECT bot FROM ' . Installer::table( 'bots_seen' ) . ' WHERE bot IN (' . self::ai_in() . ') ORDER BY hits DESC, bot ASC LIMIT 4' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			foreach ( (array) $ids as $i => $id ) {
+				$slots[ $id ] = $i + 1;
+			}
+		}
+		return $slots[ $bot ] ?? 0;
+	}
+
+	/** Daily requests per crawler for the dashboard chart: the four slotted crawlers plus "Other". */
+	public static function bot_series( $days ) {
+		global $wpdb;
+		$days_list = array();
+		for ( $i = (int) $days - 1; $i >= 0; $i-- ) {
+			$days_list[] = wp_date( 'Y-m-d', time() - $i * DAY_IN_SECONDS );
+		}
+		$idx    = array_flip( $days_list );
+		$series = array();
+		$other  = array( 'values' => array_fill( 0, count( $days_list ), 0 ), 'total' => 0, 'bots' => array() );
+		$rows   = $wpdb->get_results( $wpdb->prepare( 'SELECT day, bot, hits FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s AND bot IN (' . self::ai_in() . ') AND hits > 0', $days_list[0] ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $rows as $r ) {
+			if ( ! isset( $idx[ $r['day'] ] ) ) {
+				continue;
+			}
+			$slot = self::slot( $r['bot'] );
+			if ( $slot ) {
+				if ( ! isset( $series[ $r['bot'] ] ) ) {
+					$series[ $r['bot'] ] = array( 'id' => $r['bot'], 'name' => Registry::label( $r['bot'] ), 'slot' => $slot, 'values' => array_fill( 0, count( $days_list ), 0 ), 'total' => 0 );
+				}
+				$series[ $r['bot'] ]['values'][ $idx[ $r['day'] ] ] += (int) $r['hits'];
+				$series[ $r['bot'] ]['total']                      += (int) $r['hits'];
+			} else {
+				$other['values'][ $idx[ $r['day'] ] ] += (int) $r['hits'];
+				$other['total']                      += (int) $r['hits'];
+				$other['bots'][ $r['bot'] ]           = true;
+			}
+		}
+		usort( $series, static function ( $a, $b ) {
+			return $a['slot'] <=> $b['slot'];
+		} );
+		$other['count'] = count( $other['bots'] );
+		unset( $other['bots'] );
+		return array( 'days' => $days_list, 'series' => array_values( $series ), 'other' => $other );
+	}
+
+	// ── AI Crawlers: requests by page, one column per top crawler ──────────
+
+	/**
+	 * @param array $q days, bot, status (2xx…5xx), search, page
+	 */
+	public static function crawler_pages( array $q ) {
+		global $wpdb;
+		$days   = (int) $q['days'];
+		$since  = self::since( $days );
+		$per    = 20;
+		$page   = max( 1, (int) $q['page'] );
+		$d      = Installer::table( 'daily' );
+		$ai     = self::ai_in();
+		$where  = $wpdb->prepare( "d.day >= %s AND d.bot IN ({$ai})", $since ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( '' !== $q['bot'] ) {
+			$where .= $wpdb->prepare( " AND d.url_hash IN (SELECT url_hash FROM {$d} WHERE bot = %s AND day >= %s)", $q['bot'], $since ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		}
+		if ( '' !== $q['search'] ) {
+			$where .= $wpdb->prepare( ' AND d.path LIKE %s', '%' . $wpdb->esc_like( $q['search'] ) . '%' );
+		}
+		// Last answer each page gave an AI crawler.
+		$last   = "SELECT url_hash, CAST(SUBSTRING_INDEX(GROUP_CONCAT(last_status ORDER BY last_seen DESC), ',', 1) AS UNSIGNED) st FROM " . Installer::table( 'page_bots' ) . " WHERE bot IN ({$ai}) GROUP BY url_hash";
+		$having = '';
+		if ( preg_match( '/^([2-5])xx$/', (string) $q['status'], $m ) ) {
+			$having = $wpdb->prepare( ' HAVING st >= %d AND st < %d', (int) $m[1] * 100, (int) $m[1] * 100 + 100 );
+		}
+		$base  = "SELECT d.url_hash, MAX(d.path) path, SUM(d.hits) hits, MAX(ls.st) st FROM {$d} d LEFT JOIN ({$last}) ls ON ls.url_hash = d.url_hash WHERE {$where} GROUP BY d.url_hash{$having}";
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ({$base}) t" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows  = $wpdb->get_results( "{$base} ORDER BY hits DESC, path ASC LIMIT " . (int) $per . ' OFFSET ' . (int) ( ( $page - 1 ) * $per ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- parts prepared above
+		// Columns: the three crawlers with the most requests in the range.
+		$cols = $wpdb->get_col( $wpdb->prepare( "SELECT bot FROM " . Installer::table( 'daily_bots' ) . " WHERE day >= %s AND bot IN ({$ai}) GROUP BY bot ORDER BY SUM(hits) DESC LIMIT 3", $since ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$by   = array();
+		$info = array();
+		if ( $rows ) {
+			$in = self::in_list( array_column( $rows, 'url_hash' ) );
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT url_hash, bot, SUM(hits) h FROM {$d} WHERE url_hash IN ({$in}) AND bot IN ({$ai}) AND day >= %s GROUP BY url_hash, bot", $since ), ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$by[ $r['url_hash'] ][ $r['bot'] ] = (int) $r['h'];
+			}
+			foreach ( (array) $wpdb->get_results( 'SELECT id, url_hash, title FROM ' . Installer::table( 'pages' ) . " WHERE deleted = 0 AND url_hash IN ({$in})", ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$info[ $r['url_hash'] ] = $r;
+			}
+		}
+		$items = array();
+		foreach ( (array) $rows as $r ) {
+			$counts = array();
+			$other  = (int) $r['hits'];
+			foreach ( $cols as $c ) {
+				$counts[ $c ] = $by[ $r['url_hash'] ][ $c ] ?? 0;
+				$other       -= $counts[ $c ];
+			}
+			$items[] = array(
+				'hash'    => $r['url_hash'],
+				'path'    => $r['path'],
+				'page_id' => isset( $info[ $r['url_hash'] ] ) ? (int) $info[ $r['url_hash'] ]['id'] : null,
+				'title'   => $info[ $r['url_hash'] ]['title'] ?? null,
+				'hits'    => (int) $r['hits'],
+				'counts'  => $counts,
+				'other'   => max( 0, $other ),
+				'status'  => null === $r['st'] ? null : (int) $r['st'],
+			);
+		}
+		return array(
+			'columns' => array_map( static function ( $c ) {
+				return array( 'id' => $c, 'name' => Registry::label( $c ), 'slot' => self::slot( $c ) );
+			}, (array) $cols ),
+			'items'   => $items,
+			'total'   => $total,
+			'page'    => $page,
+			'pages'   => max( 1, (int) ceil( $total / $per ) ),
+			'days'    => $days,
+		);
+	}
+
+	/** One URL as crawlers saw it, for the drawer: inventory page or any crawled path (a 404, an archive). */
+	public static function url_detail( $hash ) {
+		global $wpdb;
+		$ai   = self::ai_in();
+		$page = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'pages' ) . ' WHERE url_hash = %s AND deleted = 0', $hash ), ARRAY_A );
+		$bots = $wpdb->get_results( $wpdb->prepare( 'SELECT bot, path, first_seen, last_seen, hits, last_status FROM ' . Installer::table( 'page_bots' ) . " WHERE url_hash = %s AND bot IN ({$ai}) ORDER BY hits DESC", $hash ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( ! $page && ! $bots ) {
+			return null;
+		}
+		$recent = $wpdb->get_results( $wpdb->prepare( 'SELECT ts, bot, method, path, status, ms, cls, vstate, ip_net, source FROM ' . Installer::table( 'events' ) . " WHERE url_hash = %s AND cls <> 'spoofed' ORDER BY ts DESC LIMIT 8", $hash ), ARRAY_A );
+		$refs   = $wpdb->get_results( $wpdb->prepare( 'SELECT source, SUM(hits) h FROM ' . Installer::table( 'referrals' ) . ' WHERE url_hash = %s AND day >= %s GROUP BY source ORDER BY h DESC', $hash, self::since( 30 ) ), ARRAY_A );
+		$first  = null;
+		$last   = null;
+		$total  = 0;
+		foreach ( (array) $bots as $b ) {
+			$total += (int) $b['hits'];
+			if ( ! $first || (int) $b['first_seen'] < (int) $first['first_seen'] ) {
+				$first = $b;
+			}
+			if ( ! $last || (int) $b['last_seen'] > (int) $last['last_seen'] ) {
+				$last = $b;
+			}
+		}
+		$post = $page && 'post' === $page['object_type'] ? get_post( (int) $page['object_id'] ) : null;
+		return array(
+			'hash'       => $hash,
+			'path'       => $page ? $page['path'] : ( $bots[0]['path'] ?? '' ),
+			'page'       => $page ? array(
+				'id'        => (int) $page['id'],
+				'title'     => $page['title'],
+				'type'      => $page['object_type'],
+				'edit'      => $post && current_user_can( 'edit_post', $post->ID ) ? get_edit_post_link( $post->ID, 'raw' ) : null,
+				'view'      => Inventory::url( $page ),
+				'published' => $post ? (int) get_post_time( 'U', true, $post ) : null,
+				'modified'  => $post ? (int) get_post_modified_time( 'U', true, $post ) : null,
+				'score'     => null === $page['aeo_score'] ? null : (int) $page['aeo_score'],
+			) : null,
+			'total'      => $total,
+			'first'      => $first ? array( 'at' => (int) $first['first_seen'], 'bot' => Registry::label( $first['bot'] ) ) : null,
+			'status'     => $last ? (int) $last['last_status'] : null,
+			'bots'       => array_map( static function ( $b ) {
+				return array( 'id' => $b['bot'], 'name' => Registry::label( $b['bot'] ), 'slot' => self::slot( $b['bot'] ), 'hits' => (int) $b['hits'], 'last' => (int) $b['last_seen'] );
+			}, (array) $bots ),
+			'recent'     => array_map( array( __CLASS__, 'event_view' ), (array) $recent ),
+			'referrals'  => array_map( static function ( $r ) {
+				return array( 'source' => $r['source'], 'name' => Registry::referrer_name( $r['source'] ), 'visits' => (int) $r['h'] );
+			}, (array) $refs ),
+		);
+	}
+
+	// ── AI Referrals ───────────────────────────────────────────────────────
+
+	/**
+	 * @param array $q days, engine, search, page
+	 */
+	public static function referrals_view( array $q ) {
+		return self::cached( 'refs' . wp_json_encode( $q ), static function () use ( $q ) {
+			global $wpdb;
+			$days  = (int) $q['days'];
+			$since = self::since( $days );
+			$t     = Installer::table( 'referrals' );
+			$per   = 20;
+			$page  = max( 1, (int) $q['page'] );
+			$engines = self::referral_sources( $days );
+			$where   = $wpdb->prepare( 'day >= %s', $since );
+			if ( '' !== $q['engine'] ) {
+				$where .= $wpdb->prepare( ' AND url_hash IN (SELECT url_hash FROM ' . $t . ' WHERE source = %s AND day >= %s)', $q['engine'], $since ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			}
+			if ( '' !== $q['search'] ) {
+				$where .= $wpdb->prepare( ' AND path LIKE %s', '%' . $wpdb->esc_like( $q['search'] ) . '%' );
+			}
+			$total_visits = (int) $wpdb->get_var( "SELECT SUM(hits) FROM {$t} WHERE {$where}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$n     = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT url_hash) FROM {$t} WHERE {$where}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows  = $wpdb->get_results( "SELECT url_hash, MAX(path) path, SUM(hits) h FROM {$t} WHERE {$where} GROUP BY url_hash ORDER BY h DESC, path ASC LIMIT " . (int) $per . ' OFFSET ' . (int) ( ( $page - 1 ) * $per ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- parts prepared above
+			$cols  = array_slice( array_column( $engines, 'source' ), 0, 3 );
+			$by    = array();
+			$bot   = array();
+			$info  = array();
+			if ( $rows ) {
+				$in = self::in_list( array_column( $rows, 'url_hash' ) );
+				foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT url_hash, source, SUM(hits) h FROM {$t} WHERE url_hash IN ({$in}) AND day >= %s GROUP BY url_hash, source", $since ), ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$by[ $r['url_hash'] ][ $r['source'] ] = (int) $r['h'];
+				}
+				foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT url_hash, SUM(hits) h FROM ' . Installer::table( 'daily_pages' ) . " WHERE url_hash IN ({$in}) AND day >= %s GROUP BY url_hash", $since ), ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$bot[ $r['url_hash'] ] = (int) $r['h'];
+				}
+				foreach ( (array) $wpdb->get_results( 'SELECT id, url_hash, title FROM ' . Installer::table( 'pages' ) . " WHERE deleted = 0 AND url_hash IN ({$in})", ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$info[ $r['url_hash'] ] = $r;
+				}
+			}
+			$items = array();
+			foreach ( (array) $rows as $r ) {
+				$counts = array();
+				$other  = (int) $r['h'];
+				foreach ( $cols as $c ) {
+					$counts[ $c ] = $by[ $r['url_hash'] ][ $c ] ?? 0;
+					$other       -= $counts[ $c ];
+				}
+				$items[] = array(
+					'hash'     => $r['url_hash'],
+					'path'     => $r['path'],
+					'page_id'  => isset( $info[ $r['url_hash'] ] ) ? (int) $info[ $r['url_hash'] ]['id'] : null,
+					'title'    => $info[ $r['url_hash'] ]['title'] ?? null,
+					'counts'   => $counts,
+					'other'    => max( 0, $other ),
+					'total'    => (int) $r['h'],
+					'bot_hits' => $bot[ $r['url_hash'] ] ?? 0,
+				);
+			}
+			// Crawled vs cited, over the site's pages: read by AI crawlers in the range, and whether visits followed.
+			$p      = Installer::table( 'pages' );
+			$counts = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT SUM(r.n > 0 AND v.h > 0) cited, SUM(r.n > 0 AND (v.h IS NULL OR v.h = 0)) read_only, SUM(e.n IS NULL) never
+					 FROM {$p} p
+					 LEFT JOIN (SELECT url_hash, SUM(hits) n FROM " . Installer::table( 'daily_pages' ) . " WHERE day >= %s GROUP BY url_hash) r ON r.url_hash = p.url_hash
+					 LEFT JOIN (SELECT url_hash, SUM(hits) h FROM {$t} WHERE day >= %s GROUP BY url_hash) v ON v.url_hash = p.url_hash
+					 LEFT JOIN (SELECT url_hash, COUNT(*) n FROM " . Installer::table( 'page_bots' ) . " WHERE bot IN (" . self::ai_in() . ") GROUP BY url_hash) e ON e.url_hash = p.url_hash
+					 WHERE p.deleted = 0 AND p.pinned >= 0", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$since,
+					$since
+				),
+				ARRAY_A
+			);
+			return array(
+				'days'    => $days,
+				'visits'  => $total_visits,
+				'engines' => $engines,
+				'columns' => array_map( static function ( $c ) {
+					return array( 'id' => $c, 'name' => Registry::referrer_name( $c ) );
+				}, $cols ),
+				'items'   => $items,
+				'total'   => $n,
+				'page'    => $page,
+				'pages'   => max( 1, (int) ceil( $n / $per ) ),
+				'cited'   => array(
+					'cited'     => (int) $counts['cited'],
+					'read_only' => (int) $counts['read_only'],
+					'never'     => (int) $counts['never'],
+				),
+			);
+		} );
 	}
 
 	// ── history ────────────────────────────────────────────────────────────
