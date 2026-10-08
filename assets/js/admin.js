@@ -843,7 +843,7 @@
 			if (!live()) { return; }
 			var obs = o.observed, cov = o.coverage, ready = o.readiness;
 			if (!obs.ai_requests && !cov.crawled_ever && !o.top_bots.some(function (b) { return b.ai; })) { dashboardEmpty(o); return; }
-			var body = view(__('RankyFy'), sprintf(__('AI crawler activity and readiness for %1$s · last %2$d days'), o.host, o.range), rangeDropdown(viewOverview));
+			var body = view(__('RankyFy AI SEO'), sprintf(__('AI crawler activity and readiness for %1$s · last %2$d days'), o.host, o.range), rangeDropdown(viewOverview));
 			if (o.unread_alerts) {
 				body.appendChild(h('div', { 'class': 'rf-notice rf-notice-info' }, h('span', { text: sprintf(_n('%d unread alert.', '%d unread alerts.', o.unread_alerts), o.unread_alerts) }), link(__('View alerts'), '/alerts')));
 			}
@@ -878,8 +878,24 @@
 			var refs = card(__('Visits from AI engines'), { tools: h('span', { 'class': 'rf-hint', text: sprintf(__('%dd'), o.range) }) });
 			refs.body.appendChild(o.referrals.length ? engineBars(o.referrals) : empty(__('No visits from AI assistants in this period.')));
 
-			add(body, [h('div', { 'class': 'rf-dash' }, h('div', { 'class': 'rf-stack' }, chart, pages), h('div', { 'class': 'rf-stack' }, rc, refs))]);
+			add(body, [h('div', { 'class': 'rf-dash' }, h('div', { 'class': 'rf-stack' }, chart, pages), h('div', { 'class': 'rf-stack' }, rc, refs, connectCard(o.rankyfy)))]);
 		}).catch(function (e) { if (live()) { fail(e, viewOverview); } });
+	}
+
+	/** Contextual, dismissible (90 days), below the value already delivered, only when no account is connected. */
+	function connectCard(rankyfyState) {
+		var KEY = 'rfy_connect_dismissed';
+		var until = 0;
+		try { until = Number(window.localStorage.getItem(KEY)) || 0; } catch (e) { until = 0; }
+		if (rankyfyState === 'connected' || until > Date.now()) { return null; }
+		var url = rankyfyState === 'not_installed' ? cfg.adminUrl.replace(/admin\.php\?page=.*$/, 'plugin-install.php?s=RankyFy&tab=search&type=term') : cfg.adminUrl.replace(/page=[^&#]*/, 'page=rankyfy-settings');
+		var c = h('section', { 'class': 'rf-card rf-connect' },
+			h('div', { 'class': 'rf-card-body' },
+				h('div', { 'class': 'rf-row rf-between' }, h('strong', { text: __('Get suggestions for these pages') }), h('button', { type: 'button', 'class': 'rf-x', 'aria-label': __('Dismiss for 90 days'), onclick: function () { try { window.localStorage.setItem(KEY, String(Date.now() + 90 * 86400000)); } catch (e) { /* private mode */ } c.remove(); } }, icon('x', 14))),
+				h('p', { text: __('You can see which bots read your pages. A RankyFy account adds AI keyword, question and gap suggestions for them — that analysis runs on rankyfy.com.') }),
+				h('div', null, h('a', { 'class': 'rf-btn rf-btn-primary rf-btn-sm', href: url }, rankyfyState === 'not_installed' ? __('Install RankyFy SEO to connect') : __('Connect a RankyFy account'))),
+				h('p', { 'class': 'rf-hint', text: __('Everything on this page keeps working either way.') })));
+		return c;
 	}
 
 	/** One measure across engines, so every bar shares one colour; the labels carry identity. */
@@ -895,7 +911,7 @@
 	/** First days: answer "is it broken?" first, then give things to do that need no crawl data. */
 	function dashboardEmpty(o) {
 		var since = state.status && state.status.monitoring_since;
-		var body = view(__('RankyFy'), since ? sprintf(__('Listening for AI crawlers since %1$s · %2$s'), fmtDate(since), ago(since)) : __('Listening for AI crawlers'));
+		var body = view(__('RankyFy AI SEO'), since ? sprintf(__('Listening for AI crawlers since %1$s · %2$s'), fmtDate(since), ago(since)) : __('Listening for AI crawlers'));
 		body.appendChild(state.status && state.status.tracking === false
 			? h('div', { 'class': 'rf-notice rf-notice-warn' }, h('strong', { text: __('Capture is off.') }), ' ', h('span', { text: __('Crawler requests are not being recorded. Switch it on in Settings.') }), link(__('Settings'), '/settings'))
 			: h('div', { 'class': 'rf-notice rf-notice-good' }, icon('check', 14), h('strong', { text: __('Capture is working.') }), ' ', h('span', { text: __('The WordPress hook is recording every AI crawler request that reaches WordPress. Nothing more to do.') })));

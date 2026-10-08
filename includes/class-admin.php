@@ -45,8 +45,8 @@ class Admin {
 		$n     = self::unread();
 		$badge = $n ? ' <span class="awaiting-mod count-' . (int) $n . '"><span class="pending-count">' . number_format_i18n( $n ) . '</span></span>' : '';
 		add_menu_page(
-			__( 'RankyFy', 'rankyfy-ai-seo' ),
-			__( 'RankyFy', 'rankyfy-ai-seo' ) . $badge,
+			__( 'RankyFy AI SEO', 'rankyfy-ai-seo' ),
+			__( 'RankyFy AI SEO', 'rankyfy-ai-seo' ) . $badge,
 			Rest::capability(),
 			self::SLUG,
 			array( __CLASS__, 'render' ),
@@ -59,7 +59,7 @@ class Admin {
 		foreach ( self::sections() as $route => $label ) {
 			add_submenu_page(
 				self::SLUG,
-				__( 'RankyFy', 'rankyfy-ai-seo' ),
+				__( 'RankyFy AI SEO', 'rankyfy-ai-seo' ),
 				$label,
 				Rest::capability(),
 				'' === $route ? self::SLUG : 'admin.php?page=' . self::SLUG . '#' . $route,
@@ -88,7 +88,7 @@ class Admin {
 	}
 
 	public static function render() {
-		echo '<div class="wrap rfy-wrap"><h1 class="screen-reader-text">' . esc_html__( 'RankyFy', 'rankyfy-ai-seo' ) . '</h1><hr class="wp-header-end"><div id="rfy-app" class="rfy-app" aria-live="polite"><p class="rfy-boot">' . esc_html__( 'Loading…', 'rankyfy-ai-seo' ) . '</p></div></div>';
+		echo '<div class="wrap rfy-wrap"><h1 class="screen-reader-text">' . esc_html__( 'RankyFy AI SEO', 'rankyfy-ai-seo' ) . '</h1><hr class="wp-header-end"><div id="rfy-app" class="rfy-app" aria-live="polite"><p class="rfy-boot">' . esc_html__( 'Loading…', 'rankyfy-ai-seo' ) . '</p></div></div>';
 	}
 
 	private static function version( $file ) {
