@@ -204,7 +204,8 @@ class Tracker {
 		}
 		if ( ! $per_page ) {
 			// One counter row per day and crawler; no page, no address.
-			$wpdb->query(
+			// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+			$wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 				$wpdb->prepare(
 					'INSERT INTO ' . Installer::table( 'daily_bots' ) . ' (day, bot, hits, verified, spoofed, errors, ms_total) VALUES (%s, %s, %d, %d, %d, %d, %d)
 					 ON DUPLICATE KEY UPDATE hits = hits + VALUES(hits), verified = verified + VALUES(verified), spoofed = spoofed + VALUES(spoofed), errors = errors + VALUES(errors), ms_total = ms_total + VALUES(ms_total)',
@@ -217,6 +218,7 @@ class Tracker {
 					$ctx['ms']
 				)
 			);
+			// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 			return 'counted';
 		}
 
@@ -225,7 +227,8 @@ class Tracker {
 		// Same second, address, page, method and user agent = the same request
 		// (seen live and again in an imported log).
 		$dedup = md5( $ctx['ts'] . '|' . $ip_hash . '|' . strtolower( $ctx['path'] ) . '|' . $ctx['method'] . '|' . $ua );
-		$ok    = $wpdb->query(
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$ok    = $wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
 				'INSERT IGNORE INTO ' . Installer::table( 'events' ) . ' (ts, day, bot, cls, vstate, method, path, url_hash, kind, object_type, object_id, status, ms, ip_net, ip_hash, ua, source, dedup)
 				 VALUES (%d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %d, %d, %s, %s, %s, %s, %s)',
@@ -249,6 +252,7 @@ class Tracker {
 				$dedup
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 		if ( ! $ok ) {
 			return 'skipped'; // duplicate (log import of a request we already saw live)
 		}
@@ -270,7 +274,8 @@ class Tracker {
 			return;
 		}
 		self::release_client();
-		$wpdb->query(
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'referrals' ) . ' (day, source, url_hash, path, object_id, hits) VALUES (%s, %s, %s, %s, %d, 1)
 				 ON DUPLICATE KEY UPDATE hits = hits + 1',
@@ -281,6 +286,7 @@ class Tracker {
 				$ctx['oid']
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	/**
@@ -300,10 +306,11 @@ class Tracker {
 	private static function remember_agent( $ua, $cls, $ts, $count = true ) {
 		global $wpdb;
 		$ua = Util::clean( $ua, 255 );
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		$wpdb->query(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'agents' ) . ' (ua_hash, ua, cls, state, hits, first_seen, last_seen) VALUES (%s, %s, %s, %s, ' . ( $count ? 1 : 0 ) . ', %d, %d)
-				 ON DUPLICATE KEY UPDATE hits = hits + ' . ( $count ? 1 : 0 ) . ', last_seen = GREATEST(last_seen, VALUES(last_seen))',
+				 ON DUPLICATE KEY UPDATE hits = hits + ' . ( $count ? 1 : 0 ) . ', last_seen = GREATEST(last_seen, VALUES(last_seen))', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 				md5( $ua ),
 				$ua,
 				$cls,
@@ -312,6 +319,7 @@ class Tracker {
 				$ts
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	/** Signature headers (and the covered fields) for Web Bot Auth verification. */

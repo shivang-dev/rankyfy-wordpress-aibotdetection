@@ -46,7 +46,7 @@ class Aggregator {
 		$wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$e} e SET e.vstate = 'none' WHERE e.id > %d AND e.vstate = 'pending' AND NOT EXISTS (
-				   SELECT 1 FROM " . Installer::table( 'verify_queue' ) . " q WHERE q.event_id = e.id OR (q.kind = 'rdns' AND q.bot = e.bot AND q.ip_hash = e.ip_hash))", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				   SELECT 1 FROM " . Installer::table( 'verify_queue' ) . " q WHERE q.event_id = e.id OR (q.kind = 'rdns' AND q.bot = e.bot AND q.ip_hash = e.ip_hash))", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 				$wm
 			)
 		);
@@ -105,7 +105,7 @@ class Aggregator {
 	private static function check() {
 		global $wpdb;
 		if ( '' !== (string) $wpdb->last_error ) {
-			throw new \RuntimeException( 'rollup statement failed: ' . $wpdb->last_error );
+			throw new \RuntimeException( 'rollup statement failed: ' . esc_html( $wpdb->last_error ) );
 		}
 	}
 
@@ -121,6 +121,7 @@ class Aggregator {
 		$genuine = "cls IN ('ai','search')";
 
 		// What is new — read before the upserts change the answer.
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		$new_bots = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT DISTINCT ev.bot FROM {$e} ev LEFT JOIN " . Installer::table( 'bots_seen' ) . " s ON s.bot = ev.bot
@@ -129,10 +130,12 @@ class Aggregator {
 				$hi
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 		self::check();
 		foreach ( (array) $new_bots as $b ) {
 			self::$new_bots[ $b ] = true;
 		}
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		$firsts = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT ev.url_hash, ev.bot, MIN(ev.ts) AS ts, MAX(ev.path) AS path FROM {$e} ev
@@ -144,12 +147,14 @@ class Aggregator {
 			),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 		self::check();
 		foreach ( (array) $firsts as $f ) {
 			self::$first_crawls[] = $f;
 		}
 
 		// Day × bot × page.
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'daily' ) . " (day, bot, url_hash, path, object_id, hits, errors, ms_total, ms_max, last_status)
@@ -164,8 +169,10 @@ class Aggregator {
 				$hi
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
 		// Day × page totals for AI crawlers (what page lists sum over a date range).
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'daily_pages' ) . " (day, url_hash, hits, errors, ms_total)
@@ -176,8 +183,10 @@ class Aggregator {
 				$hi
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
 		// Day × bot totals (impersonations counted under the bot they claimed).
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'daily_bots' ) . " (day, bot, hits, verified, spoofed, errors, ms_total)
@@ -191,8 +200,10 @@ class Aggregator {
 				$hi
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
 		// First and last crawl per page × bot.
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'page_bots' ) . " (url_hash, bot, path, object_id, first_seen, last_seen, hits, last_status)
@@ -208,8 +219,10 @@ class Aggregator {
 				$hi
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
 		// First and last visit per bot.
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'bots_seen' ) . " (bot, first_seen, last_seen, hits, verified, spoofed)
@@ -222,6 +235,7 @@ class Aggregator {
 				$hi
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 		// Impersonations per claimed bot: aggregate over the id range first (primary
 		// key), then a handful of single-row updates. (An UPDATE … JOIN on a derived
 		// table lets the optimiser walk every event of the bot instead.)
@@ -231,7 +245,7 @@ class Aggregator {
 		);
 		self::check();
 		foreach ( (array) $spoofed as $r ) {
-			self::exec( $wpdb->prepare( 'UPDATE ' . Installer::table( 'bots_seen' ) . ' SET spoofed = spoofed + %d WHERE bot = %s', (int) $r['c'], $r['bot'] ) );
+			self::exec( $wpdb->prepare( 'UPDATE ' . Installer::table( 'bots_seen' ) . ' SET spoofed = spoofed + %d WHERE bot = %s', (int) $r['c'], $r['bot'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		}
 
 		self::sessions( $lo, $hi );
@@ -332,7 +346,7 @@ class Aggregator {
 		global $wpdb;
 		$rows = $wpdb->get_col(
 			$wpdb->prepare(
-				'SELECT ip_hash FROM ' . Installer::table( 'events' ) . " WHERE ts > %d AND vstate <> 'verified' AND ip_hash <> '' GROUP BY ip_hash HAVING COUNT(*) > 600 LIMIT 200", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				'SELECT ip_hash FROM ' . Installer::table( 'events' ) . " WHERE ts > %d AND vstate <> 'verified' AND ip_hash <> '' GROUP BY ip_hash HAVING COUNT(*) > 600 LIMIT 200", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 				time() - 600
 			)
 		);
@@ -363,21 +377,21 @@ class Aggregator {
 		$sess    = time() - DAY_IN_SECONDS * (int) Settings::get( 'retention_sessions' );
 
 		for ( $i = 0; $i < 20; $i++ ) {
-			$n = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'events' ) . ' WHERE ts < %d AND id <= %d LIMIT 5000', $events, $wm ) );
+			$n = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'events' ) . ' WHERE ts < %d AND id <= %d LIMIT 5000', $events, $wm ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			if ( $n < 5000 ) {
 				break;
 			}
 		}
 		foreach ( array( 'daily', 'daily_pages', 'daily_bots', 'referrals' ) as $t ) {
-			$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( $t ) . ' WHERE day < %s LIMIT 50000', $history ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( $t ) . ' WHERE day < %s LIMIT 50000', $history ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		}
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'snapshots' ) . ' WHERE day < %s', $history ) );
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'sessions' ) . ' WHERE ended < %d LIMIT 50000', $sess ) );
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'agents' ) . " WHERE last_seen < %d AND state IN ('new','ignored')", time() - 180 * DAY_IN_SECONDS ) );
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'alerts' ) . ' WHERE created_at < %d', time() - 180 * DAY_IN_SECONDS ) );
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'findings' ) . " WHERE status = 'resolved' AND resolved_at < %d", time() - 365 * DAY_IN_SECONDS ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'snapshots' ) . ' WHERE day < %s', $history ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'sessions' ) . ' WHERE ended < %d LIMIT 50000', $sess ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'agents' ) . " WHERE last_seen < %d AND state IN ('new','ignored')", time() - 180 * DAY_IN_SECONDS ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'alerts' ) . ' WHERE created_at < %d', time() - 180 * DAY_IN_SECONDS ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'findings' ) . " WHERE status = 'resolved' AND resolved_at < %d", time() - 365 * DAY_IN_SECONDS ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		// Page × bot rows for pages no bot has touched within the history window.
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'page_bots' ) . ' WHERE last_seen < %d LIMIT 50000', time() - DAY_IN_SECONDS * (int) Settings::get( 'retention_history' ) ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'page_bots' ) . ' WHERE last_seen < %d LIMIT 50000', time() - DAY_IN_SECONDS * (int) Settings::get( 'retention_history' ) ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		Verifier::prune();
 	}
 }

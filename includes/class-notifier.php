@@ -48,7 +48,7 @@ class Notifier {
 			return;
 		}
 		update_option( 'rfy_digest_at', time(), false );
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'alerts' ) . ' WHERE created_at > %d ORDER BY FIELD(severity, \'critical\', \'warning\', \'info\'), id DESC LIMIT 30', max( $last, time() - 2 * DAY_IN_SECONDS ) ), ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'alerts' ) . ' WHERE created_at > %d ORDER BY FIELD(severity, \'critical\', \'warning\', \'info\'), id DESC LIMIT 30', max( $last, time() - 2 * DAY_IN_SECONDS ) ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		if ( $rows ) {
 			self::email( $rows, true );
 		}

@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       RankyFy AI SEO
  * Plugin URI:        https://rankyfy.com/
- * Description:       See which AI crawlers read your site, whether ChatGPT and Google AI cite you, and fix what holds you back — beside your SEO plugin.
+ * Description:       See which AI crawlers and assistants read your site, where AI traffic lands, and what keeps your content out of AI search — beside your SEO plugin.
  * Version:           1.1.0
  * Requires at least: 6.5
  * Requires PHP:      7.4

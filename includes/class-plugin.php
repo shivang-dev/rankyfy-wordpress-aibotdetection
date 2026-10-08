@@ -12,7 +12,6 @@ defined( 'ABSPATH' ) || exit;
 class Plugin {
 
 	public static function boot() {
-		load_plugin_textdomain( 'rankyfy-ai-seo', false, dirname( plugin_basename( RFY_FILE ) ) . '/languages' );
 		Installer::maybe_upgrade();
 
 		Worker::init();

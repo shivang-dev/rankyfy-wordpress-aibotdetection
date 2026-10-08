@@ -258,7 +258,7 @@ class Ranges {
 	 * the normal case nothing is stale and nothing is fetched here.
 	 */
 	public static function refresh_direct( $budget_seconds = 20 ) {
-		if ( ! Settings::get( 'fetch_ranges_direct' ) ) {
+		if ( ! Settings::get( 'remote_updates' ) || ! Settings::get( 'fetch_ranges_direct' ) ) {
 			return 0;
 		}
 		$deadline = microtime( true ) + $budget_seconds;
@@ -314,7 +314,7 @@ class Ranges {
 		}
 		update_option( 'rfy_cf_at', time(), false );
 		$all = array();
-		foreach ( array( 'https://www.cloudflare.com/ips-v4', 'https://www.cloudflare.com/ips-v6' ) as $url ) {
+		foreach ( array( 'https://www.cloudflare.com/ips-v4', 'https://www.cloudflare.com/ips-v6' ) as $url ) { // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- fetches Cloudflare's published IP list (plain data) to recognise its proxy, behind the remote-updates opt-in; no assets are offloaded
 			$res = wp_safe_remote_get( $url, array( 'timeout' => 8, 'limit_response_size' => 64 * KB_IN_BYTES ) );
 			if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) {
 				return; // keep the current list

@@ -201,8 +201,8 @@ class Robots {
 	public static function build_matrix( $body ) {
 		global $wpdb;
 		$parsed = self::parse( $body );
-		$pages  = $wpdb->get_results(
-			$wpdb->prepare( 'SELECT id, path FROM ' . Installer::table( 'pages' ) . ' WHERE deleted = 0 AND importance >= %d ORDER BY importance DESC LIMIT 500', (int) Settings::get( 'importance_min' ) ),
+		$pages  = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+			$wpdb->prepare( 'SELECT id, path FROM ' . Installer::table( 'pages' ) . ' WHERE deleted = 0 AND importance >= %d ORDER BY importance DESC LIMIT 500', (int) Settings::get( 'importance_min' ) ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			ARRAY_A
 		);
 		$bots = array();

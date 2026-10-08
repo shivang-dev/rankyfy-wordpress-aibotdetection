@@ -66,6 +66,7 @@ class Columns {
 		if ( ! $ids ) {
 			return self::$data;
 		}
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT p.object_id, p.aeo_score, COALESCE(SUM(d.hits), 0) hits FROM ' . Installer::table( 'pages' ) . ' p
@@ -76,6 +77,7 @@ class Columns {
 			),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 		foreach ( (array) $rows as $r ) {
 			self::$data[ (int) $r['object_id'] ] = $r;
 		}

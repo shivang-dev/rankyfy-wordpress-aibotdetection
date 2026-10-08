@@ -128,11 +128,12 @@ function test_llms_request_matching() {
 
 function test_llms_lists_the_right_pages() {
 	global $wpdb;
-	t_robots( "User-agent: *\nDisallow: /private-area\n\nUser-agent: OAI-SearchBot\nDisallow: /readiness-blocked\n" );
 	list( $a ) = t_ready_page( 'Readiness pricing [2026]', 600, 95 );
 	list( $b ) = t_ready_page( 'Readiness noindex page', 600, 90 );
 	list( $c ) = t_ready_page( 'Readiness blocked', 600, 85 );
 	list( $d ) = t_ready_page( 'Readiness minor note', 600, 5 );
+	// The real path, so the rule matches under any permalink structure.
+	t_robots( "User-agent: *\nDisallow: /private-area\n\nUser-agent: OAI-SearchBot\nDisallow: " . RankyfyAIB\Util::normalize_path( get_permalink( $c ) ) . "\n" );
 	$wpdb->update( Installer::table( 'pages' ), array( 'noindex' => 1 ), array( 'object_type' => 'post', 'object_id' => $b ) );
 	Settings::update( array( 'llms_enabled' => true, 'llms_summary' => "Coffee gear\nreviews.", 'llms_intro' => 'Prices are in EUR.', 'llms_max_links' => 10 ) );
 	update_option( 'blogname', 'Test Site' );

@@ -161,7 +161,7 @@ class Analyzer {
 	private static function db_ok() {
 		global $wpdb;
 		if ( '' !== (string) $wpdb->last_error ) {
-			throw new \RuntimeException( 'page analysis not saved: ' . $wpdb->last_error );
+			throw new \RuntimeException( 'page analysis not saved: ' . esc_html( $wpdb->last_error ) );
 		}
 	}
 
@@ -483,7 +483,7 @@ class Analyzer {
 				$vals[] = '(%s, 1)';
 				$args[] = $term;
 			}
-			$wpdb->query( $wpdb->prepare( "INSERT INTO {$tt} (term, df) VALUES " . implode( ',', $vals ) . ' ON DUPLICATE KEY UPDATE df = df + 1', $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( $wpdb->prepare( "INSERT INTO {$tt} (term, df) VALUES " . implode( ',', $vals ) . ' ON DUPLICATE KEY UPDATE df = df + 1', $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 			self::db_ok();
 		}
 		$wpdb->delete( $pt, array( 'page_id' => $page_id ) );
@@ -495,7 +495,7 @@ class Analyzer {
 				$vals[] = '(%d, %s, %f)';
 				array_push( $args, $page_id, $term, (float) $c );
 			}
-			$wpdb->query( $wpdb->prepare( "INSERT INTO {$pt} (page_id, term, weight) VALUES " . implode( ',', $vals ) . ' ON DUPLICATE KEY UPDATE weight = VALUES(weight)', $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( $wpdb->prepare( "INSERT INTO {$pt} (page_id, term, weight) VALUES " . implode( ',', $vals ) . ' ON DUPLICATE KEY UPDATE weight = VALUES(weight)', $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 			self::db_ok();
 		}
 	}
@@ -509,7 +509,7 @@ class Analyzer {
 			$hashes = array_map( array( Util::class, 'url_hash' ), $paths );
 			foreach ( array_chunk( $hashes, 200 ) as $chunk ) {
 				$in  = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
-				$ids = array_merge( $ids, array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT id FROM ' . Installer::table( 'pages' ) . " WHERE url_hash IN ({$in}) AND deleted = 0", $chunk ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$ids = array_merge( $ids, array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT id FROM ' . Installer::table( 'pages' ) . " WHERE url_hash IN ({$in}) AND deleted = 0", $chunk ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 			}
 		}
 		$ids = array_values( array_diff( array_unique( $ids ), array( $page_id ) ) );
@@ -522,13 +522,13 @@ class Analyzer {
 				$vals[] = '(%d, %d)';
 				array_push( $args, $page_id, $to );
 			}
-			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$lt} (from_id, to_id) VALUES " . implode( ',', $vals ), $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$lt} (from_id, to_id) VALUES " . implode( ',', $vals ), $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 			self::db_ok();
 		}
 		$touched = array_values( array_unique( array_merge( $old, $ids ) ) );
 		if ( $touched ) {
 			$in = implode( ',', array_map( 'intval', $touched ) );
-			$wpdb->query( 'UPDATE ' . Installer::table( 'pages' ) . " p SET p.inlinks = (SELECT COUNT(*) FROM {$lt} l WHERE l.to_id = p.id) WHERE p.id IN ({$in})" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( 'UPDATE ' . Installer::table( 'pages' ) . " p SET p.inlinks = (SELECT COUNT(*) FROM {$lt} l WHERE l.to_id = p.id) WHERE p.id IN ({$in})" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 			self::db_ok();
 		}
 	}
@@ -536,8 +536,8 @@ class Analyzer {
 	/** Key terms of a page, ranked by TF-IDF against the site. */
 	public static function key_terms( $page_id, $limit = 12 ) {
 		global $wpdb;
-		$rows = $wpdb->get_results(
-			$wpdb->prepare( 'SELECT pt.term, pt.weight, COALESCE(t.df, 0) df FROM ' . Installer::table( 'page_terms' ) . ' pt LEFT JOIN ' . Installer::table( 'terms' ) . ' t ON t.term = pt.term WHERE pt.page_id = %d', $page_id ),
+		$rows = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+			$wpdb->prepare( 'SELECT pt.term, pt.weight, COALESCE(t.df, 0) df FROM ' . Installer::table( 'page_terms' ) . ' pt LEFT JOIN ' . Installer::table( 'terms' ) . ' t ON t.term = pt.term WHERE pt.page_id = %d', $page_id ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			ARRAY_A
 		);
 		$counts = array();

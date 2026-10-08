@@ -21,7 +21,7 @@ class Linker {
 	/** Suggested source pages for one target page. */
 	public static function for_page( $page_id, $limit = 5 ) {
 		global $wpdb;
-		$type = $wpdb->get_var( $wpdb->prepare( 'SELECT object_type FROM ' . Installer::table( 'pages' ) . ' WHERE id = %d', $page_id ) );
+		$type = $wpdb->get_var( $wpdb->prepare( 'SELECT object_type FROM ' . Installer::table( 'pages' ) . ' WHERE id = %d', $page_id ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		if ( 'post' !== $type ) {
 			return array(); // the home page and archives get their links from navigation
 		}
@@ -78,7 +78,7 @@ class Linker {
 		global $wpdb;
 		$deadline = microtime( true ) + $budget;
 		$targets  = $wpdb->get_results(
-			$wpdb->prepare( 'SELECT id, path, title, inlinks, importance FROM ' . Installer::table( 'pages' ) . " WHERE deleted = 0 AND analyzed_at > 0 AND (importance >= %d OR pinned > 0) AND inlinks < 5 AND object_type = 'post' ORDER BY importance DESC, inlinks ASC LIMIT 60", (int) Settings::get( 'importance_min' ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare( 'SELECT id, path, title, inlinks, importance FROM ' . Installer::table( 'pages' ) . " WHERE deleted = 0 AND analyzed_at > 0 AND (importance >= %d OR pinned > 0) AND inlinks < 5 AND object_type = 'post' ORDER BY importance DESC, inlinks ASC LIMIT 60", (int) Settings::get( 'importance_min' ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 			ARRAY_A
 		);
 		$ops = array();

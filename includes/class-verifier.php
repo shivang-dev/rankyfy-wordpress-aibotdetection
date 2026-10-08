@@ -32,10 +32,10 @@ class Verifier {
 		global $wpdb;
 		$k = $bot . '|' . $ip_hash;
 		if ( ! array_key_exists( $k, self::$cache ) ) {
-			self::$cache[ $k ] = $wpdb->get_var(
+			self::$cache[ $k ] = $wpdb->get_var( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 				$wpdb->prepare(
 					// A pass is trusted for a week; a failure only for a day (it may have been a DNS hiccup).
-					'SELECT verdict FROM ' . Installer::table( 'ip_verdicts' ) . " WHERE ip_hash = %s AND bot = %s AND checked_at > IF(verdict = 'failed', %d, %d)",
+					'SELECT verdict FROM ' . Installer::table( 'ip_verdicts' ) . " WHERE ip_hash = %s AND bot = %s AND checked_at > IF(verdict = 'failed', %d, %d)", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 					$ip_hash,
 					$bot,
 					time() - DAY_IN_SECONDS,
@@ -52,9 +52,9 @@ class Verifier {
 
 	public static function enqueue( $kind, $event_id, $bot, $ip, $ip_hash, array $payload = array() ) {
 		global $wpdb;
-		$wpdb->query(
+		$wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
-				'INSERT IGNORE INTO ' . Installer::table( 'verify_queue' ) . ' (event_id, kind, bot, ip, ip_hash, payload, created_at) VALUES (%d, %s, %s, %s, %s, %s, %d)',
+				'INSERT IGNORE INTO ' . Installer::table( 'verify_queue' ) . ' (event_id, kind, bot, ip, ip_hash, payload, created_at) VALUES (%d, %s, %s, %s, %s, %s, %d)', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 				'sig' === $kind ? $event_id : 0,
 				$kind,
 				$bot,
@@ -336,6 +336,9 @@ class Verifier {
 		if ( is_array( $cached ) ) {
 			return $cached;
 		}
+		if ( ! Settings::get( 'remote_updates' ) ) {
+			return array(); // no remote fetches without the opt-in; the request stays "user agent only"
+		}
 		$res  = wp_safe_remote_get(
 			'https://' . $host . '/.well-known/http-message-signatures-directory',
 			array(
@@ -433,6 +436,6 @@ class Verifier {
 	/** Housekeeping: verdicts are re-checked after a week. */
 	public static function prune() {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'ip_verdicts' ) . ' WHERE checked_at < %d', time() - 2 * self::VERDICT_TTL ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'ip_verdicts' ) . ' WHERE checked_at < %d', time() - 2 * self::VERDICT_TTL ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 	}
 }

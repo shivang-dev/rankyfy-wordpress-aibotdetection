@@ -297,7 +297,7 @@ class Inventory {
 			} else {
 				self::upsert_home( $gen );
 				// Rows this pass did not see are gone (unpublished, deleted, renamed).
-				$wpdb->query( $wpdb->prepare( 'UPDATE ' . Installer::table( 'pages' ) . ' SET deleted = 1 WHERE gen < %d AND deleted = 0', $gen ) );
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . Installer::table( 'pages' ) . ' SET deleted = 1 WHERE gen < %d AND deleted = 0', $gen ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 				$st['running']  = false;
 				$st['finished'] = time();
 				Log::info( 'page inventory rebuilt', array( 'pages' => self::count() ) );

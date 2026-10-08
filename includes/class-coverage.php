@@ -66,21 +66,21 @@ class Coverage {
 
 		// Observed crawl data for these pages.
 		$crawls = array();
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT url_hash, bot, first_seen, last_seen, hits, last_status FROM ' . Installer::table( 'page_bots' ) . " WHERE url_hash IN ({$hin})", $hashes ), ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT url_hash, bot, first_seen, last_seen, hits, last_status FROM ' . Installer::table( 'page_bots' ) . " WHERE url_hash IN ({$hin})", $hashes ), ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 			$crawls[ $r['url_hash'] ][ $r['bot'] ] = $r;
 		}
 		$recent = array();
 		$since  = wp_date( 'Y-m-d', time() - 14 * DAY_IN_SECONDS );
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT url_hash, bot, SUM(hits) h, SUM(errors) e, SUM(ms_total) ms, MAX(last_status) st FROM ' . Installer::table( 'daily' ) . " WHERE url_hash IN ({$hin}) AND day >= %s GROUP BY url_hash, bot", array_merge( $hashes, array( $since ) ) ), ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT url_hash, bot, SUM(hits) h, SUM(errors) e, SUM(ms_total) ms, MAX(last_status) st FROM ' . Installer::table( 'daily' ) . " WHERE url_hash IN ({$hin}) AND day >= %s GROUP BY url_hash, bot", array_merge( $hashes, array( $since ) ) ), ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 			$recent[ $r['url_hash'] ][ $r['bot'] ] = $r;
 		}
 		$refs = array();
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT url_hash, SUM(hits) h FROM ' . Installer::table( 'referrals' ) . " WHERE url_hash IN ({$hin}) AND day >= %s GROUP BY url_hash", array_merge( $hashes, array( wp_date( 'Y-m-d', time() - 30 * DAY_IN_SECONDS ) ) ) ), ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT url_hash, SUM(hits) h FROM ' . Installer::table( 'referrals' ) . " WHERE url_hash IN ({$hin}) AND day >= %s GROUP BY url_hash", array_merge( $hashes, array( wp_date( 'Y-m-d', time() - 30 * DAY_IN_SECONDS ) ) ) ), ARRAY_A ) as $r ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 			$refs[ $r['url_hash'] ] = (int) $r['h'];
 		}
 
 		$monitor_days = ( time() - (int) get_option( 'rfy_monitoring_since', time() ) ) / DAY_IN_SECONDS;
-		$ai_active    = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Installer::table( 'bots_seen' ) . ' WHERE last_seen > %d', time() - 14 * DAY_IN_SECONDS ) ) > 0; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$ai_active    = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Installer::table( 'bots_seen' ) . ' WHERE last_seen > %d', time() - 14 * DAY_IN_SECONDS ) ) > 0; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		$learning     = $monitor_days < 14 || ! $ai_active;
 		$min_imp      = (int) Settings::get( 'importance_min' );
 		$priority     = array_filter( array_map( 'trim', explode( ',', (string) Settings::get( 'priority_bots' ) ) ) );
@@ -287,13 +287,13 @@ class Coverage {
 				continue;
 			}
 			// If the real, verified crawler got through recently, the CDN is checking addresses: not a block.
-			$ok = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(verified) - SUM(errors) FROM ' . Installer::table( 'daily_bots' ) . ' WHERE bot = %s AND day >= %s', $r['bot'], $since ) );
+			$ok = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(verified) - SUM(errors) FROM ' . Installer::table( 'daily_bots' ) . ' WHERE bot = %s AND day >= %s', $r['bot'], $since ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			if ( $ok > 0 ) {
 				continue;
 			}
 			$out[] = array( 'edge_blocks_bot', array( 'bot_status' => $r['bot_status'], 'browser_status' => $r['browser_status'], 'value' => $r['url'] ), $r['bot'] );
 		}
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT bot, SUM(spoofed) s FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot HAVING s >= 20', $since ), ARRAY_A ) as $r ) {
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT bot, SUM(spoofed) s FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot HAVING s >= 20', $since ), ARRAY_A ) as $r ) { // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			$out[] = array( 'impersonation', array( 'n' => (int) $r['s'] ), $r['bot'] );
 		}
 		$stale = false;

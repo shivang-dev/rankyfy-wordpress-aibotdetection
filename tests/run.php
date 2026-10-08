@@ -71,6 +71,13 @@ function t_ranges( $bot, array $cidrs, $age = 0 ) {
 	}
 }
 
+// The path-based tests (robots rules, llms.txt) need pretty permalinks.
+if ( ! get_option( 'permalink_structure' ) ) {
+	update_option( 'permalink_structure', '/%postname%/' );
+	$GLOBALS['wp_rewrite']->init();
+	flush_rewrite_rules( false );
+}
+
 $filter = $args[0] ?? '';
 $files  = glob( __DIR__ . '/test-*.php' );
 sort( $files );

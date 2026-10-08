@@ -102,9 +102,29 @@ function test_rate_limit() {
 }
 
 function test_backend_unavailable_degrades_gracefully() {
-	// The test gateway answers 503 (see the mock service); a timeout is simulated.
-	t_eq( 'unavailable', RankyfyAIB\Rankyfy::sync_registry( true ) );
-	t_eq( 'bundled', RankyfyAIB\Registry::data()['source'], 'bundled registry stays in use' );
+	// Opt-in first: without it the worker never goes to the network at all.
+	t_eq( 'off', RankyfyAIB\Rankyfy::sync_registry(), 'no remote fetch without consent' );
+	$fail = static function () {
+		throw new RFAIB_Assert_Failed( 'HTTP request made while remote updates are off' );
+	};
+	add_filter( 'pre_http_request', $fail );
+	try {
+		t_eq( 'off', RankyfyAIB\Rankyfy::sync_registry() );
+		t_eq( 0, RankyfyAIB\Ranges::refresh_direct( 5 ), 'operator files untouched without consent' );
+	} finally {
+		remove_filter( 'pre_http_request', $fail );
+	}
+	RankyfyAIB\Settings::update( array( 'remote_updates' => true ) );
+	$unavailable = static function () {
+		return array( 'response' => array( 'code' => 503, 'message' => 'Service Unavailable' ), 'body' => '', 'headers' => array(), 'cookies' => array() );
+	};
+	add_filter( 'pre_http_request', $unavailable );
+	try {
+		t_eq( 'unavailable', RankyfyAIB\Rankyfy::sync_registry( true ) );
+		t_eq( 'bundled', RankyfyAIB\Registry::data()['source'], 'bundled registry stays in use' );
+	} finally {
+		remove_filter( 'pre_http_request', $unavailable );
+	}
 	$timeout = static function () {
 		return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' );
 	};

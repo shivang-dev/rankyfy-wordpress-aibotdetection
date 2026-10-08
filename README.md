@@ -3,10 +3,10 @@
 See which AI crawlers and assistants visit your site, what they read and what they skip, which pages are blocked from them, and what to change so AI search can find and cite your content.
 
 ```
-Install → Activate → Done (monitoring starts immediately)
+Install → Activate → Done
 ```
 
-Nothing to configure. A RankyFy account is optional: it adds AI analysis of pages.
+AI crawler monitoring works locally immediately, with the bundled crawler registry — nothing is contacted. Optional remote crawler-data updates (the live registry and the operators' published address lists) can be enabled in Settings → Capture. A RankyFy account is optional: it adds AI analysis of pages.
 
 ## Requirements
 
@@ -22,7 +22,7 @@ Open **RankyFy** in the admin menu (just below Settings).
 |---|---|
 | **Dashboard** | AI crawler hits, pages ever read (and how many never were), visits from AI assistants, the share of verified hits; daily hits per crawler; the pages AI crawlers read most, with their top crawler and AI visits; your readiness score; visits by AI engine. In the first days, before any AI crawler arrives, it confirms capture is working, can email you on the first hit, runs a test request and lists what is worth doing meanwhile |
 | **AI Crawlers** | Every AI crawler request, verified against published addresses. By bot: purpose (training vs. search), access, hits, pages, 30-day trend — click a row to filter. By page: requests per crawler and the last answer they got, with **Add redirect** on addresses that answer "not found". Unverified requests are counted separately. Click any address for its detail panel. Also links to unrecognised bots and the crawler registry |
-| **AI Referrals** | Visits that arrived from ChatGPT, Perplexity, Gemini, Claude, Copilot…, by engine and landing page, beside the crawler hits for the same page; *crawled vs. cited* shows pages that are read but never send visitors |
+| **AI Referrals** | Visits that arrived from ChatGPT, Perplexity, Gemini, Claude, Copilot…, by engine and landing page, beside the crawler hits for the same page; *crawled vs. AI visits* shows pages that are read by AI but never receive an AI visit |
 | **Readiness Score** | 18 checks, a score out of 100 and the open issues ranked by impact; *How to fix* explains each one with the pages to start with; accept a deliberate choice so it stops counting; history of the score and fixed checks |
 | **Access Manager** | Allow or block each AI crawler, grouped by operator, with its traffic and what blocking it costs. Presets (allow search, block training…), a preview of the exact robots.txt lines, nothing written until you save. RankyFy adds its own fenced block to robots.txt and touches nothing else |
 | **llms.txt** | The generated `/llms.txt` (your pages AI crawlers read most, with descriptions), `/llms-full.txt` and `/ai.txt`: what's included, a minimum length, manual edits that survive rebuilds, whether each file answers and which crawlers fetched it |

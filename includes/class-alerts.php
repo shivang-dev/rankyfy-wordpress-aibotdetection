@@ -87,7 +87,7 @@ class Alerts {
 			return array();
 		}
 		$in   = implode( ',', array_fill( 0, count( $hashes ), '%s' ) );
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT id, url_hash, path, title, importance, pinned FROM ' . Installer::table( 'pages' ) . " WHERE url_hash IN ({$in}) AND deleted = 0", $hashes ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT id, url_hash, path, title, importance, pinned FROM ' . Installer::table( 'pages' ) . " WHERE url_hash IN ({$in}) AND deleted = 0", $hashes ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		$out  = array();
 		foreach ( (array) $rows as $r ) {
 			$out[ $r['url_hash'] ] = $r;
@@ -299,9 +299,9 @@ class Alerts {
 		global $wpdb;
 		$d7  = wp_date( 'Y-m-d', time() - 7 * DAY_IN_SECONDS );
 		$d35 = wp_date( 'Y-m-d', time() - 35 * DAY_IN_SECONDS );
-		$rows = $wpdb->get_results(
+		$rows = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
-				'SELECT bot, SUM(IF(day >= %s, hits, 0)) recent, SUM(IF(day < %s, hits, 0)) before_ FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot',
+				'SELECT bot, SUM(IF(day >= %s, hits, 0)) recent, SUM(IF(day < %s, hits, 0)) before_ FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 				$d7,
 				$d7,
 				$d35
@@ -387,7 +387,7 @@ class Alerts {
 		$in   = implode( ',', array_fill( 0, count( $user_bots ), '%s' ) );
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT d.url_hash, SUM(d.hits) h, GROUP_CONCAT(DISTINCT d.bot) bots FROM ' . Installer::table( 'daily' ) . " d WHERE d.day >= %s AND d.bot IN ({$in}) GROUP BY d.url_hash HAVING h >= 10 ORDER BY h DESC LIMIT 10", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				'SELECT d.url_hash, SUM(d.hits) h, GROUP_CONCAT(DISTINCT d.bot) bots FROM ' . Installer::table( 'daily' ) . " d WHERE d.day >= %s AND d.bot IN ({$in}) GROUP BY d.url_hash HAVING h >= 10 ORDER BY h DESC LIMIT 10", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 				array_merge( array( wp_date( 'Y-m-d', time() - DAY_IN_SECONDS ) ), $user_bots )
 			),
 			ARRAY_A
@@ -422,7 +422,8 @@ class Alerts {
 		if ( ! self::baseline_done() ) {
 			return;
 		}
-		$rows = $wpdb->get_results(
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$rows = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
 				'SELECT p.id, p.path, p.title, p.importance, p.pinned, MAX(pb.last_seen) last_seen FROM ' . Installer::table( 'pages' ) . ' p JOIN ' . Installer::table( 'page_bots' ) . ' pb ON pb.url_hash = p.url_hash
 				 WHERE p.deleted = 0 AND (p.importance >= %d OR p.pinned > 0) AND pb.hits >= 3
@@ -433,6 +434,7 @@ class Alerts {
 			),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 		$rows = array_filter( (array) $rows, array( __CLASS__, 'is_important' ) );
 		if ( ! $rows ) {
 			return;
@@ -457,11 +459,13 @@ class Alerts {
 		if ( ! self::baseline_done() ) {
 			return;
 		}
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		$rows = $wpdb->get_results(
 			'SELECT p.id, p.path, p.title, p.importance, p.pinned FROM ' . Installer::table( 'findings' ) . ' f JOIN ' . Installer::table( 'pages' ) . " p ON p.id = f.page_id
 			 WHERE f.code = 'never_crawled' AND f.status = 'open' AND p.deleted = 0 ORDER BY p.importance DESC LIMIT 25", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 		if ( ! $rows ) {
 			return;
 		}
@@ -486,7 +490,7 @@ class Alerts {
 		global $wpdb;
 		$since = (int) get_option( 'rfy_potential_checked', time() - HOUR_IN_SECONDS );
 		update_option( 'rfy_potential_checked', time(), false );
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT ua, hits FROM ' . Installer::table( 'agents' ) . " WHERE cls = 'potential' AND state = 'new' AND first_seen > %d ORDER BY hits DESC LIMIT 5", $since ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT ua, hits FROM ' . Installer::table( 'agents' ) . " WHERE cls = 'potential' AND state = 'new' AND first_seen > %d ORDER BY hits DESC LIMIT 5", $since ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		foreach ( (array) $rows as $r ) {
 			self::raise(
 				'potential_bot',

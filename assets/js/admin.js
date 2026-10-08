@@ -732,6 +732,19 @@
 		if (!st.tracking) {
 			shell.banner.appendChild(h('div', { 'class': 'rf-banner rf-banner-warn' }, icon('alert'), h('span', { text: __('Tracking is switched off. No crawler visits are being recorded.') }), link(__('Settings'), '/settings')));
 		}
+		if (st.remote_updates === false) {
+			var dismissed = false;
+			try { dismissed = window.localStorage.getItem('rfy_remote_prompt') === '1'; } catch (e) { dismissed = false; }
+			if (!dismissed) {
+				var bn = h('div', { 'class': 'rf-banner rf-banner-info' }, icon('info'),
+					h('span', { text: __('Running fully locally with the bundled crawler registry. Optionally, the plugin can keep crawler identities and published address ranges up to date by contacting rankyfy.com and the crawler operators’ own published files.') }),
+					button(__('Enable updates'), function () {
+						return api('/settings', { method: 'POST', body: { remote_updates: true } }).then(function () { bn.remove(); refreshStatus(); toast(__('Remote updates enabled. You can switch this off in Settings → Capture.')); });
+					}, { small: true, primary: true }),
+					button(__('Keep local only'), function () { try { window.localStorage.setItem('rfy_remote_prompt', '1'); } catch (e) { /* private mode */ } bn.remove(); }, { small: true, ghost: true }));
+				shell.banner.appendChild(bn);
+			}
+		}
 		if (st.worker && st.worker.stalled) {
 			shell.banner.appendChild(h('div', { 'class': 'rf-banner rf-banner-crit' }, icon('xCircle'), h('span', { text: __('Background processing has not run for over an hour. Visits are still recorded, but history, verification and alerts are not updating. WP-Cron may be disabled — ask your host to run wp-cron.php every 5 minutes.') })));
 		}
@@ -1038,13 +1051,13 @@
 				h('span', { 'class': 'rf-grow rf-hint' }, sprintf(_n('%s visit', '%s visits', d.visits), num(d.visits)) + ' · ', h('a', { href: cfg.exportUrl + '&type=referrals&days=' + state.days, text: __('Export CSV') }))));
 			var engines = card(__('By engine'));
 			add(engines.body, [d.engines.length ? engineBars(d.engines) : empty(__('No visits from AI engines in this period.')), h('p', { 'class': 'rf-hint', text: __('One measure across engines, so all bars share one colour — the labels carry identity, not hue.') })]);
-			var c = d.cited, cvc = card(__('Crawled vs cited'), { tools: h('span', { 'class': 'rf-hint', text: sprintf(__('Last %d days'), d.days) }) });
+			var c = d.cited, cvc = card(__('Crawled vs AI visits'), { tools: h('span', { 'class': 'rf-hint', text: sprintf(__('Last %d days'), d.days) }) });
 			add(cvc.body, [
 				h('dl', { 'class': 'rf-facts rf-facts-wide' },
 					h('dt', { text: __('Read by bots & getting AI visits') }), h('dd', null, h('strong', { text: sprintf(_n('%s page', '%s pages', c.cited), num(c.cited)) })),
 					h('dt', { text: __('Read by bots, no AI visits') }), h('dd', null, h('strong', { text: sprintf(_n('%s page', '%s pages', c.read_only), num(c.read_only)) })),
 					h('dt', { text: __('Never read by any bot') }), h('dd', null, h('a', { href: '#/pages?filter=never', text: sprintf(_n('%s page', '%s pages', c.never), num(c.never)) }))),
-				c.read_only ? h('div', { 'class': 'rf-notice rf-notice-warn' }, icon('alert', 14), h('span', null, h('strong', { text: sprintf(_n('%s page is being read but never cited.', '%s pages are being read but never cited.', c.read_only), num(c.read_only)) }), ' ', __('Usually a content or structure problem rather than a crawling one. '), link(__('Readiness Score'), '/readiness'), __(' lists the likely causes per page.'))) : null
+				c.read_only ? h('div', { 'class': 'rf-notice rf-notice-warn' }, icon('alert', 14), h('span', null, h('strong', { text: sprintf(_n('%s page is being read by AI but never gets an AI visit.', '%s pages are being read by AI but never get an AI visit.', c.read_only), num(c.read_only)) }), ' ', __('Usually a content or structure problem rather than a crawling one. '), link(__('Readiness Score'), '/readiness'), __(' lists the likely causes per page.'))) : null
 			]);
 			var from = (d.page - 1) * 20 + 1, to = Math.min(d.total, d.page * 20);
 			var lp = card(__('Landing pages'), { tools: h('span', { 'class': 'rf-hint', text: d.total ? sprintf(__('Showing %1$s–%2$s of %3$s'), num(from), num(to), num(d.total)) : '' }) });
@@ -1054,7 +1067,7 @@
 					{ label: __('Other'), num: true, render: function (r) { return num(r.other); } },
 					{ label: __('Total'), num: true, render: function (r) { return h('strong', { text: num(r.total) }); } },
 					{ label: __('Bot hits'), num: true, render: function (r) { return num(r.bot_hits); } }
-				]), d.items, { empty: (c.cited + c.read_only) ? sprintf(__('No visits from AI engines in this period. Bots have read %s of your pages, so the reading is happening — the citing isn\'t yet.'), num(c.cited + c.read_only)) : __('No visits from AI engines in this period.') }));
+				]), d.items, { empty: (c.cited + c.read_only) ? sprintf(__('No visits from AI engines in this period. Bots have read %s of your pages, so the reading is happening — the visits haven\'t followed yet.'), num(c.cited + c.read_only)) : __('No visits from AI engines in this period.') }));
 			add(lp.body, [pager(d.page, d.pages, function (p) { go({ page: p }); }), h('p', { 'class': 'rf-hint', text: __('Some apps send no referrer, and those visits are invisible to any server-side method — so this number is a floor, not a total.') })]);
 			add(body, [h('div', { 'class': 'rf-grid' }, engines, cvc), lp]);
 		}).catch(function (e) { if (live()) { fail(e, viewReferrals); } });
@@ -2051,9 +2064,10 @@
 				row(__('Projected in 12 months'), sprintf(__('About %s at your crawl rate (estimate)'), bytes(projected)))))]);
 			var verify = card(__('Verification'));
 			add(verify.body, [
+				toggle('remote_updates', __('Keep crawler data updated from the internet'), __('Off by default: only the bundled registry is used and nothing is contacted. On: the latest crawler registry and consolidated address ranges are fetched from rankyfy.com, operators’ published range files and signature keys from their own sites, and Cloudflare’s published edge list. See “External services” in the readme for exactly what is sent.')),
 				toggle('verify_rdns', __('Confirm bot identity by reverse DNS'), __('For Googlebot, Bingbot, Applebot, Amazonbot and others. Runs in the background.')),
-				toggle('verify_signatures', __('Verify signed requests (Web Bot Auth)')),
-				toggle('fetch_ranges_direct', __('Download published IP ranges from operators when RankyFy is unreachable')),
+				toggle('verify_signatures', __('Verify signed requests (Web Bot Auth)'), __('Fetching an operator’s published keys requires remote updates above.')),
+				toggle('fetch_ranges_direct', __('Download published IP ranges from the operators’ own files'), __('Requires remote updates above.')),
 				toggle('probe', __('Test daily how the server answers AI crawlers')),
 				select('proxy_header', __('Visitor address header'), [['', __('None — use the connection address (default)')], ['cf-connecting-ip', 'CF-Connecting-IP (Cloudflare)'], ['x-forwarded-for', 'X-Forwarded-For'], ['x-real-ip', 'X-Real-IP']], __('Only behind a proxy or CDN, and only together with trusted proxies below.')),
 				field('trusted_proxies', __('Trusted proxy addresses (CIDR, one per line)'), h('textarea', { 'class': 'rf-input', rows: 2, value: st.trusted_proxies })),

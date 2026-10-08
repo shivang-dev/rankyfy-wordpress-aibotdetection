@@ -188,7 +188,7 @@ class Access {
 		global $wpdb;
 		$choices = self::choices();
 		$hits    = array();
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT bot, SUM(hits) h FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot', wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ) ), ARRAY_A ) as $r ) {
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT bot, SUM(hits) h FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot', wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ) ), ARRAY_A ) as $r ) { // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			$hits[ $r['bot'] ] = (int) $r['h'];
 		}
 		// What the file says without RankyFy's block: blocks there are not ours to lift.

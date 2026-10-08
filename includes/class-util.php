@@ -22,7 +22,14 @@ class Util {
 		if ( function_exists( 'mb_scrub' ) ) {
 			$s = mb_scrub( $s, 'UTF-8' );
 		} elseif ( ! preg_match( '//u', $s ) ) {
-			$s = utf8_encode( $s ); // phpcs:ignore PHPCompatibility.FunctionUse.RemovedFunctions -- fallback only
+			// Latin-1 to UTF-8, the open-coded equivalent of the removed utf8_encode().
+			$s = preg_replace_callback(
+				'/[\x80-\xFF]/',
+				static function ( $m ) {
+					return chr( 0xC0 | ( ord( $m[0] ) >> 6 ) ) . chr( 0x80 | ( ord( $m[0] ) & 0x3F ) );
+				},
+				$s
+			);
 		}
 		$s = preg_replace( '/[\x00-\x1F\x7F]+/u', ' ', $s );
 		$s = trim( (string) $s );

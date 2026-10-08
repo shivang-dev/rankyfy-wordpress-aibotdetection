@@ -29,10 +29,11 @@ class Settings {
 			'retention_events'    => array( 30, 'int', array( 1, 365 ) ),
 			'retention_history'   => array( 400, 'int', array( 30, 1825 ) ),
 			'retention_sessions'  => array( 180, 'int', array( 7, 1825 ) ),
+			'remote_updates'      => array( false, 'bool' ),   // master opt-in for everything fetched from the internet (registry, ranges, signature keys)
 			'verify_rdns'         => array( true, 'bool' ),
 			'verify_signatures'   => array( true, 'bool' ),
 			'fetch_ranges_direct' => array( true, 'bool' ),    // fall back to operators' own IP lists when RankyFy is unreachable
-			'share_unknown'       => array( true, 'bool' ),    // send unrecognised bot user agents (only) to RankyFy for classification
+			'share_unknown'       => array( false, 'bool' ),    // send unrecognised bot user agents (only) to RankyFy for classification
 			'probe'               => array( true, 'bool' ),    // test how the site answers requests identifying as AI crawlers
 			'importance_min'      => array( 40, 'int', array( 1, 100 ) ),
 			'notify_email'        => array( '', 'email' ),

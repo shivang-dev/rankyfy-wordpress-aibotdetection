@@ -29,6 +29,7 @@ class Admin {
 			return;
 		}
 		$text = '<p>' . esc_html__( 'This site records requests made by automated crawlers (for example search engines and AI crawlers) to understand how they use its content. For those requests we store the time, the page requested, the server response, the user agent and the network the request came from (the address with its last part removed). Full addresses are kept only for a few minutes while the crawler\'s identity is verified, then discarded. Ordinary visitors are not recorded; when a visitor arrives from an AI assistant such as ChatGPT, only a daily count per page is kept, without any information about the visitor.', 'rankyfy-ai-seo' ) . '</p>';
+		$text .= '<p>' . esc_html__( 'This data stays on this site. If the site administrator enables remote crawler-data updates, the site fetches public crawler registries and published address lists from rankyfy.com and from the crawler operators\' own sites; those requests include the site\'s address and no visitor data. If the administrator connects a RankyFy account, the user-agent text of unrecognised bots may be sent to RankyFy for identification (if enabled), and when the administrator requests AI analysis of a page, that page\'s content, title and address are sent to RankyFy. Visitor data and full network addresses are never sent anywhere.', 'rankyfy-ai-seo' ) . '</p>';
 		wp_add_privacy_policy_content( __( 'RankyFy AI SEO', 'rankyfy-ai-seo' ), wp_kses_post( $text ) );
 	}
 
@@ -175,7 +176,7 @@ class Admin {
 		};
 		if ( 'referrals' === $type ) {
 			$put( array( 'landing_page', 'engine', 'visits_' . $days . 'd' ) );
-			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT MAX(path) path, source, SUM(hits) h FROM ' . Installer::table( 'referrals' ) . ' WHERE day >= %s GROUP BY url_hash, source ORDER BY h DESC LIMIT 100000', wp_date( 'Y-m-d', time() - ( $days - 1 ) * DAY_IN_SECONDS ) ), ARRAY_A );
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT MAX(path) path, source, SUM(hits) h FROM ' . Installer::table( 'referrals' ) . ' WHERE day >= %s GROUP BY url_hash, source ORDER BY h DESC LIMIT 100000', wp_date( 'Y-m-d', time() - ( $days - 1 ) * DAY_IN_SECONDS ) ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			foreach ( (array) $rows as $r ) {
 				$put( array( $r['path'], Registry::referrer_name( $r['source'] ), $r['h'] ) );
 			}
@@ -198,7 +199,7 @@ class Admin {
 			$last = PHP_INT_MAX;
 			$from = time() - $days * DAY_IN_SECONDS;
 			for ( $i = 0; $i < 200; $i++ ) {
-				$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'events' ) . ' WHERE id < %d AND ts >= %d ORDER BY id DESC LIMIT 5000', $last, $from ), ARRAY_A );
+				$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'events' ) . ' WHERE id < %d AND ts >= %d ORDER BY id DESC LIMIT 5000', $last, $from ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 				if ( ! $rows ) {
 					break;
 				}

@@ -300,14 +300,14 @@ class Guard {
 
 	private static function page_row( $post_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'pages' ) . " WHERE object_type = 'post' AND object_id = %d AND deleted = 0", (int) $post_id ), ARRAY_A );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'pages' ) . " WHERE object_type = 'post' AND object_id = %d AND deleted = 0", (int) $post_id ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 	}
 
 	/** Observed AI crawls of, and AI-assistant visits to, one path. */
 	private static function crawl_history( $path ) {
 		global $wpdb;
 		$hash = Util::url_hash( $path );
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT bot, hits, last_seen FROM ' . Installer::table( 'page_bots' ) . ' WHERE url_hash = %s', $hash ), ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT bot, hits, last_seen FROM ' . Installer::table( 'page_bots' ) . ' WHERE url_hash = %s', $hash ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		$out  = array( 'hits' => 0, 'last' => 0, 'bots' => array(), 'by_bot' => array(), 'referrals' => 0 );
 		foreach ( (array) $rows as $r ) {
 			$b = Registry::get( $r['bot'] );
@@ -323,7 +323,7 @@ class Guard {
 		} );
 		$out['by_bot']    = array_slice( $out['by_bot'], 0, 6 );
 		$out['bots']      = array_column( $out['by_bot'], 'name' );
-		$out['referrals'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(hits) FROM ' . Installer::table( 'referrals' ) . ' WHERE url_hash = %s AND day >= %s', $hash, wp_date( 'Y-m-d', time() - 30 * DAY_IN_SECONDS ) ) );
+		$out['referrals'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(hits) FROM ' . Installer::table( 'referrals' ) . ' WHERE url_hash = %s AND day >= %s', $hash, wp_date( 'Y-m-d', time() - 30 * DAY_IN_SECONDS ) ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		return $out;
 	}
 
@@ -521,7 +521,8 @@ class Guard {
 		if ( '/' === $source ) {
 			return false;
 		}
-		return false !== $wpdb->query(
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		return false !== $wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'redirects' ) . ' (source_hash, source, post_id, reason, created_at) VALUES (%s, %s, %d, %s, %d)
 				 ON DUPLICATE KEY UPDATE post_id = VALUES(post_id), reason = VALUES(reason), created_at = VALUES(created_at)',
@@ -532,6 +533,7 @@ class Guard {
 				time()
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	/** On a 404 only: is this an old URL of a published post? */
@@ -573,7 +575,7 @@ class Guard {
 			static function ( $r ) {
 				return array( 'source' => $r['source'], 'created_at' => (int) $r['created_at'], 'hits' => (int) $r['hits'] );
 			},
-			(array) $wpdb->get_results( $wpdb->prepare( 'SELECT source, created_at, hits FROM ' . Installer::table( 'redirects' ) . ' WHERE post_id = %d ORDER BY created_at DESC LIMIT 20', (int) $post_id ), ARRAY_A )
+			(array) $wpdb->get_results( $wpdb->prepare( 'SELECT source, created_at, hits FROM ' . Installer::table( 'redirects' ) . ' WHERE post_id = %d ORDER BY created_at DESC LIMIT 20', (int) $post_id ), ARRAY_A ) // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		);
 	}
 

@@ -184,6 +184,7 @@ class Rest {
 			'version'          => RFY_VERSION,
 			'monitoring_since' => (int) get_option( 'rfy_monitoring_since' ),
 			'tracking'         => (bool) Settings::get( 'tracking' ),
+			'remote_updates'   => (bool) Settings::get( 'remote_updates' ),
 			'worker'           => array(
 				'age'          => $age,
 				'stalled'      => null !== $age && $age > HOUR_IN_SECONDS,
@@ -253,7 +254,7 @@ class Rest {
 
 	public static function analyze( WP_REST_Request $r ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'pages' ) . ' WHERE id = %d AND deleted = 0', (int) $r['id'] ), ARRAY_A );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'pages' ) . ' WHERE id = %d AND deleted = 0', (int) $r['id'] ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		if ( ! $row ) {
 			return new WP_Error( 'rfy_not_found', __( 'Page not found.', 'rankyfy-ai-seo' ), array( 'status' => 404 ) );
 		}

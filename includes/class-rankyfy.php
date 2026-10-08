@@ -74,6 +74,9 @@ class Rankyfy {
 	// ── registry and ranges (public) ───────────────────────────────────────
 
 	public static function sync_registry( $force = false ) {
+		if ( ! $force && ! Settings::get( 'remote_updates' ) ) {
+			return 'off'; // opt-in (Settings → Capture): until then only the bundled registry is used
+		}
 		$st = get_option( self::SYNC, array() );
 		$st = is_array( $st ) ? $st : array();
 		if ( ! $force && time() - (int) ( $st['at'] ?? 0 ) < 12 * HOUR_IN_SECONDS ) {
@@ -352,7 +355,7 @@ class Rankyfy {
 		}
 		$ids = $wpdb->get_col(
 			$wpdb->prepare(
-				'SELECT id FROM ' . Installer::table( 'pages' ) . " WHERE deleted = 0 AND object_type = 'post' AND (importance >= %d OR pinned > 0) AND assist_at < %d ORDER BY importance DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				'SELECT id FROM ' . Installer::table( 'pages' ) . " WHERE deleted = 0 AND object_type = 'post' AND (importance >= %d OR pinned > 0) AND assist_at < %d ORDER BY importance DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 				(int) Settings::get( 'importance_min' ),
 				time() - 30 * DAY_IN_SECONDS,
 				min( 5, (int) Settings::get( 'ai_auto_pages' ) ) // at most 5 a day

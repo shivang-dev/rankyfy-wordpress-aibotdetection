@@ -80,10 +80,12 @@ class Installer {
 				}
 			}
 			if ( $ai ) {
+				// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 				$wpdb->query(
 					'INSERT IGNORE INTO ' . self::table( 'daily_pages' ) . ' (day, url_hash, hits, errors, ms_total)
 					 SELECT day, url_hash, SUM(hits), SUM(errors), SUM(ms_total) FROM ' . self::table( 'daily' ) . ' WHERE bot IN (' . implode( ',', $ai ) . ') GROUP BY day, url_hash' // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 				);
+				// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 			}
 		}
 	}

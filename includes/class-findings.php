@@ -147,8 +147,8 @@ class Findings {
 
 	public static function for_page( $page_id, $status = 'open' ) {
 		global $wpdb;
-		$rows = $wpdb->get_results(
-			$wpdb->prepare( 'SELECT f.*, p.path, p.title AS page_title, p.importance, p.object_type, p.object_id FROM ' . Installer::table( 'findings' ) . ' f LEFT JOIN ' . Installer::table( 'pages' ) . ' p ON p.id = f.page_id WHERE f.page_id = %d AND f.status = %s ORDER BY FIELD(f.severity, \'critical\', \'warning\', \'info\'), f.id', (int) $page_id, $status ),
+		$rows = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+			$wpdb->prepare( 'SELECT f.*, p.path, p.title AS page_title, p.importance, p.object_type, p.object_id FROM ' . Installer::table( 'findings' ) . ' f LEFT JOIN ' . Installer::table( 'pages' ) . ' p ON p.id = f.page_id WHERE f.page_id = %d AND f.status = %s ORDER BY FIELD(f.severity, \'critical\', \'warning\', \'info\'), f.id', (int) $page_id, $status ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			ARRAY_A
 		);
 		return self::present( (array) $rows );
@@ -160,18 +160,20 @@ class Findings {
 
 	public static function counts() {
 		global $wpdb;
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 		$rows = $wpdb->get_results(
 			'SELECT f.severity, f.kind, COUNT(*) c FROM ' . Installer::table( 'findings' ) . ' f LEFT JOIN ' . Installer::table( 'pages' ) . " p ON p.id = f.page_id
 			 WHERE f.status = 'open' AND (f.page_id = 0 OR p.deleted = 0) GROUP BY f.severity, f.kind", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 		$out = array( 'critical' => 0, 'warning' => 0, 'info' => 0, 'observed' => 0, 'inferred' => 0, 'total' => 0 );
 		foreach ( (array) $rows as $r ) {
 			$out[ $r['severity'] ] += (int) $r['c'];
 			$out[ $r['kind'] ]     += (int) $r['c'];
 			$out['total']          += (int) $r['c'];
 		}
-		$out['resolved_30d'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Installer::table( 'findings' ) . " WHERE status = 'resolved' AND resolved_at > %d", time() - 30 * DAY_IN_SECONDS ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$out['resolved_30d'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Installer::table( 'findings' ) . " WHERE status = 'resolved' AND resolved_at > %d", time() - 30 * DAY_IN_SECONDS ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		return $out;
 	}
 }

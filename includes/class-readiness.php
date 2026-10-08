@@ -293,7 +293,7 @@ class Readiness {
 	private static function page_check( array $codes, array $scope, $content = false, $extra = '' ) {
 		global $wpdb;
 		$where = $content ? $scope['content_where'] : $scope['where'];
-		$total = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Installer::table( 'pages' ) . " p WHERE {$where} {$extra}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$total = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Installer::table( 'pages' ) . " p WHERE {$where} {$extra}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		if ( ! $total ) {
 			return array( 'status' => 'na', 'frac' => 1.0, 'n' => 0, 'total' => 0, 'pages' => array() );
 		}
@@ -401,7 +401,7 @@ class Readiness {
 				if ( ! $ai ) {
 					return self::na();
 				}
-				$r = $wpdb->get_row( $wpdb->prepare( 'SELECT SUM(hits) h, SUM(errors) e FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s AND bot IN (' . implode( ',', $ai ) . ')', wp_date( 'Y-m-d', time() - 14 * DAY_IN_SECONDS ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$r = $wpdb->get_row( $wpdb->prepare( 'SELECT SUM(hits) h, SUM(errors) e FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s AND bot IN (' . implode( ',', $ai ) . ')', wp_date( 'Y-m-d', time() - 14 * DAY_IN_SECONDS ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 				$h = (int) ( $r['h'] ?? 0 );
 				if ( $h < 20 ) {
 					return self::na( 'little traffic' );

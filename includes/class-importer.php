@@ -104,9 +104,9 @@ class Importer {
 				if ( $ref && Settings::get( 'track_referrals' ) && $status < 400 && 'GET' === $ctx['method'] && '' === $ctx['kind'] ) {
 					$host = strtolower( (string) wp_parse_url( $ref, PHP_URL_HOST ) );
 					if ( isset( $m['ref'][ $host ] ) ) {
-						$wpdb->query(
+						$wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 							$wpdb->prepare(
-								'INSERT INTO ' . Installer::table( 'referrals' ) . ' (day, source, url_hash, path, object_id, hits) VALUES (%s, %s, %s, %s, 0, 1) ON DUPLICATE KEY UPDATE hits = hits + 1',
+								'INSERT INTO ' . Installer::table( 'referrals' ) . ' (day, source, url_hash, path, object_id, hits) VALUES (%s, %s, %s, %s, 0, 1) ON DUPLICATE KEY UPDATE hits = hits + 1', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 								Util::day( $ts ),
 								$m['ref'][ $host ],
 								$ctx['hash'],
@@ -121,7 +121,7 @@ class Importer {
 			$r['ua'] = $ua;
 			$res     = Tracker::store( $r, $ctx, $ip, 'log' );
 			if ( '' !== (string) $wpdb->last_error ) {
-				throw new \RuntimeException( 'import failed: ' . $wpdb->last_error );
+				throw new \RuntimeException( 'import failed: ' . esc_html( $wpdb->last_error ) );
 			}
 			if ( 'event' === $res ) {
 				$out['events']++;

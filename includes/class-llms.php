@@ -244,7 +244,8 @@ class Llms {
 		global $wpdb;
 		// Pages AI crawlers read most come first: the plugin knows what they care about.
 		$min   = (int) Settings::get( 'llms_min_words' );
-		$rows  = $wpdb->get_results(
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$rows  = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
 				'SELECT p.id, p.object_type, p.object_id, p.subtype, p.path, p.title, p.importance, p.pinned, p.http_status, p.facts, COALESCE(h.hits, 0) ai_hits
 				 FROM ' . Installer::table( 'pages' ) . ' p
@@ -260,6 +261,7 @@ class Llms {
 			),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 		$types   = self::types();
 		$search  = array();
 		foreach ( array_filter( array_map( 'trim', explode( ',', (string) Settings::get( 'priority_bots' ) ) ) ) as $id ) {
@@ -552,7 +554,7 @@ class Llms {
 		}
 		$in   = implode( ',', array_fill( 0, count( $hashes ), '%s' ) );
 		$rows = $wpdb->get_results(
-			$wpdb->prepare( 'SELECT url_hash, bot, SUM(hits) h, MAX(day) last FROM ' . Installer::table( 'daily' ) . " WHERE url_hash IN ({$in}) AND day >= %s GROUP BY url_hash, bot ORDER BY h DESC", array_merge( array_keys( $hashes ), array( wp_date( 'Y-m-d', time() - 30 * DAY_IN_SECONDS ) ) ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare( 'SELECT url_hash, bot, SUM(hits) h, MAX(day) last FROM ' . Installer::table( 'daily' ) . " WHERE url_hash IN ({$in}) AND day >= %s GROUP BY url_hash, bot ORDER BY h DESC", array_merge( array_keys( $hashes ), array( wp_date( 'Y-m-d', time() - 30 * DAY_IN_SECONDS ) ) ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 			ARRAY_A
 		);
 		$out = array_fill_keys( self::FILES, array( 'hits' => 0, 'last' => null, 'bots' => array() ) );
