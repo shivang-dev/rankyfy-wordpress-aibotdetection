@@ -1,6 +1,6 @@
 # RankyFy AI SEO for WordPress
 
-See which AI crawlers and assistants visit your site, what they read and what they skip, which pages are blocked from them, and what to change so AI search can find and cite your content.
+See which AI crawlers and assistants access your site, which pages they read and which they skip, how AI assistants send visitors to your content, and what may improve your AI search visibility.
 
 ```
 Install → Activate → Done
