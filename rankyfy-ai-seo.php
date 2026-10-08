@@ -1,25 +1,27 @@
 <?php
 /**
- * Plugin Name:       RankyFy AI Crawler Monitor
+ * Plugin Name:       RankyFy AI SEO
  * Plugin URI:        https://rankyfy.com/
- * Description:       See which AI crawlers and assistants visit your site, what they read and what they miss, which pages are blocked from them, and what to change so AI search can find and cite your content.
- * Version:           1.0.0
- * Requires at least: 6.0
+ * Description:       See which AI crawlers read your site, whether ChatGPT and Google AI cite you, and fix what holds you back — beside your SEO plugin.
+ * Version:           1.1.0
+ * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            RankyFy
+ * Author URI:        https://rankyfy.com/
  * License:           GPL-2.0-or-later
- * Text Domain:       rankyfy-ai-crawlers
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       rankyfy-ai-seo
  *
  * @package RankyfyAIB
  */
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'RFAIB_VERSION', '1.0.0' );
-define( 'RFAIB_DB_VERSION', '4' );
-define( 'RFAIB_FILE', __FILE__ );
-define( 'RFAIB_DIR', plugin_dir_path( __FILE__ ) );
-define( 'RFAIB_URL', plugin_dir_url( __FILE__ ) );
+define( 'RFY_VERSION', '1.1.0' );
+define( 'RFY_DB_VERSION', '4' );
+define( 'RFY_FILE', __FILE__ );
+define( 'RFY_DIR', plugin_dir_path( __FILE__ ) );
+define( 'RFY_URL', plugin_dir_url( __FILE__ ) );
 
 spl_autoload_register(
 	static function ( $class ) {
@@ -27,7 +29,7 @@ spl_autoload_register(
 			return;
 		}
 		$name = strtolower( str_replace( '_', '-', substr( $class, strlen( 'RankyfyAIB\\' ) ) ) );
-		$file = RFAIB_DIR . 'includes/class-' . $name . '.php';
+		$file = RFY_DIR . 'includes/class-' . $name . '.php';
 		if ( is_readable( $file ) ) {
 			require_once $file;
 		}

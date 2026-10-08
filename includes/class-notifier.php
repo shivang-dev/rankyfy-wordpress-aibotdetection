@@ -43,11 +43,11 @@ class Notifier {
 
 	private static function digest() {
 		global $wpdb;
-		$last = (int) get_option( 'rfaib_digest_at', 0 );
+		$last = (int) get_option( 'rfy_digest_at', 0 );
 		if ( time() - $last < DAY_IN_SECONDS ) {
 			return;
 		}
-		update_option( 'rfaib_digest_at', time(), false );
+		update_option( 'rfy_digest_at', time(), false );
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'alerts' ) . ' WHERE created_at > %d ORDER BY FIELD(severity, \'critical\', \'warning\', \'info\'), id DESC LIMIT 30', max( $last, time() - 2 * DAY_IN_SECONDS ) ), ARRAY_A );
 		if ( $rows ) {
 			self::email( $rows, true );
@@ -55,7 +55,7 @@ class Notifier {
 	}
 
 	private static function under_daily_cap() {
-		$key = 'rfaib_mails_' . wp_date( 'Ymd' );
+		$key = 'rfy_mails_' . wp_date( 'Ymd' );
 		$n   = (int) get_transient( $key );
 		if ( $n >= self::MAX_EMAILS_PER_DAY ) {
 			return false;
@@ -74,31 +74,31 @@ class Notifier {
 		$first = Alerts::present( $alerts[0] );
 		if ( $digest ) {
 			/* translators: 1: site, 2: count */
-			$subject = sprintf( __( '[%1$s] AI crawler digest: %2$d updates', 'rankyfy-ai-crawlers' ), $site, count( $alerts ) );
+			$subject = sprintf( __( '[%1$s] AI crawler digest: %2$d updates', 'rankyfy-ai-seo' ), $site, count( $alerts ) );
 		} elseif ( 1 === count( $alerts ) ) {
 			$subject = sprintf( '[%s] %s', $site, $first['title'] );
 		} else {
 			/* translators: 1: site, 2: count, 3: first title */
-			$subject = sprintf( __( '[%1$s] %2$d AI crawler alerts: %3$s', 'rankyfy-ai-crawlers' ), $site, count( $alerts ), $first['title'] );
+			$subject = sprintf( __( '[%1$s] %2$d AI crawler alerts: %3$s', 'rankyfy-ai-seo' ), $site, count( $alerts ), $first['title'] );
 		}
-		$base  = admin_url( 'admin.php?page=rankyfy-ai-crawlers' );
+		$base  = admin_url( 'admin.php?page=rankyfy-ai-seo' );
 		$lines = array();
 		foreach ( $alerts as $row ) {
 			$a       = Alerts::present( $row );
 			$lines[] = strtoupper( $a['severity'] ) . ' — ' . $a['title'];
-			$lines[] = __( 'What happened:', 'rankyfy-ai-crawlers' ) . ' ' . $a['what'];
-			$lines[] = __( 'Why it matters:', 'rankyfy-ai-crawlers' ) . ' ' . $a['why'];
+			$lines[] = __( 'What happened:', 'rankyfy-ai-seo' ) . ' ' . $a['what'];
+			$lines[] = __( 'Why it matters:', 'rankyfy-ai-seo' ) . ' ' . $a['why'];
 			if ( $a['affected'] ) {
-				$lines[] = __( 'Affected:', 'rankyfy-ai-crawlers' );
+				$lines[] = __( 'Affected:', 'rankyfy-ai-seo' );
 				foreach ( array_slice( $a['affected'], 0, 8 ) as $p ) {
 					$lines[] = '  • ' . ( $p['label'] ?? '' ) . ' — ' . home_url( rawurldecode( (string) ( $p['path'] ?? '' ) ) ) . ( ! empty( $p['detail'] ) ? ' (' . $p['detail'] . ')' : '' );
 				}
 			}
-			$lines[] = __( 'What to do:', 'rankyfy-ai-crawlers' ) . ' ' . $a['action'];
+			$lines[] = __( 'What to do:', 'rankyfy-ai-seo' ) . ' ' . $a['action'];
 			$lines[] = $base . $a['route'];
 			$lines[] = '';
 		}
-		$lines[] = __( 'You receive these emails because of the notification settings in RankyFy AI Crawler Monitor.', 'rankyfy-ai-crawlers' ) . ' ' . $base . '#/settings';
+		$lines[] = __( 'You receive these emails because of the notification settings in RankyFy AI SEO.', 'rankyfy-ai-seo' ) . ' ' . $base . '#/settings';
 		return wp_mail( $to, $subject, implode( "\n", $lines ) );
 	}
 
@@ -120,12 +120,12 @@ class Notifier {
 
 	/** @return true|\WP_Error */
 	public static function post( $url, array $a ) {
-		$link = admin_url( 'admin.php?page=rankyfy-ai-crawlers' ) . $a['route'];
+		$link = admin_url( 'admin.php?page=rankyfy-ai-seo' ) . $a['route'];
 		// Slack mrkdwn: &, < and > are control characters (links, @channel) — escape everything we did not write.
 		$e    = static function ( $t ) {
 			return str_replace( array( '&', '<', '>' ), array( '&amp;', '&lt;', '&gt;' ), (string) $t );
 		};
-		$text = '*' . $e( $a['title'] ) . "*\n" . $e( $a['what'] ) . "\n_" . __( 'Why it matters:', 'rankyfy-ai-crawlers' ) . '_ ' . $e( $a['why'] ) . "\n_" . __( 'What to do:', 'rankyfy-ai-crawlers' ) . '_ ' . $e( $a['action'] ) . "\n<{$link}|" . __( 'Open in WordPress', 'rankyfy-ai-crawlers' ) . '>';
+		$text = '*' . $e( $a['title'] ) . "*\n" . $e( $a['what'] ) . "\n_" . __( 'Why it matters:', 'rankyfy-ai-seo' ) . '_ ' . $e( $a['why'] ) . "\n_" . __( 'What to do:', 'rankyfy-ai-seo' ) . '_ ' . $e( $a['action'] ) . "\n<{$link}|" . __( 'Open in WordPress', 'rankyfy-ai-seo' ) . '>';
 		$res  = wp_safe_remote_post(
 			$url,
 			array(
@@ -154,7 +154,7 @@ class Notifier {
 		$code = (int) wp_remote_retrieve_response_code( $res );
 		if ( $code >= 300 ) {
 			Log::warning( 'webhook refused', array( 'status' => $code ) );
-			return new \WP_Error( 'rfaib_webhook', sprintf( /* translators: %d: status */ __( 'The webhook answered with HTTP %d.', 'rankyfy-ai-crawlers' ), $code ) );
+			return new \WP_Error( 'rfy_webhook', sprintf( /* translators: %d: status */ __( 'The webhook answered with HTTP %d.', 'rankyfy-ai-seo' ), $code ) );
 		}
 		return true;
 	}

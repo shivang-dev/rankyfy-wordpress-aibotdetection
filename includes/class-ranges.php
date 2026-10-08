@@ -21,9 +21,9 @@ defined( 'ABSPATH' ) || exit;
 
 class Ranges {
 
-	const PREFIX     = 'rfaib_rng_';
-	const STATUS     = 'rfaib_ranges_status';
-	const IP_ONLY    = 'rfaib_iponly';
+	const PREFIX     = 'rfy_rng_';
+	const STATUS     = 'rfy_ranges_status';
+	const IP_ONLY    = 'rfy_iponly';
 	const FRESH_DAYS = 7;
 	const MAX        = 20000; // prefixes per file
 
@@ -282,7 +282,7 @@ class Ranges {
 					'redirection'         => 2,
 					'limit_response_size' => 4 * MB_IN_BYTES,
 					'headers'             => array( 'Accept' => 'application/json' ),
-					'user-agent'          => 'RankyFy-AI-Crawler-Monitor/' . RFAIB_VERSION . ' (+https://rankyfy.com/)',
+					'user-agent'          => 'RankyFy-AI-Crawler-Monitor/' . RFY_VERSION . ' (+https://rankyfy.com/)',
 				)
 			);
 			$code = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
@@ -309,10 +309,10 @@ class Ranges {
 
 	/** Cloudflare edge ranges, used to trust CF-Connecting-IP without any setup. Autoloaded and small. */
 	private static function refresh_cloudflare() {
-		if ( time() - (int) get_option( 'rfaib_cf_at', 0 ) < WEEK_IN_SECONDS ) {
+		if ( time() - (int) get_option( 'rfy_cf_at', 0 ) < WEEK_IN_SECONDS ) {
 			return;
 		}
-		update_option( 'rfaib_cf_at', time(), false );
+		update_option( 'rfy_cf_at', time(), false );
 		$all = array();
 		foreach ( array( 'https://www.cloudflare.com/ips-v4', 'https://www.cloudflare.com/ips-v6' ) as $url ) {
 			$res = wp_safe_remote_get( $url, array( 'timeout' => 8, 'limit_response_size' => 64 * KB_IN_BYTES ) );
@@ -326,7 +326,7 @@ class Ranges {
 			}
 		}
 		if ( count( $all ) >= 10 && count( $all ) <= 200 ) {
-			update_option( 'rfaib_cf_ranges', $all, true );
+			update_option( 'rfy_cf_ranges', $all, true );
 		}
 	}
 

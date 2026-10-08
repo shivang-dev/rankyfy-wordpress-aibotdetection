@@ -210,7 +210,7 @@ function test_posts_list_sorts_by_ai_requests() {
 			return 'orderby' === $k ? RankyfyAIB\Columns::KEY : 'DESC';
 		}
 	} );
-	t_ok( false !== strpos( $clauses['join'], 'daily_pages' ) && 0 === strpos( $clauses['orderby'], 'COALESCE(rfaib_h.hits, 0) DESC' ) );
+	t_ok( false !== strpos( $clauses['join'], 'daily_pages' ) && 0 === strpos( $clauses['orderby'], 'COALESCE(rfy_h.hits, 0) DESC' ) );
 	global $wpdb;
 	$ids = $wpdb->get_col( "SELECT {$wpdb->posts}.ID FROM {$wpdb->posts} {$clauses['join']} WHERE {$wpdb->posts}.ID IN ({$a}, {$b}) ORDER BY {$clauses['orderby']}" ); // phpcs:ignore
 	t_eq( array( (string) $a, (string) $b ), $ids, 'most-crawled first' );

@@ -127,8 +127,8 @@ function test_reverse_dns_verdicts() {
 	$rev = static function ( $pre, $ip ) {
 		return array( '66.249.90.1' => 'crawl-66-249-90-1.googlebot.com', '66.249.90.2' => 'evil.example.com', '66.249.90.3' => 'crawl-66-249-90-3.googlebot.com', '66.249.90.4' => '' )[ $ip ] ?? null;
 	};
-	add_filter( 'rfaib_forward_dns', $fwd, 10, 2 );
-	add_filter( 'rfaib_reverse_dns', $rev, 10, 2 );
+	add_filter( 'rfy_forward_dns', $fwd, 10, 2 );
+	add_filter( 'rfy_reverse_dns', $rev, 10, 2 );
 	try {
 		t_eq( 'verified', RankyfyAIB\Verifier::check_rdns( 'googlebot', '66.249.90.1' )[0] );
 		t_eq( 'failed', RankyfyAIB\Verifier::check_rdns( 'googlebot', '66.249.90.2' )[0], 'wrong domain' );
@@ -148,8 +148,8 @@ function test_reverse_dns_verdicts() {
 		RankyfyAIB\Verifier::prune();
 		t_eq( 'verified', RankyfyAIB\Verifier::cached( 'googlebot', RankyfyAIB\Util::ip_hash( '66.249.90.1' ) ) );
 	} finally {
-		remove_filter( 'rfaib_forward_dns', $fwd, 10 );
-		remove_filter( 'rfaib_reverse_dns', $rev, 10 );
+		remove_filter( 'rfy_forward_dns', $fwd, 10 );
+		remove_filter( 'rfy_reverse_dns', $rev, 10 );
 	}
 }
 
@@ -162,7 +162,7 @@ function test_web_bot_auth_signatures() {
 	$keys = static function ( $pre, $host ) use ( $kid, $pk ) {
 		return 'chatgpt.com' === $host ? array( $kid => base64_encode( $pk ) ) : array();
 	};
-	add_filter( 'rfaib_signature_keys', $keys, 10, 2 );
+	add_filter( 'rfy_signature_keys', $keys, 10, 2 );
 	try {
 		$now    = time();
 		$params = '("@authority" "signature-agent");created=' . ( $now - 5 ) . ';expires=' . ( $now + 60 ) . ';keyid="' . $kid . '";alg="ed25519";tag="web-bot-auth"';
@@ -181,7 +181,7 @@ function test_web_bot_auth_signatures() {
 		t_eq( 'none', RankyfyAIB\Verifier::check_signature( $row( array( 'signature-agent' => '"http://chatgpt.com"' ) ) )[0], 'key directory must be https' );
 		t_eq( 'none', RankyfyAIB\Verifier::check_signature( array( 'payload' => '{}', 'created_at' => $now ) )[0] );
 	} finally {
-		remove_filter( 'rfaib_signature_keys', $keys, 10 );
+		remove_filter( 'rfy_signature_keys', $keys, 10 );
 	}
 }
 

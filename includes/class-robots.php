@@ -18,8 +18,8 @@ defined( 'ABSPATH' ) || exit;
 
 class Robots {
 
-	const OPTION = 'rfaib_robots';
-	const MATRIX = 'rfaib_robots_matrix';
+	const OPTION = 'rfy_robots';
+	const MATRIX = 'rfy_robots_matrix';
 
 	// ── parser ─────────────────────────────────────────────────────────────
 

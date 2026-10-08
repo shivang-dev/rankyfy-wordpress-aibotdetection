@@ -30,14 +30,14 @@ class Rate_Limiter {
 	/** @return true|WP_Error */
 	public static function hit( $action ) {
 		list( $max, $window ) = self::LIMITS[ $action ] ?? array( 60, HOUR_IN_SECONDS );
-		$max                  = (int) apply_filters( 'rfaib_rate_limit', $max, $action );
+		$max                  = (int) apply_filters( 'rfy_rate_limit', $max, $action );
 		$who                  = get_current_user_id();
-		$key                  = 'rfaib_rl_' . md5( $action . '|' . $who . '|' . (int) floor( time() / $window ) );
+		$key                  = 'rfy_rl_' . md5( $action . '|' . $who . '|' . (int) floor( time() / $window ) );
 		$count                = (int) get_transient( $key );
 		if ( $count >= $max ) {
 			return new WP_Error(
-				'rfaib_rate_limited',
-				__( 'Too many requests. Please wait a few minutes and try again.', 'rankyfy-ai-crawlers' ),
+				'rfy_rate_limited',
+				__( 'Too many requests. Please wait a few minutes and try again.', 'rankyfy-ai-seo' ),
 				array(
 					'status'      => 429,
 					'retry_after' => $window - ( time() % $window ),

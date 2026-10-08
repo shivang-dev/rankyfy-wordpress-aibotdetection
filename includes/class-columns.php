@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Columns {
 
-	const KEY = 'rfaib_ai';
+	const KEY = 'rfy_ai';
 
 	private static $data = null;
 
@@ -41,11 +41,11 @@ class Columns {
 		foreach ( $cols as $k => $v ) {
 			$out[ $k ] = $v;
 			if ( 'title' === $k ) {
-				$out[ self::KEY ] = '<span title="' . esc_attr__( 'AI crawler requests in the last 30 days, and AI readiness', 'rankyfy-ai-crawlers' ) . '">' . esc_html__( 'AI', 'rankyfy-ai-crawlers' ) . '</span>';
+				$out[ self::KEY ] = '<span title="' . esc_attr__( 'AI crawler requests in the last 30 days, and AI readiness', 'rankyfy-ai-seo' ) . '">' . esc_html__( 'AI', 'rankyfy-ai-seo' ) . '</span>';
 			}
 		}
 		if ( ! isset( $out[ self::KEY ] ) ) {
-			$out[ self::KEY ] = esc_html__( 'AI', 'rankyfy-ai-crawlers' );
+			$out[ self::KEY ] = esc_html__( 'AI', 'rankyfy-ai-seo' );
 		}
 		return $out;
 	}
@@ -88,20 +88,20 @@ class Columns {
 		}
 		$r = self::data()[ (int) $post_id ] ?? null;
 		if ( ! $r ) {
-			echo '<span aria-hidden="true">—</span><span class="screen-reader-text">' . esc_html__( 'Not checked yet', 'rankyfy-ai-crawlers' ) . '</span>';
+			echo '<span aria-hidden="true">—</span><span class="screen-reader-text">' . esc_html__( 'Not checked yet', 'rankyfy-ai-seo' ) . '</span>';
 			return;
 		}
 		$score = null === $r['aeo_score'] ? null : (int) $r['aeo_score'];
 		$level = null === $score ? 'none' : ( $score >= 70 ? 'good' : ( $score >= 40 ? 'warn' : 'crit' ) );
 		$word  = array(
-			'good' => __( 'Good', 'rankyfy-ai-crawlers' ),
-			'warn' => __( 'Needs work', 'rankyfy-ai-crawlers' ),
-			'crit' => __( 'Poor', 'rankyfy-ai-crawlers' ),
-			'none' => __( 'Not scored yet', 'rankyfy-ai-crawlers' ),
+			'good' => __( 'Good', 'rankyfy-ai-seo' ),
+			'warn' => __( 'Needs work', 'rankyfy-ai-seo' ),
+			'crit' => __( 'Poor', 'rankyfy-ai-seo' ),
+			'none' => __( 'Not scored yet', 'rankyfy-ai-seo' ),
 		)[ $level ];
 		/* translators: 1: requests, 2: score, 3: word */
-		$title = null === $score ? sprintf( __( '%s AI crawler requests in 30 days', 'rankyfy-ai-crawlers' ), number_format_i18n( (int) $r['hits'] ) ) : sprintf( __( '%1$s AI crawler requests in 30 days · readiness %2$d (%3$s)', 'rankyfy-ai-crawlers' ), number_format_i18n( (int) $r['hits'] ), $score, $word );
-		echo '<span class="rfaib-col" title="' . esc_attr( $title ) . '"><i class="rfaib-dot rfaib-dot-' . esc_attr( $level ) . '" aria-hidden="true"></i>' . esc_html( number_format_i18n( (int) $r['hits'] ) ) . '<span class="screen-reader-text"> ' . esc_html( $title ) . '</span></span>';
+		$title = null === $score ? sprintf( __( '%s AI crawler requests in 30 days', 'rankyfy-ai-seo' ), number_format_i18n( (int) $r['hits'] ) ) : sprintf( __( '%1$s AI crawler requests in 30 days · readiness %2$d (%3$s)', 'rankyfy-ai-seo' ), number_format_i18n( (int) $r['hits'] ), $score, $word );
+		echo '<span class="rfy-col" title="' . esc_attr( $title ) . '"><i class="rfy-dot rfy-dot-' . esc_attr( $level ) . '" aria-hidden="true"></i>' . esc_html( number_format_i18n( (int) $r['hits'] ) ) . '<span class="screen-reader-text"> ' . esc_html( $title ) . '</span></span>';
 	}
 
 	/** Sort the list by AI crawler requests in the last 30 days. */
@@ -111,13 +111,13 @@ class Columns {
 			return $clauses;
 		}
 		$order              = 'ASC' === strtoupper( (string) $query->get( 'order' ) ) ? 'ASC' : 'DESC';
-		$clauses['join']   .= ' LEFT JOIN ' . Installer::table( 'pages' ) . " rfaib_p ON rfaib_p.object_type = 'post' AND rfaib_p.object_id = {$wpdb->posts}.ID AND rfaib_p.deleted = 0"
-			. ' LEFT JOIN (SELECT url_hash, SUM(hits) hits FROM ' . Installer::table( 'daily_pages' ) . $wpdb->prepare( ' WHERE day >= %s', wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ) ) . ' GROUP BY url_hash) rfaib_h ON rfaib_h.url_hash = rfaib_p.url_hash';
-		$clauses['orderby'] = "COALESCE(rfaib_h.hits, 0) {$order}, {$wpdb->posts}.post_date DESC";
+		$clauses['join']   .= ' LEFT JOIN ' . Installer::table( 'pages' ) . " rfy_p ON rfy_p.object_type = 'post' AND rfy_p.object_id = {$wpdb->posts}.ID AND rfy_p.deleted = 0"
+			. ' LEFT JOIN (SELECT url_hash, SUM(hits) hits FROM ' . Installer::table( 'daily_pages' ) . $wpdb->prepare( ' WHERE day >= %s', wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ) ) . ' GROUP BY url_hash) rfy_h ON rfy_h.url_hash = rfy_p.url_hash';
+		$clauses['orderby'] = "COALESCE(rfy_h.hits, 0) {$order}, {$wpdb->posts}.post_date DESC";
 		return $clauses;
 	}
 
 	public static function style() {
-		echo '<style>.column-rfaib_ai{width:64px}.rfaib-col{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}.rfaib-dot{width:8px;height:8px;border-radius:50%;background:#c3c4c7;display:inline-block}.rfaib-dot-good{background:#0ca30c}.rfaib-dot-warn{background:#c98500}.rfaib-dot-crit{background:#d03b3b}</style>';
+		echo '<style>.column-rfy_ai{width:64px}.rfy-col{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}.rfy-dot{width:8px;height:8px;border-radius:50%;background:#c3c4c7;display:inline-block}.rfy-dot-good{background:#0ca30c}.rfy-dot-warn{background:#c98500}.rfy-dot-crit{background:#d03b3b}</style>';
 	}
 }

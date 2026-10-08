@@ -93,16 +93,16 @@ class Compat {
 		$add   = static function ( $output, $owner, $ours, $note ) use ( &$rows ) {
 			$rows[] = array( 'output' => $output, 'owner' => $owner, 'ours' => $ours, 'note' => $note );
 		};
-		$defer = __( 'Leaves it to them', 'rankyfy-ai-crawlers' );
-		$add( __( 'Title & meta description', 'rankyfy-ai-crawlers' ), $main ? $main : __( 'Your theme', 'rankyfy-ai-crawlers' ), false, $defer );
-		$add( __( 'Open Graph / social cards', 'rankyfy-ai-crawlers' ), $main ? $main : __( 'Not found', 'rankyfy-ai-crawlers' ), false, $main ? $defer : __( 'Not handled — install an SEO plugin', 'rankyfy-ai-crawlers' ) );
-		$add( __( 'XML sitemap', 'rankyfy-ai-crawlers' ), $main ? $main : 'WordPress', false, __( 'Checks it is listed in robots.txt', 'rankyfy-ai-crawlers' ) );
-		$add( __( 'Article & author schema', 'rankyfy-ai-crawlers' ), $main ? $main : __( 'Not found', 'rankyfy-ai-crawlers' ), false, __( 'Checks pages for gaps (Readiness Score)', 'rankyfy-ai-crawlers' ) );
-		$add( 'robots.txt', Access::robots_writer(), false, __( 'Adds AI crawler rules only (Access Manager)', 'rankyfy-ai-crawlers' ) );
+		$defer = __( 'Leaves it to them', 'rankyfy-ai-seo' );
+		$add( __( 'Title & meta description', 'rankyfy-ai-seo' ), $main ? $main : __( 'Your theme', 'rankyfy-ai-seo' ), false, $defer );
+		$add( __( 'Open Graph / social cards', 'rankyfy-ai-seo' ), $main ? $main : __( 'Not found', 'rankyfy-ai-seo' ), false, $main ? $defer : __( 'Not handled — install an SEO plugin', 'rankyfy-ai-seo' ) );
+		$add( __( 'XML sitemap', 'rankyfy-ai-seo' ), $main ? $main : 'WordPress', false, __( 'Checks it is listed in robots.txt', 'rankyfy-ai-seo' ) );
+		$add( __( 'Article & author schema', 'rankyfy-ai-seo' ), $main ? $main : __( 'Not found', 'rankyfy-ai-seo' ), false, __( 'Checks pages for gaps (Readiness Score)', 'rankyfy-ai-seo' ) );
+		$add( 'robots.txt', Access::robots_writer(), false, __( 'Adds AI crawler rules only (Access Manager)', 'rankyfy-ai-seo' ) );
 		$redirects = self::redirect_plugins();
-		$add( __( 'Redirects for changed URLs', 'rankyfy-ai-crawlers' ), $redirects ? implode( ', ', $redirects ) : 'RankyFy', ! $redirects, $redirects ? __( 'Also adds its own for published URLs that change', 'rankyfy-ai-crawlers' ) : __( 'RankyFy handles', 'rankyfy-ai-crawlers' ) );
-		$add( 'llms.txt / ai.txt', 'RankyFy', true, __( 'RankyFy handles', 'rankyfy-ai-crawlers' ) );
-		$add( __( 'AI crawler tracking', 'rankyfy-ai-crawlers' ), 'RankyFy', true, __( 'RankyFy handles', 'rankyfy-ai-crawlers' ) );
+		$add( __( 'Redirects for changed URLs', 'rankyfy-ai-seo' ), $redirects ? implode( ', ', $redirects ) : 'RankyFy', ! $redirects, $redirects ? __( 'Also adds its own for published URLs that change', 'rankyfy-ai-seo' ) : __( 'RankyFy handles', 'rankyfy-ai-seo' ) );
+		$add( 'llms.txt / ai.txt', 'RankyFy', true, __( 'RankyFy handles', 'rankyfy-ai-seo' ) );
+		$add( __( 'AI crawler tracking', 'rankyfy-ai-seo' ), 'RankyFy', true, __( 'RankyFy handles', 'rankyfy-ai-seo' ) );
 		return $rows;
 	}
 

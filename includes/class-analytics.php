@@ -17,7 +17,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Analytics {
 
-	const VERSION = 'rfaib_cache_v';
+	const VERSION = 'rfy_cache_v';
 	const TTL     = 300;
 	const SAMPLE  = 20000; // requests a crawler's breakdowns are computed from
 
@@ -26,7 +26,7 @@ class Analytics {
 	}
 
 	private static function cached( $key, callable $fn, $ttl = self::TTL ) {
-		$k   = 'rfaib_c_' . md5( $key . '|' . (int) get_option( self::VERSION, 0 ) );
+		$k   = 'rfy_c_' . md5( $key . '|' . (int) get_option( self::VERSION, 0 ) );
 		$hit = get_transient( $k );
 		if ( false !== $hit ) {
 			return $hit;
@@ -165,7 +165,7 @@ class Analytics {
 			'important'         => (int) $row['important'],
 			'important_crawled' => (int) $row['important_crawled'],
 			'important_never'   => (int) $row['important_never'],
-			'learning'          => ( time() - (int) get_option( 'rfaib_monitoring_since', time() ) ) < 14 * DAY_IN_SECONDS,
+			'learning'          => ( time() - (int) get_option( 'rfy_monitoring_since', time() ) ) < 14 * DAY_IN_SECONDS,
 		);
 	}
 

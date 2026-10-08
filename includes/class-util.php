@@ -106,7 +106,7 @@ class Util {
 	private static $forwarded = null;
 
 	public static function cloudflare_ranges() {
-		$r = get_option( 'rfaib_cf_ranges' );
+		$r = get_option( 'rfy_cf_ranges' );
 		return is_array( $r ) && count( $r ) >= 10 ? $r : self::CLOUDFLARE;
 	}
 
@@ -229,7 +229,7 @@ class Util {
 
 	/** Keyed hash of an address: groups requests from one address without storing it. */
 	public static function ip_hash( $ip ) {
-		return substr( hash_hmac( 'sha256', (string) $ip, (string) get_option( 'rfaib_secret' ) ), 0, 16 );
+		return substr( hash_hmac( 'sha256', (string) $ip, (string) get_option( 'rfy_secret' ) ), 0, 16 );
 	}
 
 	public static function now() {

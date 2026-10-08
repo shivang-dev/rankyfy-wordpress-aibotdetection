@@ -34,7 +34,7 @@ function test_unconfigured_proxy_never_produces_impersonations() {
 	global $wpdb;
 	$row = $wpdb->get_row( 'SELECT cls, vstate FROM ' . Installer::table( 'events' ) . " WHERE path = '/behind-proxy'", ARRAY_A );
 	t_eq( array( 'cls' => 'ai', 'vstate' => 'none' ), $row, 'unverifiable, not spoofed' );
-	t_ok( (int) get_option( 'rfaib_proxy_noted' ) > 0, 'noted for the Technical screen' );
+	t_ok( (int) get_option( 'rfy_proxy_noted' ) > 0, 'noted for the Technical screen' );
 	RankyfyAIB\Coverage::site();
 	t_ok( in_array( 'proxy_unconfigured', array_column( RankyfyAIB\Findings::site(), 'code' ), true ) );
 	// Imported log lines are judged by their own addresses, not by the admin's request headers.
@@ -42,8 +42,8 @@ function test_unconfigured_proxy_never_produces_impersonations() {
 	t_eq( 1, $res['events'] );
 	t_eq( 'spoofed', $wpdb->get_var( 'SELECT cls FROM ' . Installer::table( 'events' ) . " WHERE path = '/imp'" ) );
 	t_server( array() );
-	delete_option( 'rfaib_proxy_noted' );
-	delete_transient( 'rfaib_proxy_seen' );
+	delete_option( 'rfy_proxy_noted' );
+	delete_transient( 'rfy_proxy_seen' );
 }
 
 function test_failed_dns_verdicts_expire_after_a_day() {
@@ -64,7 +64,7 @@ function test_signature_key_rotation_and_dictionary_form() {
 	$keys = static function ( $pre, $host ) use ( $kid, $pk ) {
 		return 'chatgpt.com' === $host ? array( $kid => base64_encode( $pk ) ) : array();
 	};
-	add_filter( 'rfaib_signature_keys', $keys, 10, 2 );
+	add_filter( 'rfy_signature_keys', $keys, 10, 2 );
 	try {
 		$now = time();
 		// Dictionary form with a key-parameterised component (RFC 9421 §2.1.2).
@@ -77,7 +77,7 @@ function test_signature_key_rotation_and_dictionary_form() {
 		$rot = str_replace( $kid, 'rotated-key-id', $row['payload'] );
 		t_eq( 'none', RankyfyAIB\Verifier::check_signature( array( 'created_at' => $now, 'payload' => $rot ) )[0] );
 	} finally {
-		remove_filter( 'rfaib_signature_keys', $keys, 10 );
+		remove_filter( 'rfy_signature_keys', $keys, 10 );
 	}
 }
 
@@ -98,8 +98,8 @@ function test_failed_statement_rolls_back_the_whole_chunk() {
 		$wpdb->suppress_errors( false );
 		$wpdb->query( "RENAME TABLE {$daily}_off TO {$daily}" ); // phpcs:ignore
 	}
-	wp_cache_delete( 'rfaib_agg_watermark', 'options' );
-	t_eq( '0', (string) get_option( 'rfaib_agg_watermark' ), 'watermark not advanced' );
+	wp_cache_delete( 'rfy_agg_watermark', 'options' );
+	t_eq( '0', (string) get_option( 'rfy_agg_watermark' ), 'watermark not advanced' );
 	t_eq( 0, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Installer::table( 'daily_bots' ) ), 'nothing half-written' );
 	t_eq( 20, RankyfyAIB\Aggregator::run( 5 ), 'retried in full' );
 	t_eq( 20, (int) $wpdb->get_var( 'SELECT SUM(hits) FROM ' . Installer::table( 'daily_bots' ) ) );
@@ -146,7 +146,7 @@ function test_concurrent_page_analysis_is_safe() {
 	}
 	$wpdb->query( 'UPDATE ' . Installer::table( 'pages' ) . ' SET dirty = 1' );
 	// Two analysers on the same pages at once (worker + manual re-check).
-	$cmd = 'cd ' . escapeshellarg( ABSPATH ) . ' && wp eval ' . escapeshellarg( 'global $wpdb; foreach ( $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}rfaib_pages WHERE deleted = 0", ARRAY_A ) as $r ) { try { RankyfyAIB\Analyzer::analyze( $r ); } catch ( Throwable $e ) { echo "E:", $e->getMessage(), "\n"; } }' ) . ' 2>&1';
+	$cmd = 'cd ' . escapeshellarg( ABSPATH ) . ' && wp eval ' . escapeshellarg( 'global $wpdb; foreach ( $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}rfy_pages WHERE deleted = 0", ARRAY_A ) as $r ) { try { RankyfyAIB\Analyzer::analyze( $r ); } catch ( Throwable $e ) { echo "E:", $e->getMessage(), "\n"; } }' ) . ' 2>&1';
 	$a = popen( $cmd, 'r' );
 	$b = popen( $cmd, 'r' );
 	$out = stream_get_contents( $a ) . stream_get_contents( $b );

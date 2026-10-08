@@ -1,5 +1,5 @@
 /**
- * RankyFy AI Crawler Monitor — admin app.
+ * RankyFy AI SEO — admin app.
  *
  * Plain DOM, no build step. Every value from the server is inserted with
  * textContent (never innerHTML). Menu sections (RankyFy → …): #/ (dashboard),
@@ -19,8 +19,8 @@
 (function () {
 	'use strict';
 
-	var cfg = window.RFAIB || {};
-	var D = 'rankyfy-ai-crawlers';
+	var cfg = window.RFY || {};
+	var D = 'rankyfy-ai-seo';
 	var i18n = (window.wp && wp.i18n) || {};
 	var __ = function (s) { return i18n.__ ? i18n.__(s, D) : s; };
 	var _n = function (a, b, n) { return i18n._n ? i18n._n(a, b, n, D) : (n === 1 ? a : b); };
@@ -680,7 +680,7 @@
 	}
 
 	// ── app shell ────────────────────────────────────────────────────────────
-	var root = document.getElementById('rfaib-app');
+	var root = document.getElementById('rfy-app');
 	var state = { days: 30, status: null };
 	// Sections live in the WordPress admin menu (RankyFy → …), registered in class-admin.php.
 	var SECTIONS = ['/', '/crawlers', '/referrals', '/readiness', '/access', '/llms', '/opportunities', '/settings'];

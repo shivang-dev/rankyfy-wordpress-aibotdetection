@@ -26,8 +26,8 @@ defined( 'ABSPATH' ) || exit;
 
 class Worker {
 
-	const HOOK   = 'rfaib_tick';
-	const LOCK   = 'rfaib_worker_lock';
+	const HOOK   = 'rfy_tick';
+	const LOCK   = 'rfy_worker_lock';
 	const BUDGET = 25;
 
 	public static function init() {
@@ -36,16 +36,16 @@ class Worker {
 	}
 
 	public static function schedules( $s ) {
-		$s['rfaib_5min'] = array(
+		$s['rfy_5min'] = array(
 			'interval' => 5 * MINUTE_IN_SECONDS,
-			'display'  => __( 'Every 5 minutes (AI Crawler Monitor)', 'rankyfy-ai-crawlers' ),
+			'display'  => __( 'Every 5 minutes (RankyFy AI SEO)', 'rankyfy-ai-seo' ),
 		);
 		return $s;
 	}
 
 	public static function schedule() {
 		if ( ! wp_next_scheduled( self::HOOK ) ) {
-			wp_schedule_event( time() + 60, 'rfaib_5min', self::HOOK );
+			wp_schedule_event( time() + 60, 'rfy_5min', self::HOOK );
 		}
 	}
 
@@ -74,11 +74,11 @@ class Worker {
 	}
 
 	private static function due( $key, $every ) {
-		$last = (int) get_option( 'rfaib_last_' . $key, 0 );
+		$last = (int) get_option( 'rfy_last_' . $key, 0 );
 		if ( time() - $last < $every ) {
 			return false;
 		}
-		update_option( 'rfaib_last_' . $key, time(), false );
+		update_option( 'rfy_last_' . $key, time(), false );
 		return true;
 	}
 
@@ -126,12 +126,12 @@ class Worker {
 			}
 			// History snapshot once per calendar day, after the day's work.
 			$today = Util::day();
-			if ( get_option( 'rfaib_snapshot_day' ) !== $today ) {
+			if ( get_option( 'rfy_snapshot_day' ) !== $today ) {
 				Analytics::snapshot();
-				update_option( 'rfaib_snapshot_day', $today, false );
+				update_option( 'rfy_snapshot_day', $today, false );
 			}
 			Notifier::deliver();
-			update_option( 'rfaib_worker_last', time(), false );
+			update_option( 'rfy_worker_last', time(), false );
 		} catch ( \Throwable $e ) {
 			Log::error( 'worker run failed', array( 'error' => $e->getMessage(), 'at' => basename( $e->getFile() ) . ':' . $e->getLine() ) );
 		} finally {
@@ -142,7 +142,7 @@ class Worker {
 
 	/** Seconds since the last completed run, or null if never. */
 	public static function age() {
-		$last = (int) get_option( 'rfaib_worker_last', 0 );
+		$last = (int) get_option( 'rfy_worker_last', 0 );
 		return $last ? time() - $last : null;
 	}
 }

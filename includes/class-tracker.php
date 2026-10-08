@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Tracker {
 
-	const THROTTLE = 'rfaib_throttle';
+	const THROTTLE = 'rfy_throttle';
 
 	/** @var array|null classification of the current request */
 	private static $hit = null;
@@ -85,7 +85,7 @@ class Tracker {
 			return false;
 		}
 		// The plugin's own probes ("how does the site answer GPTBot?") are not visits.
-		if ( isset( $_SERVER['HTTP_X_RFAIB_PROBE'] ) && hash_equals( Probe::token(), (string) $_SERVER['HTTP_X_RFAIB_PROBE'] ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		if ( isset( $_SERVER['HTTP_X_RFY_PROBE'] ) && hash_equals( Probe::token(), (string) $_SERVER['HTTP_X_RFY_PROBE'] ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 			return false;
 		}
 		return true;
@@ -345,9 +345,9 @@ class Tracker {
 
 	/** Remember (at most daily) that crawler requests arrive through an unconfigured proxy. */
 	public static function note_proxy() {
-		if ( ! get_transient( 'rfaib_proxy_seen' ) ) {
-			set_transient( 'rfaib_proxy_seen', 1, DAY_IN_SECONDS );
-			update_option( 'rfaib_proxy_noted', time(), false );
+		if ( ! get_transient( 'rfy_proxy_seen' ) ) {
+			set_transient( 'rfy_proxy_seen', 1, DAY_IN_SECONDS );
+			update_option( 'rfy_proxy_noted', time(), false );
 		}
 	}
 

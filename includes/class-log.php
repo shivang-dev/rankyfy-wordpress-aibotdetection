@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Log {
 
-	const OPTION = 'rfaib_log';
+	const OPTION = 'rfy_log';
 	const MAX    = 100;
 
 	public static function info( $message, array $context = array() ) {
@@ -65,7 +65,7 @@ class Log {
 		update_option( self::OPTION, $log, false );
 		if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( '[rankyfy-ai-crawlers] ' . $level . ': ' . $entry['m'] . ' ' . wp_json_encode( $entry['ctx'] ) );
+			error_log( '[rankyfy-ai-seo] ' . $level . ': ' . $entry['m'] . ' ' . wp_json_encode( $entry['ctx'] ) );
 		}
 	}
 }

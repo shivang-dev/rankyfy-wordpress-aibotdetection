@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Settings {
 
-	const OPTION = 'rfaib_settings';
+	const OPTION = 'rfy_settings';
 
 	/** key => [default, type, extra] */
 	public static function schema() {

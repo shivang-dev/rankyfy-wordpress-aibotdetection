@@ -75,35 +75,35 @@ class Catalog {
 	/** Short, generic name of an issue type (for counts and filters). */
 	public static function label( $code ) {
 		$l = array(
-			'robots_blocked'         => __( 'Blocked by robots.txt', 'rankyfy-ai-crawlers' ),
-			'noindex'                => __( 'Set to noindex', 'rankyfy-ai-crawlers' ),
-			'noai'                   => __( 'Opts out of AI use (noai)', 'rankyfy-ai-crawlers' ),
-			'http_error'             => __( 'Answers with an error', 'rankyfy-ai-crawlers' ),
-			'redirects'              => __( 'Redirects', 'rankyfy-ai-crawlers' ),
-			'canonical_elsewhere'    => __( 'Canonical points elsewhere', 'rankyfy-ai-crawlers' ),
-			'bot_errors'             => __( 'AI crawlers got errors', 'rankyfy-ai-crawlers' ),
-			'slow_for_bots'          => __( 'Slow for AI crawlers', 'rankyfy-ai-crawlers' ),
-			'never_crawled'          => __( 'Important page never crawled', 'rankyfy-ai-crawlers' ),
-			'stale_crawl'            => __( 'Updated since last AI crawl', 'rankyfy-ai-crawlers' ),
-			'training_only'          => __( 'Only training crawlers visit', 'rankyfy-ai-crawlers' ),
-			'orphan'                 => __( 'No internal links point here', 'rankyfy-ai-crawlers' ),
-			'few_inlinks'            => __( 'Few internal links', 'rankyfy-ai-crawlers' ),
-			'thin_content'           => __( 'Thin content', 'rankyfy-ai-crawlers' ),
-			'no_subheadings'         => __( 'No subheadings', 'rankyfy-ai-crawlers' ),
-			'no_question_headings'   => __( 'No question headings', 'rankyfy-ai-crawlers' ),
-			'no_direct_answer'       => __( 'No direct answer up top', 'rankyfy-ai-crawlers' ),
-			'no_faq'                 => __( 'No FAQ section', 'rankyfy-ai-crawlers' ),
-			'no_lists'               => __( 'No lists or tables', 'rankyfy-ai-crawlers' ),
-			'no_structured_data'     => __( 'No structured data', 'rankyfy-ai-crawlers' ),
-			'schema_mismatch'        => __( 'Structured data type missing', 'rankyfy-ai-crawlers' ),
-			'no_author'              => __( 'No author information', 'rankyfy-ai-crawlers' ),
-			'outdated'               => __( 'Not updated for over a year', 'rankyfy-ai-crawlers' ),
-			'missing_alt'            => __( 'Images without alt text', 'rankyfy-ai-crawlers' ),
-			'no_meta_description'    => __( 'No meta description', 'rankyfy-ai-crawlers' ),
-			'proxy_unconfigured'     => __( 'Proxy or CDN not set up', 'rankyfy-ai-crawlers' ),
-			'content_gaps'           => __( 'Content gaps (AI-suggested)', 'rankyfy-ai-crawlers' ),
-			'keyword_gaps'           => __( 'Missing related terms (AI-suggested)', 'rankyfy-ai-crawlers' ),
-			'faq_opportunities'      => __( 'Questions to answer (AI-suggested)', 'rankyfy-ai-crawlers' ),
+			'robots_blocked'         => __( 'Blocked by robots.txt', 'rankyfy-ai-seo' ),
+			'noindex'                => __( 'Set to noindex', 'rankyfy-ai-seo' ),
+			'noai'                   => __( 'Opts out of AI use (noai)', 'rankyfy-ai-seo' ),
+			'http_error'             => __( 'Answers with an error', 'rankyfy-ai-seo' ),
+			'redirects'              => __( 'Redirects', 'rankyfy-ai-seo' ),
+			'canonical_elsewhere'    => __( 'Canonical points elsewhere', 'rankyfy-ai-seo' ),
+			'bot_errors'             => __( 'AI crawlers got errors', 'rankyfy-ai-seo' ),
+			'slow_for_bots'          => __( 'Slow for AI crawlers', 'rankyfy-ai-seo' ),
+			'never_crawled'          => __( 'Important page never crawled', 'rankyfy-ai-seo' ),
+			'stale_crawl'            => __( 'Updated since last AI crawl', 'rankyfy-ai-seo' ),
+			'training_only'          => __( 'Only training crawlers visit', 'rankyfy-ai-seo' ),
+			'orphan'                 => __( 'No internal links point here', 'rankyfy-ai-seo' ),
+			'few_inlinks'            => __( 'Few internal links', 'rankyfy-ai-seo' ),
+			'thin_content'           => __( 'Thin content', 'rankyfy-ai-seo' ),
+			'no_subheadings'         => __( 'No subheadings', 'rankyfy-ai-seo' ),
+			'no_question_headings'   => __( 'No question headings', 'rankyfy-ai-seo' ),
+			'no_direct_answer'       => __( 'No direct answer up top', 'rankyfy-ai-seo' ),
+			'no_faq'                 => __( 'No FAQ section', 'rankyfy-ai-seo' ),
+			'no_lists'               => __( 'No lists or tables', 'rankyfy-ai-seo' ),
+			'no_structured_data'     => __( 'No structured data', 'rankyfy-ai-seo' ),
+			'schema_mismatch'        => __( 'Structured data type missing', 'rankyfy-ai-seo' ),
+			'no_author'              => __( 'No author information', 'rankyfy-ai-seo' ),
+			'outdated'               => __( 'Not updated for over a year', 'rankyfy-ai-seo' ),
+			'missing_alt'            => __( 'Images without alt text', 'rankyfy-ai-seo' ),
+			'no_meta_description'    => __( 'No meta description', 'rankyfy-ai-seo' ),
+			'proxy_unconfigured'     => __( 'Proxy or CDN not set up', 'rankyfy-ai-seo' ),
+			'content_gaps'           => __( 'Content gaps (AI-suggested)', 'rankyfy-ai-seo' ),
+			'keyword_gaps'           => __( 'Missing related terms (AI-suggested)', 'rankyfy-ai-seo' ),
+			'faq_opportunities'      => __( 'Questions to answer (AI-suggested)', 'rankyfy-ai-seo' ),
 		);
 		return $l[ $code ] ?? self::text( $code )['title'];
 	}
@@ -142,255 +142,255 @@ class Catalog {
 			case 'robots_blocked':
 				return array(
 					/* translators: %s: crawler name */
-					'title'  => sprintf( __( 'robots.txt blocks %s from this page', 'rankyfy-ai-crawlers' ), $bot ),
-					'why'    => __( 'A crawler that is not allowed to read a page cannot use it to answer questions or cite it as a source.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( __( 'robots.txt blocks %s from this page', 'rankyfy-ai-seo' ), $bot ),
+					'why'    => __( 'A crawler that is not allowed to read a page cannot use it to answer questions or cite it as a source.', 'rankyfy-ai-seo' ),
 					/* translators: %s: robots.txt rule */
-					'action' => sprintf( __( 'If this page should appear in AI answers, remove or narrow the rule "%s" in robots.txt (or in the SEO or security plugin that writes it).', 'rankyfy-ai-crawlers' ), $value ),
+					'action' => sprintf( __( 'If this page should appear in AI answers, remove or narrow the rule "%s" in robots.txt (or in the SEO or security plugin that writes it).', 'rankyfy-ai-seo' ), $value ),
 				);
 			case 'noindex':
 				return array(
-					'title'  => __( 'The page asks not to be indexed (noindex)', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'AI search in ChatGPT, Copilot, Google AI Overviews and others relies on search indexes. A noindex page is left out of them, so it is rarely found or cited.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'If the page should be found, remove the noindex setting in your SEO plugin (Advanced / Robots meta for this page).', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'The page asks not to be indexed (noindex)', 'rankyfy-ai-seo' ),
+					'why'    => __( 'AI search in ChatGPT, Copilot, Google AI Overviews and others relies on search indexes. A noindex page is left out of them, so it is rarely found or cited.', 'rankyfy-ai-seo' ),
+					'action' => __( 'If the page should be found, remove the noindex setting in your SEO plugin (Advanced / Robots meta for this page).', 'rankyfy-ai-seo' ),
 				);
 			case 'noai':
 				return array(
-					'title'  => __( 'The page opts out of AI use (noai)', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'Some AI services honour "noai"/"noimageai" robots directives and will not use this page.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Keep it if that is intended. Otherwise remove the directive from the page\'s robots meta tag or X-Robots-Tag header.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'The page opts out of AI use (noai)', 'rankyfy-ai-seo' ),
+					'why'    => __( 'Some AI services honour "noai"/"noimageai" robots directives and will not use this page.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Keep it if that is intended. Otherwise remove the directive from the page\'s robots meta tag or X-Robots-Tag header.', 'rankyfy-ai-seo' ),
 				);
 			case 'http_error':
 				return array(
 					/* translators: %s: HTTP status */
-					'title'  => sprintf( __( 'The page answers with an error (HTTP %s)', 'rankyfy-ai-crawlers' ), $value ),
-					'why'    => __( 'Crawlers drop pages that return errors, and AI assistants cannot quote what they cannot load.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Open the page and fix the error, or redirect the URL to the right page if it moved.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( __( 'The page answers with an error (HTTP %s)', 'rankyfy-ai-seo' ), $value ),
+					'why'    => __( 'Crawlers drop pages that return errors, and AI assistants cannot quote what they cannot load.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Open the page and fix the error, or redirect the URL to the right page if it moved.', 'rankyfy-ai-seo' ),
 				);
 			case 'redirects':
 				return array(
 					/* translators: %s: target URL */
-					'title'  => sprintf( __( 'The page redirects to %s', 'rankyfy-ai-crawlers' ), $value ),
-					'why'    => __( 'Links and sitemaps that point at a redirecting URL waste crawl visits.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Link to the final URL directly and keep the redirect only for old links.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( __( 'The page redirects to %s', 'rankyfy-ai-seo' ), $value ),
+					'why'    => __( 'Links and sitemaps that point at a redirecting URL waste crawl visits.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Link to the final URL directly and keep the redirect only for old links.', 'rankyfy-ai-seo' ),
 				);
 			case 'canonical_elsewhere':
 				return array(
-					'title'  => __( 'The canonical URL points to a different page', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'The canonical URL points to a different page', 'rankyfy-ai-seo' ),
 					/* translators: %s: canonical URL */
-					'why'    => sprintf( __( 'Search engines and AI crawlers treat %s as the real page and may ignore this one.', 'rankyfy-ai-crawlers' ), $value ),
-					'action' => __( 'If this page has its own content, set its canonical URL to itself in your SEO plugin.', 'rankyfy-ai-crawlers' ),
+					'why'    => sprintf( __( 'Search engines and AI crawlers treat %s as the real page and may ignore this one.', 'rankyfy-ai-seo' ), $value ),
+					'action' => __( 'If this page has its own content, set its canonical URL to itself in your SEO plugin.', 'rankyfy-ai-seo' ),
 				);
 			case 'bot_errors':
 				return array(
 					/* translators: 1: crawler, 2: count */
-					'title'  => sprintf( __( '%1$s got %2$d error responses on this page in the last 14 days', 'rankyfy-ai-crawlers' ), $bot, $n ),
-					'why'    => __( 'These are real requests from the crawler that failed. Repeated failures teach crawlers to visit less often.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Check the status codes in the page\'s crawl history; fix server errors (5xx) first, then broken URLs (404).', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( __( '%1$s got %2$d error responses on this page in the last 14 days', 'rankyfy-ai-seo' ), $bot, $n ),
+					'why'    => __( 'These are real requests from the crawler that failed. Repeated failures teach crawlers to visit less often.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Check the status codes in the page\'s crawl history; fix server errors (5xx) first, then broken URLs (404).', 'rankyfy-ai-seo' ),
 				);
 			case 'slow_for_bots':
 				return array(
 					/* translators: %s: milliseconds */
-					'title'  => sprintf( __( 'Slow for AI crawlers (%s ms on average)', 'rankyfy-ai-crawlers' ), number_format_i18n( $n ) ),
-					'why'    => __( 'AI assistants fetching a page during a conversation give up on slow responses and use another source.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Make sure crawler requests are served from your page cache, and reduce what the page loads on the server.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( __( 'Slow for AI crawlers (%s ms on average)', 'rankyfy-ai-seo' ), number_format_i18n( $n ) ),
+					'why'    => __( 'AI assistants fetching a page during a conversation give up on slow responses and use another source.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Make sure crawler requests are served from your page cache, and reduce what the page loads on the server.', 'rankyfy-ai-seo' ),
 				);
 			case 'never_crawled':
 				return array(
-					'title'  => __( 'No AI crawler has visited this important page', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'AI crawlers are visiting your site but not this page, so its content is unlikely to be used in AI answers.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Link to it from your home page or menu and from related posts, make sure it is in your XML sitemap, and check that robots.txt allows it.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'No AI crawler has visited this important page', 'rankyfy-ai-seo' ),
+					'why'    => __( 'AI crawlers are visiting your site but not this page, so its content is unlikely to be used in AI answers.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Link to it from your home page or menu and from related posts, make sure it is in your XML sitemap, and check that robots.txt allows it.', 'rankyfy-ai-seo' ),
 				);
 			case 'stale_crawl':
 				return array(
-					'title'  => __( 'Updated since AI crawlers last read it', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'AI answers may still be based on the older version of this page.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Make sure the sitemap shows the new modified date and link to the page from a recently updated page.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'Updated since AI crawlers last read it', 'rankyfy-ai-seo' ),
+					'why'    => __( 'AI answers may still be based on the older version of this page.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Make sure the sitemap shows the new modified date and link to the page from a recently updated page.', 'rankyfy-ai-seo' ),
 				);
 			case 'training_only':
 				return array(
-					'title'  => __( 'Only training crawlers have read this page', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'Training crawlers collect data for future models; search crawlers (OAI-SearchBot, Claude-SearchBot, PerplexityBot) are what make a page citable in answers today.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Check that robots.txt allows AI search crawlers and give the page more internal links.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'Only training crawlers have read this page', 'rankyfy-ai-seo' ),
+					'why'    => __( 'Training crawlers collect data for future models; search crawlers (OAI-SearchBot, Claude-SearchBot, PerplexityBot) are what make a page citable in answers today.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Check that robots.txt allows AI search crawlers and give the page more internal links.', 'rankyfy-ai-seo' ),
 				);
 			case 'orphan':
 				return array(
-					'title'  => __( 'No other page links here', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'Crawlers discover pages by following links. A page nothing links to is found late or never.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Add links to it from related pages — see the suggested links for this page.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'No other page links here', 'rankyfy-ai-seo' ),
+					'why'    => __( 'Crawlers discover pages by following links. A page nothing links to is found late or never.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Add links to it from related pages — see the suggested links for this page.', 'rankyfy-ai-seo' ),
 				);
 			case 'few_inlinks':
 				return array(
 					/* translators: %d: count */
-					'title'  => sprintf( _n( 'Only %d page links here', 'Only %d pages link here', $n, 'rankyfy-ai-crawlers' ), $n ),
-					'why'    => __( 'Internal links tell crawlers which pages matter and help them find the page again.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Link to it from two or three closely related pages using descriptive anchor text.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( _n( 'Only %d page links here', 'Only %d pages link here', $n, 'rankyfy-ai-seo' ), $n ),
+					'why'    => __( 'Internal links tell crawlers which pages matter and help them find the page again.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Link to it from two or three closely related pages using descriptive anchor text.', 'rankyfy-ai-seo' ),
 				);
 			case 'thin_content':
 				return array(
 					/* translators: %d: words */
-					'title'  => sprintf( __( 'Thin content (%d words)', 'rankyfy-ai-crawlers' ), $n ),
-					'why'    => __( 'AI assistants cite pages that answer a question completely. Short pages rarely contain the specific facts they quote.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Expand the page with the details a buyer or reader would ask about: specifics, examples, numbers, steps.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( __( 'Thin content (%d words)', 'rankyfy-ai-seo' ), $n ),
+					'why'    => __( 'AI assistants cite pages that answer a question completely. Short pages rarely contain the specific facts they quote.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Expand the page with the details a buyer or reader would ask about: specifics, examples, numbers, steps.', 'rankyfy-ai-seo' ),
 				);
 			case 'no_subheadings':
 				return array(
-					'title'  => __( 'No subheadings', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'Answer engines pull passages that sit under a clear heading. One long block of text is hard to quote.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Split the page into sections with H2 headings that say what each section answers.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'No subheadings', 'rankyfy-ai-seo' ),
+					'why'    => __( 'Answer engines pull passages that sit under a clear heading. One long block of text is hard to quote.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Split the page into sections with H2 headings that say what each section answers.', 'rankyfy-ai-seo' ),
 				);
 			case 'no_question_headings':
 				return array(
-					'title'  => __( 'No headings phrased as questions', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'People ask AI assistants questions. Headings that match those questions make the answer below them easy to find and cite.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Rephrase a few headings as the questions readers ask ("How long does … take?") and answer each in the first sentence below.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'No headings phrased as questions', 'rankyfy-ai-seo' ),
+					'why'    => __( 'People ask AI assistants questions. Headings that match those questions make the answer below them easy to find and cite.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Rephrase a few headings as the questions readers ask ("How long does … take?") and answer each in the first sentence below.', 'rankyfy-ai-seo' ),
 				);
 			case 'no_direct_answer':
 				return array(
-					'title'  => __( 'The page does not open with a direct answer', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'AI answers favour pages that state the key point in the first 40–60 words.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Start with a two- or three-sentence summary that answers the main question, then go into detail.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'The page does not open with a direct answer', 'rankyfy-ai-seo' ),
+					'why'    => __( 'AI answers favour pages that state the key point in the first 40–60 words.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Start with a two- or three-sentence summary that answers the main question, then go into detail.', 'rankyfy-ai-seo' ),
 				);
 			case 'no_faq':
 				return array(
-					'title'  => __( 'No FAQ section', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'Short question-and-answer pairs map directly onto the questions people ask assistants.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Add 3–6 real customer questions with short answers, and mark them up with FAQ structured data.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'No FAQ section', 'rankyfy-ai-seo' ),
+					'why'    => __( 'Short question-and-answer pairs map directly onto the questions people ask assistants.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Add 3–6 real customer questions with short answers, and mark them up with FAQ structured data.', 'rankyfy-ai-seo' ),
 				);
 			case 'no_lists':
 				return array(
-					'title'  => __( 'Long page without lists or tables', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'Steps, comparisons and specifications in lists and tables are easy for AI to extract accurately.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Turn steps, options or specifications into a list or a table.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'Long page without lists or tables', 'rankyfy-ai-seo' ),
+					'why'    => __( 'Steps, comparisons and specifications in lists and tables are easy for AI to extract accurately.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Turn steps, options or specifications into a list or a table.', 'rankyfy-ai-seo' ),
 				);
 			case 'no_structured_data':
 				return array(
-					'title'  => __( 'No structured data', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'Structured data (schema.org) states facts — product, price, author, organisation — unambiguously for search engines and AI systems.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Enable schema output in your SEO plugin, or add the schema type that fits this page (Article, Product, FAQPage, LocalBusiness…).', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'No structured data', 'rankyfy-ai-seo' ),
+					'why'    => __( 'Structured data (schema.org) states facts — product, price, author, organisation — unambiguously for search engines and AI systems.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Enable schema output in your SEO plugin, or add the schema type that fits this page (Article, Product, FAQPage, LocalBusiness…).', 'rankyfy-ai-seo' ),
 				);
 			case 'schema_mismatch':
 				return array(
 					/* translators: %s: schema type */
-					'title'  => sprintf( __( 'Structured data is missing the %s type', 'rankyfy-ai-crawlers' ), $value ),
-					'why'    => __( 'The page has structured data, but not the type that describes what it is.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( __( 'Structured data is missing the %s type', 'rankyfy-ai-seo' ), $value ),
+					'why'    => __( 'The page has structured data, but not the type that describes what it is.', 'rankyfy-ai-seo' ),
 					/* translators: %s: schema type */
-					'action' => sprintf( __( 'Add %s structured data (most SEO and shop plugins can output it).', 'rankyfy-ai-crawlers' ), $value ),
+					'action' => sprintf( __( 'Add %s structured data (most SEO and shop plugins can output it).', 'rankyfy-ai-seo' ), $value ),
 				);
 			case 'no_author':
 				return array(
-					'title'  => __( 'No author information', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'AI systems weigh expertise and trust. A named author with a short bio is a strong signal.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Fill in the author\'s biographical info in their WordPress profile and make sure the theme shows it.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'No author information', 'rankyfy-ai-seo' ),
+					'why'    => __( 'AI systems weigh expertise and trust. A named author with a short bio is a strong signal.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Fill in the author\'s biographical info in their WordPress profile and make sure the theme shows it.', 'rankyfy-ai-seo' ),
 				);
 			case 'outdated':
 				return array(
 					/* translators: %d: days */
-					'title'  => sprintf( __( 'Not updated for %d days', 'rankyfy-ai-crawlers' ), $n ),
-					'why'    => __( 'AI search prefers current information, especially for prices, statistics and how-tos.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Review the facts, update what changed and show the updated date.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( __( 'Not updated for %d days', 'rankyfy-ai-seo' ), $n ),
+					'why'    => __( 'AI search prefers current information, especially for prices, statistics and how-tos.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Review the facts, update what changed and show the updated date.', 'rankyfy-ai-seo' ),
 				);
 			case 'missing_alt':
 				return array(
 					/* translators: %d: count */
-					'title'  => sprintf( _n( '%d image has no alt text', '%d images have no alt text', $n, 'rankyfy-ai-crawlers' ), $n ),
-					'why'    => __( 'Alt text is how crawlers understand images; it also adds descriptive context to the page.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Describe each meaningful image in one short sentence.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( _n( '%d image has no alt text', '%d images have no alt text', $n, 'rankyfy-ai-seo' ), $n ),
+					'why'    => __( 'Alt text is how crawlers understand images; it also adds descriptive context to the page.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Describe each meaningful image in one short sentence.', 'rankyfy-ai-seo' ),
 				);
 			case 'no_meta_description':
 				return array(
-					'title'  => __( 'No meta description', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'A clear summary helps search engines and AI tools understand the page at a glance.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Write a 1–2 sentence description in your SEO plugin.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'No meta description', 'rankyfy-ai-seo' ),
+					'why'    => __( 'A clear summary helps search engines and AI tools understand the page at a glance.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Write a 1–2 sentence description in your SEO plugin.', 'rankyfy-ai-seo' ),
 				);
 			case 'content_gaps':
 				return array(
 					/* translators: %d: count */
-					'title'  => sprintf( _n( 'AI suggests %d topic this page does not cover', 'AI suggests %d topics this page does not cover', $n, 'rankyfy-ai-crawlers' ), $n ),
-					'why'    => __( 'Suggested by RankyFy Content AI from the page and its topic — not measured. Covering what readers expect makes the page a more complete source.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Review the suggested topics and add the ones that are relevant to your readers.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( _n( 'AI suggests %d topic this page does not cover', 'AI suggests %d topics this page does not cover', $n, 'rankyfy-ai-seo' ), $n ),
+					'why'    => __( 'Suggested by RankyFy Content AI from the page and its topic — not measured. Covering what readers expect makes the page a more complete source.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Review the suggested topics and add the ones that are relevant to your readers.', 'rankyfy-ai-seo' ),
 				);
 			case 'keyword_gaps':
 				return array(
 					/* translators: %d: count */
-					'title'  => sprintf( _n( '%d related term is missing', '%d related terms are missing', $n, 'rankyfy-ai-crawlers' ), $n ),
-					'why'    => __( 'Suggested by RankyFy Content AI. Related terms and entities help AI connect the page to the questions people ask.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Use the relevant terms naturally where they fit.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( _n( '%d related term is missing', '%d related terms are missing', $n, 'rankyfy-ai-seo' ), $n ),
+					'why'    => __( 'Suggested by RankyFy Content AI. Related terms and entities help AI connect the page to the questions people ask.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Use the relevant terms naturally where they fit.', 'rankyfy-ai-seo' ),
 				);
 			case 'faq_opportunities':
 				return array(
 					/* translators: %d: count */
-					'title'  => sprintf( _n( '%d question the page could answer', '%d questions the page could answer', $n, 'rankyfy-ai-crawlers' ), $n ),
-					'why'    => __( 'Suggested by RankyFy Content AI — likely questions, not questions people were observed asking.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Answer the relevant ones in an FAQ section or under question headings.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( _n( '%d question the page could answer', '%d questions the page could answer', $n, 'rankyfy-ai-seo' ), $n ),
+					'why'    => __( 'Suggested by RankyFy Content AI — likely questions, not questions people were observed asking.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Answer the relevant ones in an FAQ section or under question headings.', 'rankyfy-ai-seo' ),
 				);
 			case 'site_noindex':
 				return array(
-					'title'  => __( 'The whole site asks search engines not to index it', 'rankyfy-ai-crawlers' ),
-					'why'    => __( '"Discourage search engines from indexing this site" is on. Search indexes — and the AI search built on them — will drop the site.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Turn it off in Settings → Reading unless the site is not meant to be public.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'The whole site asks search engines not to index it', 'rankyfy-ai-seo' ),
+					'why'    => __( '"Discourage search engines from indexing this site" is on. Search indexes — and the AI search built on them — will drop the site.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Turn it off in Settings → Reading unless the site is not meant to be public.', 'rankyfy-ai-seo' ),
 				);
 			case 'robots_blocks_search':
 				return array(
 					/* translators: %s: crawler */
-					'title'  => sprintf( __( 'robots.txt blocks %s from the whole site', 'rankyfy-ai-crawlers' ), $bot ),
-					'why'    => __( 'This crawler decides which pages can be shown and cited in an AI assistant\'s search answers. Blocking it removes the site from those answers.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( __( 'robots.txt blocks %s from the whole site', 'rankyfy-ai-seo' ), $bot ),
+					'why'    => __( 'This crawler decides which pages can be shown and cited in an AI assistant\'s search answers. Blocking it removes the site from those answers.', 'rankyfy-ai-seo' ),
 					/* translators: %s: rule */
-					'action' => sprintf( __( 'Remove the rule (%s) unless you deliberately want to stay out of AI search.', 'rankyfy-ai-crawlers' ), $value ),
+					'action' => sprintf( __( 'Remove the rule (%s) unless you deliberately want to stay out of AI search.', 'rankyfy-ai-seo' ), $value ),
 				);
 			case 'robots_blocks_user':
 				return array(
 					/* translators: %s: crawler */
-					'title'  => sprintf( __( 'robots.txt blocks %s', 'rankyfy-ai-crawlers' ), $bot ),
-					'why'    => __( 'This agent fetches your page when a person asks the assistant about it. Blocking it means the assistant answers without your page.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( __( 'robots.txt blocks %s', 'rankyfy-ai-seo' ), $bot ),
+					'why'    => __( 'This agent fetches your page when a person asks the assistant about it. Blocking it means the assistant answers without your page.', 'rankyfy-ai-seo' ),
 					/* translators: %s: rule */
-					'action' => sprintf( __( 'Remove the rule (%s) if you want users\' questions to bring your content into the conversation.', 'rankyfy-ai-crawlers' ), $value ),
+					'action' => sprintf( __( 'Remove the rule (%s) if you want users\' questions to bring your content into the conversation.', 'rankyfy-ai-seo' ), $value ),
 				);
 			case 'robots_blocks_training':
 				return array(
 					/* translators: %s: crawler */
-					'title'  => sprintf( __( '%s (AI training) is blocked', 'rankyfy-ai-crawlers' ), $bot ),
-					'why'    => __( 'This only affects whether your content is used to train future models; it does not remove you from AI search answers. Many sites choose this deliberately.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'No action needed if this is your choice.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( __( '%s (AI training) is blocked', 'rankyfy-ai-seo' ), $bot ),
+					'why'    => __( 'This only affects whether your content is used to train future models; it does not remove you from AI search answers. Many sites choose this deliberately.', 'rankyfy-ai-seo' ),
+					'action' => __( 'No action needed if this is your choice.', 'rankyfy-ai-seo' ),
 				);
 			case 'edge_blocks_bot':
 				return array(
 					/* translators: %s: crawler */
-					'title'  => sprintf( __( 'Your server or CDN refuses requests that identify as %s', 'rankyfy-ai-crawlers' ), $bot ),
+					'title'  => sprintf( __( 'Your server or CDN refuses requests that identify as %s', 'rankyfy-ai-seo' ), $bot ),
 					/* translators: 1: status, 2: status */
-					'why'    => sprintf( __( 'A test request with this crawler\'s user agent got HTTP %1$s while a browser got HTTP %2$s. A firewall, CDN bot setting or security plugin is likely blocking AI crawlers, regardless of robots.txt.', 'rankyfy-ai-crawlers' ), $d['bot_status'] ?? '?', $d['browser_status'] ?? '?' ),
-					'action' => __( 'Check "block AI bots" or bot-fight settings in your CDN (e.g. Cloudflare), your firewall and security plugins, and allow this crawler if you want to appear in AI answers.', 'rankyfy-ai-crawlers' ),
+					'why'    => sprintf( __( 'A test request with this crawler\'s user agent got HTTP %1$s while a browser got HTTP %2$s. A firewall, CDN bot setting or security plugin is likely blocking AI crawlers, regardless of robots.txt.', 'rankyfy-ai-seo' ), $d['bot_status'] ?? '?', $d['browser_status'] ?? '?' ),
+					'action' => __( 'Check "block AI bots" or bot-fight settings in your CDN (e.g. Cloudflare), your firewall and security plugins, and allow this crawler if you want to appear in AI answers.', 'rankyfy-ai-seo' ),
 				);
 			case 'impersonation':
 				return array(
 					/* translators: 1: count, 2: crawler */
-					'title'  => sprintf( __( '%1$d requests pretended to be %2$s', 'rankyfy-ai-crawlers' ), $n, $bot ),
-					'why'    => __( 'They used the crawler\'s name but did not come from its published addresses. Scrapers often disguise themselves as well-known crawlers.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Nothing to change for AI visibility. If the volume is high, your firewall can block requests that claim this name but fail verification.', 'rankyfy-ai-crawlers' ),
+					'title'  => sprintf( __( '%1$d requests pretended to be %2$s', 'rankyfy-ai-seo' ), $n, $bot ),
+					'why'    => __( 'They used the crawler\'s name but did not come from its published addresses. Scrapers often disguise themselves as well-known crawlers.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Nothing to change for AI visibility. If the volume is high, your firewall can block requests that claim this name but fail verification.', 'rankyfy-ai-seo' ),
 				);
 			case 'verification_stale':
 				return array(
-					'title'  => __( 'Crawler verification data is out of date', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'The published crawler address lists could not be refreshed, so new crawler addresses may show as unverified.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'Make sure your server can make outgoing HTTPS requests. The plugin retries automatically.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'Crawler verification data is out of date', 'rankyfy-ai-seo' ),
+					'why'    => __( 'The published crawler address lists could not be refreshed, so new crawler addresses may show as unverified.', 'rankyfy-ai-seo' ),
+					'action' => __( 'Make sure your server can make outgoing HTTPS requests. The plugin retries automatically.', 'rankyfy-ai-seo' ),
 				);
 			case 'worker_stalled':
 				return array(
-					'title'  => __( 'Background processing is not running', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'Crawler visits are still recorded, but history, verification and alerts are not being updated.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'WP-Cron may be disabled. Ask your host to run wp-cron.php every 5 minutes with a real cron job.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'Background processing is not running', 'rankyfy-ai-seo' ),
+					'why'    => __( 'Crawler visits are still recorded, but history, verification and alerts are not being updated.', 'rankyfy-ai-seo' ),
+					'action' => __( 'WP-Cron may be disabled. Ask your host to run wp-cron.php every 5 minutes with a real cron job.', 'rankyfy-ai-seo' ),
 				);
 			case 'proxy_unconfigured':
 				return array(
-					'title'  => __( 'Your site is behind a proxy or CDN that is not set up here', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'Requests reach WordPress from the proxy\'s address, so crawler identities cannot be verified — they are shown as "user agent only" rather than risk calling real crawlers impostors.', 'rankyfy-ai-crawlers' ),
-					'action' => __( 'In Settings → Tracking, choose the header your proxy uses for the visitor address and add the proxy\'s address ranges as trusted proxies. (Cloudflare is recognised automatically.)', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'Your site is behind a proxy or CDN that is not set up here', 'rankyfy-ai-seo' ),
+					'why'    => __( 'Requests reach WordPress from the proxy\'s address, so crawler identities cannot be verified — they are shown as "user agent only" rather than risk calling real crawlers impostors.', 'rankyfy-ai-seo' ),
+					'action' => __( 'In Settings → Tracking, choose the header your proxy uses for the visitor address and add the proxy\'s address ranges as trusted proxies. (Cloudflare is recognised automatically.)', 'rankyfy-ai-seo' ),
 				);
 			case 'no_sitemap_in_robots':
 				return array(
-					'title'  => __( 'robots.txt does not list your sitemap', 'rankyfy-ai-crawlers' ),
-					'why'    => __( 'Crawlers read robots.txt first; a Sitemap line there helps every crawler find all your pages.', 'rankyfy-ai-crawlers' ),
+					'title'  => __( 'robots.txt does not list your sitemap', 'rankyfy-ai-seo' ),
+					'why'    => __( 'Crawlers read robots.txt first; a Sitemap line there helps every crawler find all your pages.', 'rankyfy-ai-seo' ),
 					/* translators: %s: sitemap URL */
-					'action' => sprintf( __( 'Add "Sitemap: %s" to robots.txt (most SEO plugins have a setting for it).', 'rankyfy-ai-crawlers' ), $value ),
+					'action' => sprintf( __( 'Add "Sitemap: %s" to robots.txt (most SEO plugins have a setting for it).', 'rankyfy-ai-seo' ), $value ),
 				);
 		}
 		return array(

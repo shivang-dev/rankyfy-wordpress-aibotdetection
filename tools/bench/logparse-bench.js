@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const lw = require('../../assets/js/log-worker.js');
 const reg = require('../../config/registry.json');
-const file = process.argv[2] || '/tmp/rfaib-bench-access.log';
+const file = process.argv[2] || '/tmp/rfy-bench-access.log';
 
 if (!fs.existsSync(file)) {
 	const humans = ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1', 'Mozilla/5.0 (X11; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0'];

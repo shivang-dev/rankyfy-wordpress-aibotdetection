@@ -1,6 +1,6 @@
 <?php
 /**
- * REST API for the admin screens: rankyfy-aib/v1.
+ * REST API for the admin screens: rankyfy-ai-seo/v1.
  *
  * Cookie authentication with the REST nonce, a capability check on every
  * route (manage_options by default, filterable), per-user rate limits,
@@ -20,14 +20,14 @@ defined( 'ABSPATH' ) || exit;
 
 class Rest {
 
-	const NS = 'rankyfy-aib/v1';
+	const NS = 'rankyfy-ai-seo/v1';
 
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
 	}
 
 	public static function capability() {
-		return (string) apply_filters( 'rfaib_capability', 'manage_options' );
+		return (string) apply_filters( 'rfy_capability', 'manage_options' );
 	}
 
 	public static function can() {
@@ -52,7 +52,7 @@ class Rest {
 						return call_user_func( $callback, $r );
 					} catch ( \Throwable $e ) {
 						Log::error( 'REST handler failed', array( 'route' => $r->get_route(), 'error' => $e->getMessage() ) );
-						return new WP_Error( 'rfaib_error', __( 'Something went wrong. The details were written to the plugin log.', 'rankyfy-ai-crawlers' ), array( 'status' => 500 ) );
+						return new WP_Error( 'rfy_error', __( 'Something went wrong. The details were written to the plugin log.', 'rankyfy-ai-seo' ), array( 'status' => 500 ) );
 					}
 				},
 			)
@@ -173,22 +173,22 @@ class Rest {
 		}
 		$sizes = array();
 		$rows  = $wpdb->get_results(
-			$wpdb->prepare( 'SELECT TABLE_NAME n, TABLE_ROWS r, DATA_LENGTH + INDEX_LENGTH b FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s AND TABLE_NAME LIKE %s', DB_NAME, $wpdb->esc_like( $wpdb->prefix . 'rfaib_' ) . '%' ),
+			$wpdb->prepare( 'SELECT TABLE_NAME n, TABLE_ROWS r, DATA_LENGTH + INDEX_LENGTH b FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s AND TABLE_NAME LIKE %s', DB_NAME, $wpdb->esc_like( $wpdb->prefix . 'rfy_' ) . '%' ),
 			ARRAY_A
 		);
 		foreach ( (array) $rows as $r ) {
-			$sizes[ substr( $r['n'], strlen( $wpdb->prefix . 'rfaib_' ) ) ] = array( 'rows' => (int) $r['r'], 'bytes' => (int) $r['b'] );
+			$sizes[ substr( $r['n'], strlen( $wpdb->prefix . 'rfy_' ) ) ] = array( 'rows' => (int) $r['r'], 'bytes' => (int) $r['b'] );
 		}
 		$reg = Registry::data();
 		return array(
-			'version'          => RFAIB_VERSION,
-			'monitoring_since' => (int) get_option( 'rfaib_monitoring_since' ),
+			'version'          => RFY_VERSION,
+			'monitoring_since' => (int) get_option( 'rfy_monitoring_since' ),
 			'tracking'         => (bool) Settings::get( 'tracking' ),
 			'worker'           => array(
 				'age'          => $age,
 				'stalled'      => null !== $age && $age > HOUR_IN_SECONDS,
 				'cron_disabled' => defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON,
-				'last_aggregation' => (int) get_option( 'rfaib_agg_last' ),
+				'last_aggregation' => (int) get_option( 'rfy_agg_last' ),
 				'pending_verification' => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Installer::table( 'verify_queue' ) ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 				'backlog'      => max( 0, (int) $wpdb->get_var( 'SELECT MAX(id) FROM ' . Installer::table( 'events' ) ) - (int) get_option( Aggregator::WATERMARK, 0 ) ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 			),
@@ -221,7 +221,7 @@ class Rest {
 
 	public static function bot( WP_REST_Request $r ) {
 		$d = Analytics::bot_detail( (string) $r['id'], (int) $r['days'] );
-		return $d ? $d : new WP_Error( 'rfaib_not_found', __( 'Unknown crawler.', 'rankyfy-ai-crawlers' ), array( 'status' => 404 ) );
+		return $d ? $d : new WP_Error( 'rfy_not_found', __( 'Unknown crawler.', 'rankyfy-ai-seo' ), array( 'status' => 404 ) );
 	}
 
 	public static function pages( WP_REST_Request $r ) {
@@ -242,7 +242,7 @@ class Rest {
 
 	public static function page( WP_REST_Request $r ) {
 		$d = Analytics::page_detail( (int) $r['id'] );
-		return $d ? $d : new WP_Error( 'rfaib_not_found', __( 'Page not found.', 'rankyfy-ai-crawlers' ), array( 'status' => 404 ) );
+		return $d ? $d : new WP_Error( 'rfy_not_found', __( 'Page not found.', 'rankyfy-ai-seo' ), array( 'status' => 404 ) );
 	}
 
 	public static function pin( WP_REST_Request $r ) {
@@ -255,7 +255,7 @@ class Rest {
 		global $wpdb;
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'pages' ) . ' WHERE id = %d AND deleted = 0', (int) $r['id'] ), ARRAY_A );
 		if ( ! $row ) {
-			return new WP_Error( 'rfaib_not_found', __( 'Page not found.', 'rankyfy-ai-crawlers' ), array( 'status' => 404 ) );
+			return new WP_Error( 'rfy_not_found', __( 'Page not found.', 'rankyfy-ai-seo' ), array( 'status' => 404 ) );
 		}
 		Analyzer::analyze( $row, true );
 		Coverage::refresh_pages( array( (int) $row['id'] ) );
@@ -341,11 +341,11 @@ class Rest {
 			'rule'       => 'test',
 			'dedupe'     => 'test',
 			'severity'   => 'info',
-			'title'      => __( 'Test notification from AI Crawler Monitor', 'rankyfy-ai-crawlers' ),
-			'what'       => __( 'You asked for a test notification.', 'rankyfy-ai-crawlers' ),
-			'why'        => __( 'Real alerts look like this: what happened, why it matters, the pages involved and what to do.', 'rankyfy-ai-crawlers' ),
+			'title'      => __( 'Test notification from RankyFy AI SEO', 'rankyfy-ai-seo' ),
+			'what'       => __( 'You asked for a test notification.', 'rankyfy-ai-seo' ),
+			'why'        => __( 'Real alerts look like this: what happened, why it matters, the pages involved and what to do.', 'rankyfy-ai-seo' ),
 			'affected'   => wp_json_encode( array() ),
-			'action'     => __( 'Nothing to do.', 'rankyfy-ai-crawlers' ),
+			'action'     => __( 'Nothing to do.', 'rankyfy-ai-seo' ),
 			'link'       => '#/alerts',
 			'status'     => 'read',
 			'created_at' => time(),
@@ -407,7 +407,7 @@ class Rest {
 		$hash = (string) $r['hash'];
 		$row  = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE ua_hash = %s", $hash ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( ! $row ) {
-			return new WP_Error( 'rfaib_not_found', __( 'Unknown user agent.', 'rankyfy-ai-crawlers' ), array( 'status' => 404 ) );
+			return new WP_Error( 'rfy_not_found', __( 'Unknown user agent.', 'rankyfy-ai-seo' ), array( 'status' => 404 ) );
 		}
 		if ( 'ignore' === $r['action'] ) {
 			$wpdb->update( $t, array( 'state' => 'ignored' ), array( 'ua_hash' => $hash ) );
@@ -416,17 +416,17 @@ class Rest {
 		if ( 'track' === $r['action'] ) {
 			$token = sanitize_text_field( (string) $r['token'] );
 			if ( '' === $token || false === stripos( $row['ua'], $token ) ) {
-				return new WP_Error( 'rfaib_invalid_token', __( 'The text to look for must appear in the user agent.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+				return new WP_Error( 'rfy_invalid_token', __( 'The text to look for must appear in the user agent.', 'rankyfy-ai-seo' ), array( 'status' => 400 ) );
 			}
 			$res = Registry::save_custom(
 				array(
 					'id'            => substr( sanitize_title( $token ), 0, 40 ),
 					'name'          => $token,
-					'provider'      => sanitize_text_field( (string) $r['provider'] ) ?: __( 'Unknown', 'rankyfy-ai-crawlers' ),
+					'provider'      => sanitize_text_field( (string) $r['provider'] ) ?: __( 'Unknown', 'rankyfy-ai-seo' ),
 					'category'      => in_array( $r['category'], Registry::CATEGORIES, true ) ? $r['category'] : 'ai_other',
 					'patterns'      => array( $token ),
 					'robots_tokens' => preg_match( '/^[A-Za-z0-9._-]+$/', $token ) ? array( $token ) : array(),
-					'description'   => __( 'Added from an unrecognised user agent.', 'rankyfy-ai-crawlers' ),
+					'description'   => __( 'Added from an unrecognised user agent.', 'rankyfy-ai-seo' ),
 					'confidence'    => 'low',
 				)
 			);
@@ -437,14 +437,14 @@ class Rest {
 			Analytics::bust();
 			return array( 'ok' => true, 'bot' => $res );
 		}
-		return new WP_Error( 'rfaib_invalid', __( 'Unknown action.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+		return new WP_Error( 'rfy_invalid', __( 'Unknown action.', 'rankyfy-ai-seo' ), array( 'status' => 400 ) );
 	}
 
 	public static function import( WP_REST_Request $r ) {
 		$lines = $r->get_param( 'lines' );
 		if ( ! is_array( $lines ) || count( $lines ) > Importer::BATCH ) {
 			/* translators: %d: max lines */
-			return new WP_Error( 'rfaib_invalid', sprintf( __( 'Send at most %d lines per batch.', 'rankyfy-ai-crawlers' ), Importer::BATCH ), array( 'status' => 400 ) );
+			return new WP_Error( 'rfy_invalid', sprintf( __( 'Send at most %d lines per batch.', 'rankyfy-ai-seo' ), Importer::BATCH ), array( 'status' => 400 ) );
 		}
 		return Importer::batch( $lines, (string) $r->get_param( 'key' ) );
 	}
@@ -491,7 +491,7 @@ class Rest {
 
 	public static function crawler_url( WP_REST_Request $r ) {
 		$d = Analytics::url_detail( (string) $r['hash'] );
-		return $d ? $d : new WP_Error( 'rfaib_not_found', __( 'No AI crawler has requested this address.', 'rankyfy-ai-crawlers' ), array( 'status' => 404 ) );
+		return $d ? $d : new WP_Error( 'rfy_not_found', __( 'No AI crawler has requested this address.', 'rankyfy-ai-seo' ), array( 'status' => 404 ) );
 	}
 
 	public static function referrals( WP_REST_Request $r ) {
@@ -514,7 +514,7 @@ class Rest {
 	public static function access_save( WP_REST_Request $r ) {
 		$rules = $r->get_param( 'rules' );
 		if ( ! is_array( $rules ) ) {
-			return new WP_Error( 'rfaib_invalid', __( 'Nothing to save.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+			return new WP_Error( 'rfy_invalid', __( 'Nothing to save.', 'rankyfy-ai-seo' ), array( 'status' => 400 ) );
 		}
 		Access::save( $rules );
 		// Read robots.txt again as crawlers get it, then everything that depends on it.
@@ -553,10 +553,10 @@ class Rest {
 		$post   = get_post( (int) $r['post_id'] );
 		$source = Util::normalize_path( (string) $r['source'] );
 		if ( ! $post || 'publish' !== $post->post_status || '/' === $source ) {
-			return new WP_Error( 'rfaib_invalid', __( 'Choose a published page to send this address to.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+			return new WP_Error( 'rfy_invalid', __( 'Choose a published page to send this address to.', 'rankyfy-ai-seo' ), array( 'status' => 400 ) );
 		}
 		if ( Util::normalize_path( (string) get_permalink( $post ) ) === $source ) {
-			return new WP_Error( 'rfaib_invalid', __( 'That page already lives at this address.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+			return new WP_Error( 'rfy_invalid', __( 'That page already lives at this address.', 'rankyfy-ai-seo' ), array( 'status' => 400 ) );
 		}
 		Guard::add_redirect( $source, $post->ID, 'manual' );
 		Analytics::bust();
@@ -591,7 +591,7 @@ class Rest {
 
 	public static function readiness_status( WP_REST_Request $r ) {
 		if ( ! Readiness::set_status( (string) $r['check'], sanitize_key( (string) $r['status'] ) ) ) {
-			return new WP_Error( 'rfaib_invalid', __( 'Unknown check or status.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+			return new WP_Error( 'rfy_invalid', __( 'Unknown check or status.', 'rankyfy-ai-seo' ), array( 'status' => 400 ) );
 		}
 		Readiness::compute();
 		Analytics::bust();
@@ -632,10 +632,10 @@ class Rest {
 	public static function guard( WP_REST_Request $r ) {
 		$post = get_post( (int) $r['id'] );
 		if ( ! $post ) {
-			return new WP_Error( 'rfaib_not_found', __( 'Post not found.', 'rankyfy-ai-crawlers' ), array( 'status' => 404 ) );
+			return new WP_Error( 'rfy_not_found', __( 'Post not found.', 'rankyfy-ai-seo' ), array( 'status' => 404 ) );
 		}
 		if ( ! in_array( $post->post_type, Inventory::post_types(), true ) ) {
-			return new WP_Error( 'rfaib_invalid', __( 'This content type is not public, so it is not checked.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+			return new WP_Error( 'rfy_invalid', __( 'This content type is not public, so it is not checked.', 'rankyfy-ai-seo' ), array( 'status' => 400 ) );
 		}
 		$edits = array();
 		foreach ( array( 'title', 'content', 'slug', 'parent' ) as $k ) {

@@ -4,10 +4,10 @@
  * (in time order, as live tracking records them),
  * then aggregation time and dashboard query times.
  *
- *   RFAIB_ALLOW_DESTRUCTIVE_TESTS=1 wp eval-file tools/bench/scale.php 1000000 5000
+ *   RFY_ALLOW_DESTRUCTIVE_TESTS=1 wp eval-file tools/bench/scale.php 1000000 5000
  */
-if ( '1' !== getenv( 'RFAIB_ALLOW_DESTRUCTIVE_TESTS' ) ) {
-	exit( "Refusing to run without RFAIB_ALLOW_DESTRUCTIVE_TESTS=1\n" );
+if ( '1' !== getenv( 'RFY_ALLOW_DESTRUCTIVE_TESTS' ) ) {
+	exit( "Refusing to run without RFY_ALLOW_DESTRUCTIVE_TESTS=1\n" );
 }
 use RankyfyAIB as A;
 global $wpdb;
@@ -16,13 +16,13 @@ $pages = (int) ( $args[1] ?? 5000 );
 $e     = A\Installer::table( 'events' );
 $p     = A\Installer::table( 'pages' );
 $reuse = 'reuse' === ( $args[2] ?? '' ); // keep generated events, rebuild everything else
-update_option( 'rfaib_worker_lock', time(), false );
+update_option( 'rfy_worker_lock', time(), false );
 foreach ( A\Installer::TABLES as $t ) {
 	if ( ! $reuse || ! in_array( $t, array( 'events', 'pages' ), true ) ) {
 		$wpdb->query( 'TRUNCATE ' . A\Installer::table( $t ) );
 	}
 }
-update_option( 'rfaib_agg_watermark', '0', false );
+update_option( 'rfy_agg_watermark', '0', false );
 $wpdb->query( 'SET SESSION max_recursive_iterations = 100000000' );
 $t0 = microtime( true );
 if ( ! $reuse ) :
@@ -75,6 +75,6 @@ $time( 'retention prune', function () { A\Aggregator::prune(); } );
 $t0 = microtime( true );
 A\Analytics::overview( 30 );
 printf( "  %-36s %7.1f ms\n", 'overview 30 days (cached)', ( microtime( true ) - $t0 ) * 1000 );
-$sz = $wpdb->get_results( $wpdb->prepare( 'SELECT TABLE_NAME n, ROUND((DATA_LENGTH + INDEX_LENGTH) / 1048576, 1) mb FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s AND TABLE_NAME LIKE %s', DB_NAME, $wpdb->prefix . 'rfaib_%' ), ARRAY_A );
-echo 'table sizes (MB): ', implode( ', ', array_map( function ( $r ) { return substr( $r['n'], strlen( $GLOBALS['wpdb']->prefix . 'rfaib_' ) ) . ' ' . $r['mb']; }, $sz ) ), "\n";
-delete_option( 'rfaib_worker_lock' );
+$sz = $wpdb->get_results( $wpdb->prepare( 'SELECT TABLE_NAME n, ROUND((DATA_LENGTH + INDEX_LENGTH) / 1048576, 1) mb FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s AND TABLE_NAME LIKE %s', DB_NAME, $wpdb->prefix . 'rfy_%' ), ARRAY_A );
+echo 'table sizes (MB): ', implode( ', ', array_map( function ( $r ) { return substr( $r['n'], strlen( $GLOBALS['wpdb']->prefix . 'rfy_' ) ) . ' ' . $r['mb']; }, $sz ) ), "\n";
+delete_option( 'rfy_worker_lock' );

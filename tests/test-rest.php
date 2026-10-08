@@ -7,7 +7,7 @@ use RankyfyAIB\Installer;
 
 function t_rest( $method, $route, $params = array(), $user = 0 ) {
 	wp_set_current_user( $user );
-	$r = new WP_REST_Request( $method, '/rankyfy-aib/v1' . $route );
+	$r = new WP_REST_Request( $method, '/rankyfy-ai-seo/v1' . $route );
 	foreach ( $params as $k => $v ) {
 		$r->set_param( $k, $v );
 	}
@@ -37,7 +37,7 @@ function test_rest_requires_capability() {
 
 function test_rest_cookie_auth_needs_nonce() {
 	// Over real HTTP, a logged-in cookie without the REST nonce is treated as anonymous.
-	$res = wp_remote_get( rest_url( 'rankyfy-aib/v1/overview' ), array( 'cookies' => array() ) );
+	$res = wp_remote_get( rest_url( 'rankyfy-ai-seo/v1/overview' ), array( 'cookies' => array() ) );
 	if ( is_wp_error( $res ) ) {
 		echo "       (loopback unavailable; skipped)\n";
 		return;
@@ -57,7 +57,7 @@ function test_rest_validates_input() {
 	t_eq( 400, t_rest( 'POST', '/registry/custom', array( 'id' => 'Bad Id' ), $a )->get_status() );
 	$s = t_rest( 'POST', '/settings', array(), $a );
 	t_eq( 200, $s->get_status() );
-	$r = new WP_REST_Request( 'POST', '/rankyfy-aib/v1/settings' );
+	$r = new WP_REST_Request( 'POST', '/rankyfy-ai-seo/v1/settings' );
 	$r->set_header( 'content-type', 'application/json' );
 	$r->set_body( wp_json_encode( array( 'retention_events' => 99999, 'notify_mode' => 'spam', 'unknown_key' => 1 ) ) );
 	wp_set_current_user( $a );
@@ -75,7 +75,7 @@ function test_rest_never_returns_addresses_or_secrets() {
 	$a    = t_admin();
 	$json = wp_json_encode( array( t_rest( 'GET', '/bots/gptbot', array(), $a )->get_data(), t_rest( 'GET', '/status', array(), $a )->get_data(), t_rest( 'GET', '/settings', array(), $a )->get_data() ) );
 	t_ok( false === strpos( $json, '20.171.206.99' ), 'full address never exposed' );
-	t_ok( false === strpos( $json, (string) get_option( 'rfaib_secret' ) ), 'site secret never exposed' );
+	t_ok( false === strpos( $json, (string) get_option( 'rfy_secret' ) ), 'site secret never exposed' );
 }
 
 function test_rate_limit() {
@@ -84,9 +84,9 @@ function test_rate_limit() {
 		return 'write' === $action ? 3 : $max;
 	};
 	global $wpdb;
-	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_%rfaib\\_rl\\_%'" );
+	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_%rfy\\_rl\\_%'" );
 	wp_cache_flush();
-	add_filter( 'rfaib_rate_limit', $f, 10, 2 );
+	add_filter( 'rfy_rate_limit', $f, 10, 2 );
 	try {
 		$codes = array();
 		for ( $i = 0; $i < 5; $i++ ) {
@@ -94,9 +94,9 @@ function test_rate_limit() {
 		}
 		t_eq( array( 200, 200, 200, 429, 429 ), $codes );
 	} finally {
-		remove_filter( 'rfaib_rate_limit', $f, 10 );
+		remove_filter( 'rfy_rate_limit', $f, 10 );
 		global $wpdb;
-		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_%rfaib\\_rl\\_%'" );
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_%rfy\\_rl\\_%'" );
 		wp_cache_flush();
 	}
 }
@@ -119,7 +119,7 @@ function test_backend_unavailable_degrades_gracefully() {
 	if ( ! class_exists( '\Rankyfy\Auth' ) ) {
 		$r = RankyfyAIB\Rankyfy::analyze_page( 1 );
 		t_ok( is_wp_error( $r ) );
-		t_eq( 'rfaib_not_connected', $r->get_error_code() );
+		t_eq( 'rfy_not_connected', $r->get_error_code() );
 	}
 }
 
@@ -151,9 +151,9 @@ function test_activation_upgrade_and_uninstall() {
 	global $wpdb;
 	t_hit( 'GPTBot/1.4', '192.0.2.1', '/keep-me/' );
 	// Upgrade: an older schema version triggers dbDelta and keeps data.
-	update_option( 'rfaib_db_version', '0' );
+	update_option( 'rfy_db_version', '0' );
 	RankyfyAIB\Installer::maybe_upgrade();
-	t_eq( RFAIB_DB_VERSION, get_option( 'rfaib_db_version' ) );
+	t_eq( RFY_DB_VERSION, get_option( 'rfy_db_version' ) );
 	t_eq( 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Installer::table( 'events' ) ), 'data survives an upgrade' );
 	// Deactivation clears the schedule; activation restores it.
 	RankyfyAIB\Installer::deactivate();
@@ -161,24 +161,25 @@ function test_activation_upgrade_and_uninstall() {
 	RankyfyAIB\Installer::activate();
 	t_ok( (bool) wp_next_scheduled( RankyfyAIB\Worker::HOOK ) );
 	// Autoloaded request-path options exist (a missing option costs a query per page view).
-	$autoload = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'rfaib\\_%' AND autoload IN ('yes','on','auto-on','auto')" );
-	foreach ( array( 'rfaib_settings', 'rfaib_matcher', 'rfaib_throttle', 'rfaib_iponly', 'rfaib_db_version', 'rfaib_secret' ) as $o ) {
+	$autoload = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'rfy\\_%' AND autoload IN ('yes','on','auto-on','auto')" );
+	foreach ( array( 'rfy_settings', 'rfy_matcher', 'rfy_throttle', 'rfy_iponly', 'rfy_db_version', 'rfy_secret' ) as $o ) {
 		t_ok( in_array( $o, $autoload, true ), "$o autoloaded" );
 	}
-	$big = $wpdb->get_var( "SELECT SUM(LENGTH(option_value)) FROM {$wpdb->options} WHERE option_name LIKE 'rfaib\\_%' AND autoload IN ('yes','on','auto-on','auto')" );
+	$big = $wpdb->get_var( "SELECT SUM(LENGTH(option_value)) FROM {$wpdb->options} WHERE option_name LIKE 'rfy\\_%' AND autoload IN ('yes','on','auto-on','auto')" );
 	t_ok( (int) $big < 40000, 'autoloaded footprint stays small (' . (int) $big . ' bytes)' );
 }
 
 function test_uninstall_removes_everything() {
 	// Run uninstall.php in a child process so this process keeps its tables.
 	global $wpdb;
-	$cmd = 'cd ' . escapeshellarg( ABSPATH ) . ' && wp eval ' . escapeshellarg( 'define( "WP_UNINSTALL_PLUGIN", "aibotdetection/aibotdetection.php" ); include WP_PLUGIN_DIR . "/aibotdetection/uninstall.php"; global $wpdb; echo (int) $wpdb->get_var( "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE \'" . $wpdb->prefix . "rfaib\\\\_%\'" ), "|", (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE \'rfaib\\\\_%\'" );' ) . ' 2>&1';
+	$basename = plugin_basename( RFY_FILE );
+	$cmd = 'cd ' . escapeshellarg( ABSPATH ) . ' && wp eval ' . escapeshellarg( 'define( "WP_UNINSTALL_PLUGIN", "' . $basename . '" ); include WP_PLUGIN_DIR . "/' . dirname( $basename ) . '/uninstall.php"; global $wpdb; echo (int) $wpdb->get_var( "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE \'" . $wpdb->prefix . "rfy\\\\_%\'" ), "|", (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE \'rfy\\\\_%\'" );' ) . ' 2>&1';
 	$out = trim( (string) shell_exec( $cmd ) );
 	t_eq( '0|0', substr( $out, -3 ), 'tables and options removed: ' . $out );
 	// Put everything back for the rest of the suite.
 	wp_cache_flush();
 	RankyfyAIB\Installer::activate();
-	update_option( 'rfaib_worker_lock', time(), false ); // the child process removed the test's lock with every other option
+	update_option( 'rfy_worker_lock', time(), false ); // the child process removed the test's lock with every other option
 	RankyfyAIB\Registry::compile();
 	t_ok( RankyfyAIB\Installer::ready() );
 }

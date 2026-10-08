@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Coverage {
 
-	const CURSOR = 'rfaib_coverage_cursor';
+	const CURSOR = 'rfy_coverage_cursor';
 
 	public static function run( $budget = 20 ) {
 		global $wpdb;
@@ -79,7 +79,7 @@ class Coverage {
 			$refs[ $r['url_hash'] ] = (int) $r['h'];
 		}
 
-		$monitor_days = ( time() - (int) get_option( 'rfaib_monitoring_since', time() ) ) / DAY_IN_SECONDS;
+		$monitor_days = ( time() - (int) get_option( 'rfy_monitoring_since', time() ) ) / DAY_IN_SECONDS;
 		$ai_active    = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Installer::table( 'bots_seen' ) . ' WHERE last_seen > %d', time() - 14 * DAY_IN_SECONDS ) ) > 0; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$learning     = $monitor_days < 14 || ! $ai_active;
 		$min_imp      = (int) Settings::get( 'importance_min' );
@@ -305,7 +305,7 @@ class Coverage {
 		if ( $stale && Ranges::status() ) {
 			$out[] = array( 'verification_stale', array(), '' );
 		}
-		if ( ! Settings::get( 'proxy_header' ) && (int) get_option( 'rfaib_proxy_noted', 0 ) > time() - WEEK_IN_SECONDS ) {
+		if ( ! Settings::get( 'proxy_header' ) && (int) get_option( 'rfy_proxy_noted', 0 ) > time() - WEEK_IN_SECONDS ) {
 			$out[] = array( 'proxy_unconfigured', array(), '' );
 		}
 		$opened = Findings::sync( 0, 'site', $out );

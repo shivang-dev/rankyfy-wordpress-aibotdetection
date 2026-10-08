@@ -23,7 +23,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Inventory {
 
-	const STATE = 'rfaib_inventory';
+	const STATE = 'rfy_inventory';
 	const BATCH = 300;
 
 	public static function init() {
@@ -40,13 +40,13 @@ class Inventory {
 	public static function post_types() {
 		$types = get_post_types( array( 'public' => true ), 'names' );
 		unset( $types['attachment'] );
-		return array_values( apply_filters( 'rfaib_post_types', $types ) );
+		return array_values( apply_filters( 'rfy_post_types', $types ) );
 	}
 
 	public static function taxonomies() {
 		$tax = get_taxonomies( array( 'public' => true, 'publicly_queryable' => true ), 'names' );
 		unset( $tax['post_format'] );
-		return array_values( apply_filters( 'rfaib_taxonomies', $tax ) );
+		return array_values( apply_filters( 'rfy_taxonomies', $tax ) );
 	}
 
 	private static function post_is_page( $post ) {
@@ -326,12 +326,12 @@ class Inventory {
 	// ── importance ─────────────────────────────────────────────────────────
 
 	public static function forget_signals() {
-		delete_transient( 'rfaib_signals' );
+		delete_transient( 'rfy_signals' );
 	}
 
 	/** Site-wide signals, computed once and cached. */
 	public static function signals() {
-		$s = get_transient( 'rfaib_signals' );
+		$s = get_transient( 'rfy_signals' );
 		if ( is_array( $s ) ) {
 			return $s;
 		}
@@ -351,7 +351,7 @@ class Inventory {
 			'posts_page' => (int) get_option( 'page_for_posts' ),
 			'shop'       => function_exists( 'wc_get_page_id' ) ? (int) wc_get_page_id( 'shop' ) : 0,
 		);
-		set_transient( 'rfaib_signals', $s, 6 * HOUR_IN_SECONDS );
+		set_transient( 'rfy_signals', $s, 6 * HOUR_IN_SECONDS );
 		return $s;
 	}
 

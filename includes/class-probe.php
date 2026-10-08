@@ -23,11 +23,11 @@ defined( 'ABSPATH' ) || exit;
 
 class Probe {
 
-	const OPTION     = 'rfaib_probe';
+	const OPTION     = 'rfy_probe';
 	const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 
 	public static function token() {
-		return substr( hash_hmac( 'sha256', 'probe', (string) get_option( 'rfaib_secret' ) ), 0, 32 );
+		return substr( hash_hmac( 'sha256', 'probe', (string) get_option( 'rfy_secret' ) ), 0, 32 );
 	}
 
 	/** @return array|\WP_Error wp_remote_get response */
@@ -40,7 +40,7 @@ class Probe {
 				'limit_response_size' => 2 * MB_IN_BYTES,
 				'user-agent'          => $ua,
 				'headers'             => array(
-					'X-RFAIB-Probe' => self::token(),
+					'X-RFY-Probe' => self::token(),
 					'Accept'        => 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8',
 				),
 				// Same host as the site: a local certificate problem must not hide the answer.

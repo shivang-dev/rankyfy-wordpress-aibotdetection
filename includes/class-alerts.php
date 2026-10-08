@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Alerts {
 
-	const BASELINE = 'rfaib_baseline_done';
+	const BASELINE = 'rfy_baseline_done';
 
 	/**
 	 * Create an alert unless the same key fired within $cooldown seconds.
@@ -51,7 +51,7 @@ class Alerts {
 				'created_at' => time(),
 			)
 		);
-		delete_transient( 'rfaib_unread' );
+		delete_transient( 'rfy_unread' );
 		Analytics::bust();
 		return (int) $wpdb->insert_id;
 	}
@@ -101,7 +101,7 @@ class Alerts {
 
 	// ── stream rules ───────────────────────────────────────────────────────
 
-	const FIRST_HIT = 'rfaib_first_hit_email'; // address to tell once, when the first AI crawler arrives
+	const FIRST_HIT = 'rfy_first_hit_email'; // address to tell once, when the first AI crawler arrives
 
 	public static function stream( array $new_bots, array $first_crawls ) {
 		self::first_hit( $new_bots );
@@ -112,20 +112,20 @@ class Alerts {
 			}
 			$cat = Registry::data()['categories'][ $b['category'] ] ?? '';
 			if ( 'ai_training' === $b['category'] ) {
-				$action = __( 'Nothing is required. If you do not want your content used to train AI models, you can block this crawler in robots.txt — that does not remove you from AI search answers.', 'rankyfy-ai-crawlers' );
+				$action = __( 'Nothing is required. If you do not want your content used to train AI models, you can block this crawler in robots.txt — that does not remove you from AI search answers.', 'rankyfy-ai-seo' );
 			} elseif ( in_array( $b['category'], array( 'ai_user', 'ai_agent' ), true ) ) {
-				$action = __( 'Each of these visits is a real conversation that involved your site. Check which pages it fetched and make sure they answer the question directly.', 'rankyfy-ai-crawlers' );
+				$action = __( 'Each of these visits is a real conversation that involved your site. Check which pages it fetched and make sure they answer the question directly.', 'rankyfy-ai-seo' );
 			} else {
-				$action = __( 'Make sure your most important pages are linked from the pages it read, and that robots.txt allows it.', 'rankyfy-ai-crawlers' );
+				$action = __( 'Make sure your most important pages are linked from the pages it read, and that robots.txt allows it.', 'rankyfy-ai-seo' );
 			}
 			self::raise(
 				'new_bot',
 				$id,
 				'info',
 				/* translators: 1: crawler, 2: company */
-				sprintf( __( 'New AI crawler: %1$s (%2$s) visited your site', 'rankyfy-ai-crawlers' ), $b['name'], $b['provider'] ),
+				sprintf( __( 'New AI crawler: %1$s (%2$s) visited your site', 'rankyfy-ai-seo' ), $b['name'], $b['provider'] ),
 				/* translators: %s: crawler */
-				sprintf( __( '%s made its first recorded visit to your site.', 'rankyfy-ai-crawlers' ), $b['name'] ),
+				sprintf( __( '%s made its first recorded visit to your site.', 'rankyfy-ai-seo' ), $b['name'] ),
 				$cat . ' ' . $b['description'],
 				array(),
 				$action,
@@ -162,13 +162,13 @@ class Alerts {
 			'info',
 			$one
 				/* translators: 1: page, 2: crawlers */
-				? sprintf( __( '"%1$s" was read by %2$s for the first time', 'rankyfy-ai-crawlers' ), $one['page']['title'], implode( ', ', array_unique( $one['bots'] ) ) )
+				? sprintf( __( '"%1$s" was read by %2$s for the first time', 'rankyfy-ai-seo' ), $one['page']['title'], implode( ', ', array_unique( $one['bots'] ) ) )
 				/* translators: %d: count */
-				: sprintf( __( '%d important pages were read by AI crawlers for the first time', 'rankyfy-ai-crawlers' ), count( $hits ) ),
-			__( 'AI crawlers requested these important pages for the first time since monitoring began.', 'rankyfy-ai-crawlers' ),
-			__( 'A page has to be read before an AI assistant can use or cite it. This is the first step towards appearing in AI answers.', 'rankyfy-ai-crawlers' ),
+				: sprintf( __( '%d important pages were read by AI crawlers for the first time', 'rankyfy-ai-seo' ), count( $hits ) ),
+			__( 'AI crawlers requested these important pages for the first time since monitoring began.', 'rankyfy-ai-seo' ),
+			__( 'A page has to be read before an AI assistant can use or cite it. This is the first step towards appearing in AI answers.', 'rankyfy-ai-seo' ),
 			$affected,
-			__( 'Check the AEO recommendations for these pages so what the crawler read is easy to quote: a direct answer up top, clear headings, an FAQ.', 'rankyfy-ai-crawlers' ),
+			__( 'Check the AEO recommendations for these pages so what the crawler read is easy to quote: a direct answer up top, clear headings, an FAQ.', 'rankyfy-ai-seo' ),
 			$one ? '#/pages/' . $one['page']['id'] : '#/pages?filter=important',
 			$one ? YEAR_IN_SECONDS : DAY_IN_SECONDS
 		);
@@ -193,9 +193,9 @@ class Alerts {
 				$p['id'] . ':' . $bot,
 				'critical',
 				/* translators: 1: issue, 2: page */
-				sprintf( __( '%1$s: %2$s', 'rankyfy-ai-crawlers' ), $p['title'] ?: $p['path'], $text['title'] ),
+				sprintf( __( '%1$s: %2$s', 'rankyfy-ai-seo' ), $p['title'] ?: $p['path'], $text['title'] ),
 				/* translators: %s: page */
-				sprintf( __( 'An important page (%s) changed in a way that keeps AI crawlers from using it.', 'rankyfy-ai-crawlers' ), $p['path'] ),
+				sprintf( __( 'An important page (%s) changed in a way that keeps AI crawlers from using it.', 'rankyfy-ai-seo' ), $p['path'] ),
 				$text['why'],
 				array( self::page_ref( $p ) ),
 				$text['action'],
@@ -254,15 +254,15 @@ class Alerts {
 				$search ? 'critical' : 'warning',
 				$search
 					/* translators: %s: crawlers */
-					? sprintf( __( 'robots.txt now blocks AI search crawlers: %s', 'rankyfy-ai-crawlers' ), implode( ', ', $search ) )
-					: __( 'robots.txt now blocks more AI crawlers', 'rankyfy-ai-crawlers' ),
+					? sprintf( __( 'robots.txt now blocks AI search crawlers: %s', 'rankyfy-ai-seo' ), implode( ', ', $search ) )
+					: __( 'robots.txt now blocks more AI crawlers', 'rankyfy-ai-seo' ),
 				/* translators: %s: list */
-				sprintf( __( 'Your robots.txt changed. Newly blocked from the whole site: %s.', 'rankyfy-ai-crawlers' ), implode( '; ', $names ) ),
+				sprintf( __( 'Your robots.txt changed. Newly blocked from the whole site: %s.', 'rankyfy-ai-seo' ), implode( '; ', $names ) ),
 				$search
-					? __( 'Blocked search crawlers cannot index your pages for AI answers, so your site will gradually disappear from ChatGPT search, Perplexity and similar answers.', 'rankyfy-ai-crawlers' )
-					: __( 'Blocking training crawlers keeps your content out of future AI models but does not affect AI search.', 'rankyfy-ai-crawlers' ),
+					? __( 'Blocked search crawlers cannot index your pages for AI answers, so your site will gradually disappear from ChatGPT search, Perplexity and similar answers.', 'rankyfy-ai-seo' )
+					: __( 'Blocking training crawlers keeps your content out of future AI models but does not affect AI search.', 'rankyfy-ai-seo' ),
 				array(),
-				__( 'If this was not intended, check which plugin or CDN setting changed robots.txt (SEO plugins, security plugins and CDN "AI bot" settings can all write to it).', 'rankyfy-ai-crawlers' ),
+				__( 'If this was not intended, check which plugin or CDN setting changed robots.txt (SEO plugins, security plugins and CDN "AI bot" settings can all write to it).', 'rankyfy-ai-seo' ),
 				'#/technical',
 				DAY_IN_SECONDS
 			);
@@ -272,12 +272,12 @@ class Alerts {
 				'robots_allowed',
 				md5( implode( ',', array_keys( $freed ) ) ),
 				'info',
-				__( 'robots.txt now allows more AI crawlers', 'rankyfy-ai-crawlers' ),
+				__( 'robots.txt now allows more AI crawlers', 'rankyfy-ai-seo' ),
 				/* translators: %s: crawlers */
-				sprintf( __( 'No longer blocked: %s.', 'rankyfy-ai-crawlers' ), implode( ', ', array_map( array( Registry::class, 'label' ), array_keys( $freed ) ) ) ),
-				__( 'These crawlers can now read your site again.', 'rankyfy-ai-crawlers' ),
+				sprintf( __( 'No longer blocked: %s.', 'rankyfy-ai-seo' ), implode( ', ', array_map( array( Registry::class, 'label' ), array_keys( $freed ) ) ) ),
+				__( 'These crawlers can now read your site again.', 'rankyfy-ai-seo' ),
 				array(),
-				__( 'No action needed. Their visits should resume within days.', 'rankyfy-ai-crawlers' ),
+				__( 'No action needed. Their visits should resume within days.', 'rankyfy-ai-seo' ),
 				'#/technical',
 				DAY_IN_SECONDS
 			);
@@ -308,7 +308,7 @@ class Alerts {
 			),
 			ARRAY_A
 		);
-		$monitor_days = ( time() - (int) get_option( 'rfaib_monitoring_since', time() ) ) / DAY_IN_SECONDS;
+		$monitor_days = ( time() - (int) get_option( 'rfy_monitoring_since', time() ) ) / DAY_IN_SECONDS;
 		if ( $monitor_days < 21 ) {
 			return; // not enough history for a fair comparison
 		}
@@ -325,12 +325,12 @@ class Alerts {
 					$b['id'],
 					in_array( $b['category'], array( 'ai_search', 'ai_user' ), true ) ? 'warning' : 'info',
 					/* translators: %s: crawler */
-					sprintf( __( '%s stopped visiting your site', 'rankyfy-ai-crawlers' ), $b['name'] ),
+					sprintf( __( '%s stopped visiting your site', 'rankyfy-ai-seo' ), $b['name'] ),
 					/* translators: 1: crawler, 2: weekly average */
-					sprintf( __( '%1$s averaged %2$s requests a week over the previous month and has made none in the last 7 days.', 'rankyfy-ai-crawlers' ), $b['name'], number_format_i18n( $weekly ) ),
-					__( 'A crawler that stops visiting usually hit a block: a robots.txt change, a firewall or CDN rule, or errors on your server.', 'rankyfy-ai-crawlers' ),
+					sprintf( __( '%1$s averaged %2$s requests a week over the previous month and has made none in the last 7 days.', 'rankyfy-ai-seo' ), $b['name'], number_format_i18n( $weekly ) ),
+					__( 'A crawler that stops visiting usually hit a block: a robots.txt change, a firewall or CDN rule, or errors on your server.', 'rankyfy-ai-seo' ),
 					array(),
-					__( 'Check the Technical screen for robots.txt and firewall blocks, and the crawler\'s last requests for error responses.', 'rankyfy-ai-crawlers' ),
+					__( 'Check the Technical screen for robots.txt and firewall blocks, and the crawler\'s last requests for error responses.', 'rankyfy-ai-seo' ),
 					'#/crawlers/' . $b['id'],
 					2 * WEEK_IN_SECONDS
 				);
@@ -342,14 +342,14 @@ class Alerts {
 					$b['id'],
 					'info',
 					/* translators: %s: crawler */
-					sprintf( __( '%s activity more than doubled', 'rankyfy-ai-crawlers' ), $b['name'] ),
+					sprintf( __( '%s activity more than doubled', 'rankyfy-ai-seo' ), $b['name'] ),
 					/* translators: 1: requests, 2: weekly average */
-					sprintf( __( '%1$s requests in the last 7 days, against a weekly average of %2$s.', 'rankyfy-ai-crawlers' ), number_format_i18n( $recent ), number_format_i18n( $weekly ) ),
+					sprintf( __( '%1$s requests in the last 7 days, against a weekly average of %2$s.', 'rankyfy-ai-seo' ), number_format_i18n( $recent ), number_format_i18n( $weekly ) ),
 					'ai_user' === $b['category']
-						? __( 'User-triggered fetches rising means your pages are coming up in more conversations.', 'rankyfy-ai-crawlers' )
-						: __( 'More crawling usually follows new or updated content, or a crawler re-indexing the site.', 'rankyfy-ai-crawlers' ),
+						? __( 'User-triggered fetches rising means your pages are coming up in more conversations.', 'rankyfy-ai-seo' )
+						: __( 'More crawling usually follows new or updated content, or a crawler re-indexing the site.', 'rankyfy-ai-seo' ),
 					array(),
-					__( 'See which pages it is reading most — they are the ones to keep accurate and up to date.', 'rankyfy-ai-crawlers' ),
+					__( 'See which pages it is reading most — they are the ones to keep accurate and up to date.', 'rankyfy-ai-seo' ),
 					'#/crawlers/' . $b['id'],
 					WEEK_IN_SECONDS
 				);
@@ -359,12 +359,12 @@ class Alerts {
 					$b['id'],
 					'warning',
 					/* translators: %s: crawler */
-					sprintf( __( '%s activity fell sharply', 'rankyfy-ai-crawlers' ), $b['name'] ),
+					sprintf( __( '%s activity fell sharply', 'rankyfy-ai-seo' ), $b['name'] ),
 					/* translators: 1: requests, 2: weekly average */
-					sprintf( __( '%1$s requests in the last 7 days, against a weekly average of %2$s.', 'rankyfy-ai-crawlers' ), number_format_i18n( $recent ), number_format_i18n( $weekly ) ),
-					__( 'Falling crawl activity can mean the crawler is meeting errors, slow responses or new blocks.', 'rankyfy-ai-crawlers' ),
+					sprintf( __( '%1$s requests in the last 7 days, against a weekly average of %2$s.', 'rankyfy-ai-seo' ), number_format_i18n( $recent ), number_format_i18n( $weekly ) ),
+					__( 'Falling crawl activity can mean the crawler is meeting errors, slow responses or new blocks.', 'rankyfy-ai-seo' ),
 					array(),
-					__( 'Look for error responses and slow pages in its recent requests, and check robots.txt and firewall settings.', 'rankyfy-ai-crawlers' ),
+					__( 'Look for error responses and slow pages in its recent requests, and check robots.txt and firewall settings.', 'rankyfy-ai-seo' ),
 					'#/crawlers/' . $b['id'],
 					WEEK_IN_SECONDS
 				);
@@ -404,12 +404,12 @@ class Alerts {
 				'p' . $p['id'],
 				'info',
 				/* translators: 1: page, 2: count */
-				sprintf( __( 'AI assistants fetched "%1$s" %2$d times for their users', 'rankyfy-ai-crawlers' ), $p['title'] ?: $p['path'], (int) $r['h'] ),
+				sprintf( __( 'AI assistants fetched "%1$s" %2$d times for their users', 'rankyfy-ai-seo' ), $p['title'] ?: $p['path'], (int) $r['h'] ),
 				/* translators: %s: crawlers */
-				sprintf( __( 'In the last two days %s fetched this page while answering people\'s questions.', 'rankyfy-ai-crawlers' ), $bots ),
-				__( 'These are user-triggered fetches: real conversations in which an assistant looked at this page. It is one of your most valuable pages for AI visibility right now. (Which questions were asked is not shared with your site.)', 'rankyfy-ai-crawlers' ),
+				sprintf( __( 'In the last two days %s fetched this page while answering people\'s questions.', 'rankyfy-ai-seo' ), $bots ),
+				__( 'These are user-triggered fetches: real conversations in which an assistant looked at this page. It is one of your most valuable pages for AI visibility right now. (Which questions were asked is not shared with your site.)', 'rankyfy-ai-seo' ),
 				array( self::page_ref( $p ) ),
-				__( 'Keep this page accurate and current, put the key answer in the first paragraph, and link from it to related pages you also want cited.', 'rankyfy-ai-crawlers' ),
+				__( 'Keep this page accurate and current, put the key answer in the first paragraph, and link from it to related pages you also want cited.', 'rankyfy-ai-seo' ),
 				'#/pages/' . $p['id'],
 				WEEK_IN_SECONDS
 			);
@@ -442,11 +442,11 @@ class Alerts {
 			md5( implode( ',', array_column( $rows, 'id' ) ) ),
 			'warning',
 			/* translators: %d: count */
-			sprintf( _n( '%d important page is no longer being crawled', '%d important pages are no longer being crawled', count( $rows ), 'rankyfy-ai-crawlers' ), count( $rows ) ),
-			__( 'AI crawlers used to visit these pages repeatedly but have not requested them in the last 30 days.', 'rankyfy-ai-crawlers' ),
-			__( 'Pages that drop out of crawling go stale in AI indexes and are less likely to be cited.', 'rankyfy-ai-crawlers' ),
+			sprintf( _n( '%d important page is no longer being crawled', '%d important pages are no longer being crawled', count( $rows ), 'rankyfy-ai-seo' ), count( $rows ) ),
+			__( 'AI crawlers used to visit these pages repeatedly but have not requested them in the last 30 days.', 'rankyfy-ai-seo' ),
+			__( 'Pages that drop out of crawling go stale in AI indexes and are less likely to be cited.', 'rankyfy-ai-seo' ),
 			array_map( array( __CLASS__, 'page_ref' ), array_values( $rows ) ),
-			__( 'Check that the pages still return 200, are not blocked or noindexed, and are linked from pages crawlers still visit. Updating them with fresh information helps too.', 'rankyfy-ai-crawlers' ),
+			__( 'Check that the pages still return 200, are not blocked or noindexed, and are linked from pages crawlers still visit. Updating them with fresh information helps too.', 'rankyfy-ai-seo' ),
 			'#/pages?filter=dropped',
 			WEEK_IN_SECONDS
 		);
@@ -471,8 +471,8 @@ class Alerts {
 			'weekly',
 			'warning',
 			/* translators: %d: count */
-			sprintf( _n( '%d important page has never been visited by an AI crawler', '%d important pages have never been visited by an AI crawler', count( $rows ), 'rankyfy-ai-crawlers' ), count( $rows ) ),
-			__( 'AI crawlers are active on your site, but these important pages have not been requested once since monitoring began.', 'rankyfy-ai-crawlers' ),
+			sprintf( _n( '%d important page has never been visited by an AI crawler', '%d important pages have never been visited by an AI crawler', count( $rows ), 'rankyfy-ai-seo' ), count( $rows ) ),
+			__( 'AI crawlers are active on your site, but these important pages have not been requested once since monitoring began.', 'rankyfy-ai-seo' ),
 			$text['why'],
 			array_map( array( __CLASS__, 'page_ref' ), $rows ),
 			$text['action'],
@@ -484,20 +484,20 @@ class Alerts {
 	/** Unregistered bots whose user agent suggests AI, seen for the first time. */
 	private static function potential_agents() {
 		global $wpdb;
-		$since = (int) get_option( 'rfaib_potential_checked', time() - HOUR_IN_SECONDS );
-		update_option( 'rfaib_potential_checked', time(), false );
+		$since = (int) get_option( 'rfy_potential_checked', time() - HOUR_IN_SECONDS );
+		update_option( 'rfy_potential_checked', time(), false );
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT ua, hits FROM ' . Installer::table( 'agents' ) . " WHERE cls = 'potential' AND state = 'new' AND first_seen > %d ORDER BY hits DESC LIMIT 5", $since ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		foreach ( (array) $rows as $r ) {
 			self::raise(
 				'potential_bot',
 				md5( $r['ua'] ),
 				'info',
-				__( 'Possible new AI crawler detected', 'rankyfy-ai-crawlers' ),
+				__( 'Possible new AI crawler detected', 'rankyfy-ai-seo' ),
 				/* translators: %s: user agent */
-				sprintf( __( 'An unregistered automated client identifying as "%s" visited your site.', 'rankyfy-ai-crawlers' ), $r['ua'] ),
-				__( 'Its user agent suggests an AI service, but it is not in the crawler registry, so it cannot be verified. New AI crawlers appear regularly.', 'rankyfy-ai-crawlers' ),
+				sprintf( __( 'An unregistered automated client identifying as "%s" visited your site.', 'rankyfy-ai-seo' ), $r['ua'] ),
+				__( 'Its user agent suggests an AI service, but it is not in the crawler registry, so it cannot be verified. New AI crawlers appear regularly.', 'rankyfy-ai-seo' ),
 				array(),
-				__( 'Review it on the Crawlers screen: mark it as an AI crawler to track its visits page by page, or ignore it.', 'rankyfy-ai-crawlers' ),
+				__( 'Review it on the Crawlers screen: mark it as an AI crawler to track its visits page by page, or ignore it.', 'rankyfy-ai-seo' ),
 				'#/crawlers?tab=unknown',
 				YEAR_IN_SECONDS
 			);
@@ -519,9 +519,9 @@ class Alerts {
 			wp_mail(
 				$to,
 				/* translators: 1: crawler, 2: site */
-				sprintf( __( '[%2$s] First AI crawler: %1$s', 'rankyfy-ai-crawlers' ), $b['name'], wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+				sprintf( __( '[%2$s] First AI crawler: %1$s', 'rankyfy-ai-seo' ), $b['name'], wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 				/* translators: 1: crawler, 2: company, 3: link */
-				sprintf( __( "%1\$s (%2\$s) has just made its first visit to your site.\n\nSee what it read: %3\$s\n\nYou asked for this one email on the RankyFy dashboard; you won't get it again.", 'rankyfy-ai-crawlers' ), $b['name'], $b['provider'], admin_url( 'admin.php?page=' . Admin::SLUG . '#/crawlers/' . $id ) )
+				sprintf( __( "%1\$s (%2\$s) has just made its first visit to your site.\n\nSee what it read: %3\$s\n\nYou asked for this one email on the RankyFy dashboard; you won't get it again.", 'rankyfy-ai-seo' ), $b['name'], $b['provider'], admin_url( 'admin.php?page=' . Admin::SLUG . '#/crawlers/' . $id ) )
 			);
 			return;
 		}
@@ -540,11 +540,11 @@ class Alerts {
 				wp_date( 'Y-W' ),
 				'warning',
 				/* translators: 1: old, 2: new */
-				sprintf( __( 'AI search readiness fell from %1$d to %2$d', 'rankyfy-ai-crawlers' ), $a, $b ),
-				__( 'Your site\'s AEO score dropped by more than 8 points since yesterday.', 'rankyfy-ai-crawlers' ),
-				__( 'A sudden drop usually comes from a site-wide change: robots.txt, a noindex setting, a theme or plugin update, or server errors.', 'rankyfy-ai-crawlers' ),
+				sprintf( __( 'AI search readiness fell from %1$d to %2$d', 'rankyfy-ai-seo' ), $a, $b ),
+				__( 'Your site\'s AEO score dropped by more than 8 points since yesterday.', 'rankyfy-ai-seo' ),
+				__( 'A sudden drop usually comes from a site-wide change: robots.txt, a noindex setting, a theme or plugin update, or server errors.', 'rankyfy-ai-seo' ),
 				array(),
-				__( 'Open Recommendations and start with the critical items.', 'rankyfy-ai-crawlers' ),
+				__( 'Open Recommendations and start with the critical items.', 'rankyfy-ai-seo' ),
 				'#/recommendations',
 				3 * DAY_IN_SECONDS
 			);
@@ -557,12 +557,12 @@ class Alerts {
 				wp_date( 'Y-m-d' ),
 				'critical',
 				/* translators: %d: count */
-				sprintf( __( '%d new critical AI-visibility issues', 'rankyfy-ai-crawlers' ), $cb - $ca ),
+				sprintf( __( '%d new critical AI-visibility issues', 'rankyfy-ai-seo' ), $cb - $ca ),
 				/* translators: 1: before, 2: now */
-				sprintf( __( 'Critical issues went from %1$d to %2$d since yesterday.', 'rankyfy-ai-crawlers' ), $ca, $cb ),
-				__( 'Critical issues keep crawlers out of pages entirely (blocks, noindex, errors).', 'rankyfy-ai-crawlers' ),
+				sprintf( __( 'Critical issues went from %1$d to %2$d since yesterday.', 'rankyfy-ai-seo' ), $ca, $cb ),
+				__( 'Critical issues keep crawlers out of pages entirely (blocks, noindex, errors).', 'rankyfy-ai-seo' ),
 				array(),
-				__( 'Open Recommendations, filter by Critical, and fix them first.', 'rankyfy-ai-crawlers' ),
+				__( 'Open Recommendations, filter by Critical, and fix them first.', 'rankyfy-ai-seo' ),
 				'#/recommendations?severity=critical',
 				DAY_IN_SECONDS
 			);
@@ -579,12 +579,12 @@ class Alerts {
 			'p' . $p['id'],
 			'info',
 			/* translators: %s: page */
-			sprintf( __( 'New content opportunities for "%s"', 'rankyfy-ai-crawlers' ), $p['title'] ?: $p['path'] ),
+			sprintf( __( 'New content opportunities for "%s"', 'rankyfy-ai-seo' ), $p['title'] ?: $p['path'] ),
 			/* translators: 1: topics, 2: questions */
-			sprintf( __( 'RankyFy Content AI suggests %1$d topics and %2$d questions this page could cover.', 'rankyfy-ai-crawlers' ), $n_gaps, $n_questions ),
-			__( 'These are AI suggestions based on the page and its topic — not searches or prompts that were observed. They point at what a complete answer usually covers.', 'rankyfy-ai-crawlers' ),
+			sprintf( __( 'RankyFy Content AI suggests %1$d topics and %2$d questions this page could cover.', 'rankyfy-ai-seo' ), $n_gaps, $n_questions ),
+			__( 'These are AI suggestions based on the page and its topic — not searches or prompts that were observed. They point at what a complete answer usually covers.', 'rankyfy-ai-seo' ),
 			array( self::page_ref( $p ) ),
-			__( 'Review the suggestions on the page\'s detail view and add what is relevant for your readers.', 'rankyfy-ai-crawlers' ),
+			__( 'Review the suggestions on the page\'s detail view and add what is relevant for your readers.', 'rankyfy-ai-seo' ),
 			'#/pages/' . $p['id'],
 			2 * WEEK_IN_SECONDS
 		);
@@ -628,7 +628,7 @@ class Alerts {
 			return false;
 		}
 		$t = Installer::table( 'alerts' );
-		delete_transient( 'rfaib_unread' );
+		delete_transient( 'rfy_unread' );
 		if ( 'all' === $id ) {
 			return false !== $wpdb->query( $wpdb->prepare( "UPDATE {$t} SET status = %s WHERE status = 'unread'", $status ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		}

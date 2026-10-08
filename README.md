@@ -1,4 +1,4 @@
-# RankyFy AI Crawler Monitor for WordPress
+# RankyFy AI SEO for WordPress
 
 See which AI crawlers and assistants visit your site, what they read and what they skip, which pages are blocked from them, and what to change so AI search can find and cite your content.
 
@@ -10,7 +10,7 @@ Nothing to configure. A RankyFy account is optional: it adds AI analysis of page
 
 ## Requirements
 
-- WordPress 6.0 or newer, PHP 7.4 or newer
+- WordPress 6.5 or newer, PHP 7.4 or newer
 - WP-Cron running (the WordPress default), or a server cron calling `wp-cron.php`
 - Optional: the RankyFy SEO plugin, connected to a RankyFy account, for AI analysis
 

@@ -23,7 +23,7 @@ class Importer {
 
 	const BATCH = 2000;
 
-	const SEEN = 'rfaib_import_batches';
+	const SEEN = 'rfy_import_batches';
 
 	/**
 	 * @param string $key client batch key (file fingerprint + batch number); a
@@ -131,10 +131,10 @@ class Importer {
 				$out['duplicates']++;
 			}
 		}
-		$st = get_option( 'rfaib_import', array() );
+		$st = get_option( 'rfy_import', array() );
 		$st = is_array( $st ) ? $st : array();
 		update_option(
-			'rfaib_import',
+			'rfy_import',
 			array(
 				'at'     => time(),
 				'events' => (int) ( $st['events'] ?? 0 ) + $out['events'],

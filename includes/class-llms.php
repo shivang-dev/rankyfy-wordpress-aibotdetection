@@ -29,9 +29,9 @@ defined( 'ABSPATH' ) || exit;
 
 class Llms {
 
-	const CACHE  = 'rfaib_llms_cache';
-	const OVERRIDE = 'rfaib_llms_override'; // hand-written llms.txt; served instead of the generated one
-	const STATUS = 'rfaib_llms_status';
+	const CACHE  = 'rfy_llms_cache';
+	const OVERRIDE = 'rfy_llms_override'; // hand-written llms.txt; served instead of the generated one
+	const STATUS = 'rfy_llms_status';
 	const FILES  = array( 'llms.txt', 'llms-full.txt', 'ai.txt' );
 	const HEADER = 'X-RankyFy-Generated';
 	const MAX_AGE        = 12 * HOUR_IN_SECONDS;
@@ -155,7 +155,7 @@ class Llms {
 					get_bloginfo( 'name' ),
 					get_bloginfo( 'description' ),
 					home_url( '/' ),
-					RFAIB_VERSION,
+					RFY_VERSION,
 				)
 			)
 		);
@@ -319,14 +319,14 @@ class Llms {
 
 	private static function section_name( array $r ) {
 		if ( 'home' === $r['object_type'] ) {
-			return __( 'Main pages', 'rankyfy-ai-crawlers' );
+			return __( 'Main pages', 'rankyfy-ai-seo' );
 		}
 		if ( 'term' === $r['object_type'] ) {
 			$tax = get_taxonomy( $r['subtype'] );
-			return $tax ? $tax->labels->name : __( 'Topics', 'rankyfy-ai-crawlers' );
+			return $tax ? $tax->labels->name : __( 'Topics', 'rankyfy-ai-seo' );
 		}
 		if ( 'page' === $r['subtype'] ) {
-			return __( 'Main pages', 'rankyfy-ai-crawlers' );
+			return __( 'Main pages', 'rankyfy-ai-seo' );
 		}
 		$pt = get_post_type_object( $r['subtype'] );
 		return $pt ? $pt->labels->name : ucfirst( $r['subtype'] );
@@ -373,7 +373,7 @@ class Llms {
 		}
 		// "Main pages" first, then sections by how many important pages they hold.
 		uksort( $main, static function ( $a, $b ) use ( $main ) {
-			$m = __( 'Main pages', 'rankyfy-ai-crawlers' );
+			$m = __( 'Main pages', 'rankyfy-ai-seo' );
 			if ( $a === $m || $b === $m ) {
 				return $a === $m ? -1 : 1;
 			}
@@ -399,9 +399,9 @@ class Llms {
 			$out[] = '';
 		}
 		if ( Settings::get( 'llms_full' ) ) {
-			$out[] = '## ' . __( 'Full text', 'rankyfy-ai-crawlers' );
+			$out[] = '## ' . __( 'Full text', 'rankyfy-ai-seo' );
 			$out[] = '';
-			$out[] = '- [llms-full.txt](' . esc_url_raw( home_url( '/llms-full.txt' ) ) . '): ' . __( 'The text of the main pages in one file.', 'rankyfy-ai-crawlers' );
+			$out[] = '- [llms-full.txt](' . esc_url_raw( home_url( '/llms-full.txt' ) ) . '): ' . __( 'The text of the main pages in one file.', 'rankyfy-ai-seo' );
 			$out[] = '';
 		}
 		return rtrim( implode( "\n", $out ) ) . "\n";
@@ -448,7 +448,7 @@ class Llms {
 			if ( Text::word_count( $text ) < 50 ) {
 				continue; // page-builder layouts and stubs: nothing useful to quote
 			}
-			$block = "\n## " . $r['label'] . "\n\nURL: " . esc_url_raw( $r['url'] ) . "\n" . __( 'Updated:', 'rankyfy-ai-crawlers' ) . ' ' . get_post_modified_time( 'Y-m-d', true, $post ) . "\n\n" . $text . "\n";
+			$block = "\n## " . $r['label'] . "\n\nURL: " . esc_url_raw( $r['url'] ) . "\n" . __( 'Updated:', 'rankyfy-ai-seo' ) . ' ' . get_post_modified_time( 'Y-m-d', true, $post ) . "\n\n" . $text . "\n";
 			if ( $bytes + strlen( $block ) > self::FULL_MAX_BYTES ) {
 				break;
 			}
@@ -465,13 +465,13 @@ class Llms {
 		$policy = (string) Settings::get( 'ai_txt_policy' );
 		$out    = array(
 			'# ai.txt — ' . self::line( get_bloginfo( 'name' ), 120 ),
-			'# ' . __( 'Policy for using this site\'s content to train AI models (format: https://site.spawning.ai/spawning-ai-txt).', 'rankyfy-ai-crawlers' ),
+			'# ' . __( 'Policy for using this site\'s content to train AI models (format: https://site.spawning.ai/spawning-ai-txt).', 'rankyfy-ai-seo' ),
 			/* translators: %s: robots.txt URL */
-			'# ' . sprintf( __( 'Whether crawlers may read the site at all is set in %s.', 'rankyfy-ai-crawlers' ), home_url( '/robots.txt' ) ),
+			'# ' . sprintf( __( 'Whether crawlers may read the site at all is set in %s.', 'rankyfy-ai-seo' ), home_url( '/robots.txt' ) ),
 		);
 		if ( Settings::get( 'llms_enabled' ) ) {
 			/* translators: %s: llms.txt URL */
-			$out[] = '# ' . sprintf( __( 'A guide to this site for language models: %s', 'rankyfy-ai-crawlers' ), home_url( '/llms.txt' ) );
+			$out[] = '# ' . sprintf( __( 'A guide to this site for language models: %s', 'rankyfy-ai-seo' ), home_url( '/llms.txt' ) );
 		}
 		$out[] = '';
 		$out[] = 'User-Agent: *';

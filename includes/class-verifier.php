@@ -180,7 +180,7 @@ class Verifier {
 
 	/** PTR name; '' when none exists; null on a lookup failure worth retrying. */
 	protected static function reverse( $ip ) {
-		$filtered = apply_filters( 'rfaib_reverse_dns', null, $ip ); // tests and unusual hosts
+		$filtered = apply_filters( 'rfy_reverse_dns', null, $ip ); // tests and unusual hosts
 		if ( null !== $filtered ) {
 			return (string) $filtered;
 		}
@@ -209,7 +209,7 @@ class Verifier {
 	}
 
 	protected static function forward( $host, $ip ) {
-		$filtered = apply_filters( 'rfaib_forward_dns', null, $host );
+		$filtered = apply_filters( 'rfy_forward_dns', null, $host );
 		if ( is_array( $filtered ) ) {
 			return $filtered;
 		}
@@ -327,11 +327,11 @@ class Verifier {
 
 	/** Ed25519 public keys (raw 32 bytes) published by a signing agent, keyed by thumbprint and kid. */
 	protected static function directory_keys( $host ) {
-		$filtered = apply_filters( 'rfaib_signature_keys', null, $host );
+		$filtered = apply_filters( 'rfy_signature_keys', null, $host );
 		if ( is_array( $filtered ) ) {
 			return $filtered;
 		}
-		$cache_key = 'rfaib_sigdir_' . md5( $host );
+		$cache_key = 'rfy_sigdir_' . md5( $host );
 		$cached    = get_transient( $cache_key );
 		if ( is_array( $cached ) ) {
 			return $cached;

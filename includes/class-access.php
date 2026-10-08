@@ -29,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Access {
 
-	const OPTION = 'rfaib_access'; // bot id => 'allow' | 'block'
+	const OPTION = 'rfy_access'; // bot id => 'allow' | 'block'
 	const BEGIN  = '## BEGIN RankyFy AI rules';
 	const END    = '## END RankyFy AI rules';
 
@@ -143,7 +143,7 @@ class Access {
 		switch ( $b['category'] ) {
 			case 'ai_training':
 				if ( 'google-extended' === $b['id'] ) {
-					return array( 'text' => __( 'Google stops using your pages for Gemini training. Google Search and AI Overviews are unaffected — those use Googlebot.', 'rankyfy-ai-crawlers' ), 'serious' => false );
+					return array( 'text' => __( 'Google stops using your pages for Gemini training. Google Search and AI Overviews are unaffected — those use Googlebot.', 'rankyfy-ai-seo' ), 'serious' => false );
 				}
 				$has_search = false;
 				foreach ( Registry::bots() as $o ) {
@@ -154,29 +154,29 @@ class Access {
 				return array(
 					'text'    => $has_search
 						/* translators: %s: product, e.g. ChatGPT */
-						? sprintf( __( 'Your content stops being used for training. No effect on %s answers.', 'rankyfy-ai-crawlers' ), $p )
-						: __( 'Your content stops being used for training. This operator has no AI search product, so blocking costs you nothing visible.', 'rankyfy-ai-crawlers' ),
+						? sprintf( __( 'Your content stops being used for training. No effect on %s answers.', 'rankyfy-ai-seo' ), $p )
+						: __( 'Your content stops being used for training. This operator has no AI search product, so blocking costs you nothing visible.', 'rankyfy-ai-seo' ),
 					'serious' => false,
 				);
 			case 'ai_search':
 				/* translators: %s: product */
-				return array( 'text' => sprintf( __( 'You disappear from %s\'s answers. Rarely what you want.', 'rankyfy-ai-crawlers' ), $p ), 'serious' => true );
+				return array( 'text' => sprintf( __( 'You disappear from %s\'s answers. Rarely what you want.', 'rankyfy-ai-seo' ), $p ), 'serious' => true );
 			case 'ai_user':
 			case 'ai_agent':
 				/* translators: %s: product */
-				return array( 'text' => sprintf( __( 'People who paste your link into %s get nothing back.', 'rankyfy-ai-crawlers' ), $p ), 'serious' => true );
+				return array( 'text' => sprintf( __( 'People who paste your link into %s get nothing back.', 'rankyfy-ai-seo' ), $p ), 'serious' => true );
 		}
-		return array( 'text' => __( 'Little visible effect.', 'rankyfy-ai-crawlers' ), 'serious' => false );
+		return array( 'text' => __( 'Little visible effect.', 'rankyfy-ai-seo' ), 'serious' => false );
 	}
 
 	public static function purpose( $category ) {
 		$map = array(
-			'ai_training' => __( 'Model training', 'rankyfy-ai-crawlers' ),
-			'ai_search'   => __( 'Search — powers answers', 'rankyfy-ai-crawlers' ),
-			'ai_user'     => __( 'User-triggered fetch', 'rankyfy-ai-crawlers' ),
-			'ai_agent'    => __( 'Agent acting for a user', 'rankyfy-ai-crawlers' ),
-			'ai_other'    => __( 'Other AI use', 'rankyfy-ai-crawlers' ),
-			'search'      => __( 'Search engine', 'rankyfy-ai-crawlers' ),
+			'ai_training' => __( 'Model training', 'rankyfy-ai-seo' ),
+			'ai_search'   => __( 'Search — powers answers', 'rankyfy-ai-seo' ),
+			'ai_user'     => __( 'User-triggered fetch', 'rankyfy-ai-seo' ),
+			'ai_agent'    => __( 'Agent acting for a user', 'rankyfy-ai-seo' ),
+			'ai_other'    => __( 'Other AI use', 'rankyfy-ai-seo' ),
+			'search'      => __( 'Search engine', 'rankyfy-ai-seo' ),
 		);
 		return $map[ $category ] ?? $category;
 	}
@@ -198,7 +198,7 @@ class Access {
 		foreach ( self::manageable() as $id => $b ) {
 			$outside = Robots::check( $base, $b['robots_tokens'][0], '/' );
 			$c       = self::consequence( $b );
-			$op      = in_array( $b['provider'], self::OPERATORS, true ) ? $b['provider'] : __( 'Others', 'rankyfy-ai-crawlers' );
+			$op      = in_array( $b['provider'], self::OPERATORS, true ) ? $b['provider'] : __( 'Others', 'rankyfy-ai-seo' );
 			$groups[ $op ][] = array(
 				'id'          => $id,
 				'name'        => $b['name'],
@@ -215,7 +215,7 @@ class Access {
 				'serious'     => $c['serious'],
 			);
 		}
-		$order = array_merge( self::OPERATORS, array( __( 'Others', 'rankyfy-ai-crawlers' ) ) );
+		$order = array_merge( self::OPERATORS, array( __( 'Others', 'rankyfy-ai-seo' ) ) );
 		$out   = array();
 		foreach ( $order as $op ) {
 			if ( empty( $groups[ $op ] ) ) {
@@ -250,7 +250,7 @@ class Access {
 	/** Which plugin writes the rest of robots.txt, for "X serves robots.txt — RankyFy appends only these lines". */
 	public static function robots_writer() {
 		if ( self::physical_file() ) {
-			return __( 'A robots.txt file on the server', 'rankyfy-ai-crawlers' );
+			return __( 'A robots.txt file on the server', 'rankyfy-ai-seo' );
 		}
 		foreach ( Compat::seo_plugins() as $p ) {
 			return $p;

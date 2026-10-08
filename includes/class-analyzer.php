@@ -311,7 +311,7 @@ class Analyzer {
 			'_text'            => '',
 			'_links'           => array(),
 		);
-		$doc = self::dom( '<div id="rfaib-root">' . $html . '</div>' );
+		$doc = self::dom( '<div id="rfy-root">' . $html . '</div>' );
 		if ( ! $doc ) {
 			$text       = wp_strip_all_tags( $html );
 			$f['words'] = Text::word_count( $text );
@@ -319,7 +319,7 @@ class Analyzer {
 			return $f;
 		}
 		$xp   = new \DOMXPath( $doc );
-		$root = $xp->query( '//*[@id="rfaib-root"]' )->item( 0 );
+		$root = $xp->query( '//*[@id="rfy-root"]' )->item( 0 );
 		foreach ( array( 'script', 'style', 'noscript' ) as $tag ) {
 			foreach ( iterator_to_array( $root->getElementsByTagName( $tag ) ) as $el ) {
 				$el->parentNode->removeChild( $el );

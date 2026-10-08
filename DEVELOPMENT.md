@@ -1,4 +1,4 @@
-# RankyFy AI Crawler Monitor — development notes
+# RankyFy AI SEO — development notes
 
 For RankyFy engineers. Site owners: see [README.md](README.md).
 
@@ -14,7 +14,7 @@ For RankyFy engineers. Site owners: see [README.md](README.md).
                                   hourly: robots.txt, coverage/score, periodic alerts, registry sync
                                   daily: retention, probes, links, unknown-agent sharing, snapshot
                                        ▼
-                      rollups ──► Analytics (read side, cached) ──► REST rankyfy-aib/v1 ──► admin.js
+                      rollups ──► Analytics (read side, cached) ──► REST rankyfy-ai-seo/v1 ──► admin.js
                                        ▲
  RankyFy gateway /api/wp/v1 ───────────┘
    GET  /ai-crawlers/registry   public — live registry + operators' published ranges
@@ -52,7 +52,7 @@ Reproduce:
 
 ```sh
 # page-view overhead (A/B, interleaved) and query counts: see tools/bench/README.md
-RFAIB_ALLOW_DESTRUCTIVE_TESTS=1 wp eval-file wp-content/plugins/aibotdetection/tools/bench/scale.php 1000000 5000
+RFY_ALLOW_DESTRUCTIVE_TESTS=1 wp eval-file wp-content/plugins/aibotdetection/tools/bench/scale.php 1000000 5000
 node tools/bench/logparse-bench.js /path/to/access.log   # after building tools/bench/wasm-logparse
 ```
 
@@ -123,7 +123,7 @@ Installed sites pick it up within 12 hours. No plugin release is needed.
 
 ## Data model
 
-All tables are prefixed `{$wpdb->prefix}rfaib_`. See `class-installer.php` for columns and indexes.
+All tables are prefixed `{$wpdb->prefix}rfy_`. See `class-installer.php` for columns and indexes.
 
 | Table | Grain | Written by | Retention |
 |---|---|---|---|
@@ -150,7 +150,7 @@ Events still waiting for a verdict hold the watermark back, live or imported, un
 
 Page analysis writes a page's terms, links and facts in one transaction. A deadlock with a concurrent re-check leaves the page queued for the next run.
 
-Options read on every page view are autoloaded and always present: `rfaib_settings`, `rfaib_matcher`, `rfaib_throttle`, `rfaib_iponly`, `rfaib_db_version` and `rfaib_secret`. A missing option costs a query per page view. Everything else is non-autoloaded. Schema changes bump `RFAIB_DB_VERSION`; `Installer::migrate()` runs data migrations (v2 backfilled `daily_pages` from `daily`; v3 added the Cloudflare ranges option).
+Options read on every page view are autoloaded and always present: `rfy_settings`, `rfy_matcher`, `rfy_throttle`, `rfy_iponly`, `rfy_db_version` and `rfy_secret`. A missing option costs a query per page view. Everything else is non-autoloaded. Schema changes bump `RFY_DB_VERSION`; `Installer::migrate()` runs data migrations (v2 backfilled `daily_pages` from `daily`; v3 added the Cloudflare ranges option).
 
 ## Findings, scores, recommendations, alerts
 
@@ -161,13 +161,13 @@ Options read on every page view are autoloaded and always present: `rfaib_settin
 
 ## AI readiness, publish guard, llms.txt
 
-- **`Readiness`** — 18 site-level checks in `Readiness::CHECKS` (group, weight, effort, finding codes). Weights total 100: access 34, discovery 26, content 26, trust 14. Each check is built from existing evidence (robots matrix, probe results, open findings, `Analytics::coverage`, `daily_bots`, the llms.txt probe). There is no second analysis pass. Page checks count pages with an open finding (ignored findings do not count) over the important pages, or over all pages while fewer than `MIN_IMPORTANT` (5) are important. `na` (nothing to judge) and owner-*accepted* checks leave the denominator. The issue queue holds warn/fail checks. *Critical* is reserved for failing access checks; the rest are sorted by `gain` (points recovered on the 100 scale). The worker recomputes hourly into `rfaib_readiness`. `rfaib_readiness_state` keeps acceptances, the time each check started failing, and resolutions. A drop of ≥ 10 points raises `readiness_drop`. The site-level score supersedes `Scorer::site()` in the UI; per-page AEO scores are unchanged.
-- **`Guard`** — `check()` runs five checks on a post, using unsaved editor values where given (title, content, slug, parent → predicted URL via a cloned post and `wp_unique_post_slug`). The checks are indexing, robots, canonical, url_change and content. SEO-plugin robots/canonical settings are read by `Guard::seo_meta()`, which `Analyzer` also uses for unfetched pages. Editor: `assets/js/guard.js` (pre-publish panel, document panel, post-update notice). In `confirm` mode, `lockPostSaving('rfaib-guard')` applies only while the pre-publish panel is mounted with an unacknowledged failure. REST `POST /guard/{id}` is allowed for anyone who can `edit_post` that post. `wp_after_insert_post` re-checks every publish after meta is saved and alerts (`publish_guard`) on failures for important pages or first publishes. Redirects: `post_updated` compares `get_permalink($before)` with `get_permalink($after)` and stores both the post and its hierarchical descendants. `template_redirect` (priority 9) reads the table only when `is_404()`. The target is resolved from the post id at serve time, so there are no chains. A loop deletes the row.
-- **`Llms`** — serves `llms.txt`, `llms-full.txt` and `ai.txt` on `wp_loaded` when switched on. A request costs one `strpos` unless it is for one of them. Bodies are cached in `rfaib_llms_cache` (keyed by the relevant settings, 12 h max). `save_post`, deletions and name/tagline changes drop the cache. Responses carry `X-RankyFy-Generated` and an ETag. The comparison tolerates `W/` and Apache's `-gzip` suffix; `$_SERVER` values are `wp_unslash`ed because WordPress slashes them. `Llms::probe()` (daily and on demand) requests each address and records `ours` / `other` / `missing`. The readiness check passes for any reachable llms.txt.
+- **`Readiness`** — 18 site-level checks in `Readiness::CHECKS` (group, weight, effort, finding codes). Weights total 100: access 34, discovery 26, content 26, trust 14. Each check is built from existing evidence (robots matrix, probe results, open findings, `Analytics::coverage`, `daily_bots`, the llms.txt probe). There is no second analysis pass. Page checks count pages with an open finding (ignored findings do not count) over the important pages, or over all pages while fewer than `MIN_IMPORTANT` (5) are important. `na` (nothing to judge) and owner-*accepted* checks leave the denominator. The issue queue holds warn/fail checks. *Critical* is reserved for failing access checks; the rest are sorted by `gain` (points recovered on the 100 scale). The worker recomputes hourly into `rfy_readiness`. `rfy_readiness_state` keeps acceptances, the time each check started failing, and resolutions. A drop of ≥ 10 points raises `readiness_drop`. The site-level score supersedes `Scorer::site()` in the UI; per-page AEO scores are unchanged.
+- **`Guard`** — `check()` runs five checks on a post, using unsaved editor values where given (title, content, slug, parent → predicted URL via a cloned post and `wp_unique_post_slug`). The checks are indexing, robots, canonical, url_change and content. SEO-plugin robots/canonical settings are read by `Guard::seo_meta()`, which `Analyzer` also uses for unfetched pages. Editor: `assets/js/guard.js` (pre-publish panel, document panel, post-update notice). In `confirm` mode, `lockPostSaving('rfy-guard')` applies only while the pre-publish panel is mounted with an unacknowledged failure. REST `POST /guard/{id}` is allowed for anyone who can `edit_post` that post. `wp_after_insert_post` re-checks every publish after meta is saved and alerts (`publish_guard`) on failures for important pages or first publishes. Redirects: `post_updated` compares `get_permalink($before)` with `get_permalink($after)` and stores both the post and its hierarchical descendants. `template_redirect` (priority 9) reads the table only when `is_404()`. The target is resolved from the post id at serve time, so there are no chains. A loop deletes the row.
+- **`Llms`** — serves `llms.txt`, `llms-full.txt` and `ai.txt` on `wp_loaded` when switched on. A request costs one `strpos` unless it is for one of them. Bodies are cached in `rfy_llms_cache` (keyed by the relevant settings, 12 h max). `save_post`, deletions and name/tagline changes drop the cache. Responses carry `X-RankyFy-Generated` and an ETag. The comparison tolerates `W/` and Apache's `-gzip` suffix; `$_SERVER` values are `wp_unslash`ed because WordPress slashes them. `Llms::probe()` (daily and on demand) requests each address and records `ours` / `other` / `missing`. The readiness check passes for any reachable llms.txt.
 
 ## Access Manager, compatibility, posts column
 
-- **`Access`** — choices in `rfaib_access` (bot id → `allow`/`block`; absent = unreviewed). Blocks are appended to WordPress's robots.txt by the `robots_txt` filter (priority 100) inside `## BEGIN/END RankyFy AI rules`; nothing else is touched, and nothing is written when a physical robots.txt exists (the screen offers the lines to copy). "Blocked outside RankyFy" is computed from the current robots.txt with the fenced block stripped. Saving re-reads robots.txt over HTTP and recomputes site findings and readiness. Purpose and consequence text come from the registry category (`Access::purpose()`, `Access::consequence()`).
+- **`Access`** — choices in `rfy_access` (bot id → `allow`/`block`; absent = unreviewed). Blocks are appended to WordPress's robots.txt by the `robots_txt` filter (priority 100) inside `## BEGIN/END RankyFy AI rules`; nothing else is touched, and nothing is written when a physical robots.txt exists (the screen offers the lines to copy). "Blocked outside RankyFy" is computed from the current robots.txt with the fenced block stripped. Saving re-reads robots.txt over HTTP and recomputes site findings and readiness. Purpose and consequence text come from the registry category (`Access::purpose()`, `Access::consequence()`).
 - **`Compat`** — SEO, cache and redirect plugins detected by their constants; `Compat::table()` is the "who handles what" table.
 - **`Columns`** — the posts-list AI column; one query per screen, sortable through `posts_clauses`.
 - **Editor redirect choice** — "Create 301 redirect" / "Change anyway" post to `/guard/{id}/choice`, kept in a transient for the next save; `Guard::on_post_updated` runs on `wp_after_insert_post`.
@@ -186,7 +186,7 @@ The REST payloads keep these in separate keys (`observed` / `inferred`). Every U
 ## Security
 
 - **Backend.** The `aibotdetection` routes in contentai require the service's exact key pair, compared in constant time. **The service-wide API-key layer (`middleware/cors_origin.rs`) lets any pair of key headers through, which exposes every other contentai route. That needs fixing separately; the gateway never relies on it.**
-- **REST.** `rankyfy-aib/v1` uses cookie auth plus the REST nonce. The UI renews an expired nonce once (`rest-nonce`) and retries. Every route checks the capability (`manage_options`, filter `rfaib_capability`) and is rate limited per user. Arguments are validated or allow-listed. No full address, token or secret is ever returned (tested).
+- **REST.** `rankyfy-ai-seo/v1` uses cookie auth plus the REST nonce. The UI renews an expired nonce once (`rest-nonce`) and retries. Every route checks the capability (`manage_options`, filter `rfy_capability`) and is rate limited per user. Arguments are validated or allow-listed. No full address, token or secret is ever returned (tested).
 - **Untrusted text.** User agents and paths are scrubbed of control characters and length-bounded before storage (no log forging). The CSV export neutralises spreadsheet formulas. The UI inserts server values with `textContent` only.
 - **Proxy headers.** These are honoured only when the connection comes from a configured trusted proxy CIDR, taking the right-most untrusted hop.
 - **Outbound requests.** Webhook URLs must be https with a public hostname; they are re-checked at send time by `wp_safe_remote_post`. Key directories must be https. Range files go through `wp_safe_remote_get` with size limits.
@@ -195,7 +195,7 @@ The REST payloads keep these in separate keys (`observed` / `inferred`). Every U
 
 ## Admin UI
 
-`assets/js/admin.js` is plain DOM with no build step, hash-routed and scoped to `.rfaib-app`. The layout follows the RankyFy plugin UI kit: one top-level **RankyFy** menu (position 81, below Settings) with seven children registered in `Admin::sections()` as links to the app's routes, so switching sections never reloads; `renderNav()` keeps the WordPress menu highlight in step and `PARENT` maps deeper screens to their section. WordPress-native chrome (23px page titles, square cards, admin-notice shapes), the plugin's own colour tokens. Patterns: details and confirmations in a right-hand drawer (`drawer()`: Esc/backdrop close, focus trapped and returned); staged writes with an unsaved count (`staged()`), and a prompt before leaving a screen with unsaved changes (`leaveGuard`); preview before anything public is written (robots.txt lines, redirect pairs, llms.txt); toasts with Undo; real `button[role=switch]` toggles. Crawler colours come from `Analytics::slot()` — the four crawlers with the most requests ever get series 1–4, everything else is "Other" grey — so a crawler keeps its colour on every screen and filter. Every view has loading, empty and error states. Charts follow these rules:
+`assets/js/admin.js` is plain DOM with no build step, hash-routed and scoped to `.rfy-app`. The layout follows the RankyFy plugin UI kit: one top-level **RankyFy** menu (position 81, below Settings) with seven children registered in `Admin::sections()` as links to the app's routes, so switching sections never reloads; `renderNav()` keeps the WordPress menu highlight in step and `PARENT` maps deeper screens to their section. WordPress-native chrome (23px page titles, square cards, admin-notice shapes), the plugin's own colour tokens. Patterns: details and confirmations in a right-hand drawer (`drawer()`: Esc/backdrop close, focus trapped and returned); staged writes with an unsaved count (`staged()`), and a prompt before leaving a screen with unsaved changes (`leaveGuard`); preview before anything public is written (robots.txt lines, redirect pairs, llms.txt); toasts with Undo; real `button[role=switch]` toggles. Crawler colours come from `Analytics::slot()` — the four crawlers with the most requests ever get series 1–4, everything else is "Other" grey — so a crawler keeps its colour on every screen and filter. Every view has loading, empty and error states. Charts follow these rules:
 
 - **Hits by bot (dashboard):** one line per slotted crawler plus "Other", crosshair read-out of every series, legend buttons hide a series without repainting the rest, direct end labels.
 - **Timeline:** stacked columns with four categorical hues (AI search / fetched for users / training / other), validated for colour-vision deficiency. A legend and a table view are always present, because two hues are below 3:1 on white.
@@ -210,7 +210,7 @@ Layout uses container queries; there is no horizontal scroll at 390 px.
 Run these in a disposable WordPress with the plugin active. The suites truncate the plugin's tables.
 
 ```sh
-RFAIB_ALLOW_DESTRUCTIVE_TESTS=1 wp eval-file wp-content/plugins/aibotdetection/tests/run.php [name-filter]
+RFY_ALLOW_DESTRUCTIVE_TESTS=1 wp eval-file wp-content/plugins/aibotdetection/tests/run.php [name-filter]
 cd contentai && cargo test --lib aibotdetection
 cd rankyfy-backend && venv/bin/python -m pytest test_wp_gateway_aicrawlers.py test_wp_gateway.py test_wp_gateway_config.py
 ```

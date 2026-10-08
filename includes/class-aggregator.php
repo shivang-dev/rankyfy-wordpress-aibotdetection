@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Aggregator {
 
-	const WATERMARK   = 'rfaib_agg_watermark';
+	const WATERMARK   = 'rfy_agg_watermark';
 	const CHUNK       = 5000;
 	const SESSION_GAP = 1800;     // 30 minutes without a request ends a crawl session
 	const SESSION_MAX = 6 * 3600; // a crawler that never pauses starts a new session every 6 hours
@@ -88,7 +88,7 @@ class Aggregator {
 			$wm = $hi;
 		}
 		if ( $total ) {
-			update_option( 'rfaib_agg_last', time(), false );
+			update_option( 'rfy_agg_last', time(), false );
 			Analytics::bust();
 		}
 		return $total;

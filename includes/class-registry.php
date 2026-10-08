@@ -9,7 +9,7 @@
  *   3. crawlers the site owner added or adjusted on the Crawlers screen.
  *
  * Everything the request path needs is compiled into one small autoloaded
- * option (`rfaib_matcher`): a single case-insensitive regular expression of
+ * option (`rfy_matcher`): a single case-insensitive regular expression of
  * every user-agent token plus lookup tables. Recognising a visitor therefore
  * costs one preg_match and no database query.
  *
@@ -22,9 +22,9 @@ defined( 'ABSPATH' ) || exit;
 
 class Registry {
 
-	const REMOTE  = 'rfaib_registry_remote';
-	const CUSTOM  = 'rfaib_registry_custom';
-	const MATCHER = 'rfaib_matcher';
+	const REMOTE  = 'rfy_registry_remote';
+	const CUSTOM  = 'rfy_registry_custom';
+	const MATCHER = 'rfy_matcher';
 
 	const CATEGORIES = array( 'ai_training', 'ai_search', 'ai_user', 'ai_agent', 'ai_other', 'search', 'seo', 'social', 'monitor', 'other' );
 
@@ -34,7 +34,7 @@ class Registry {
 	public static function bundled() {
 		static $data = null;
 		if ( null === $data ) {
-			$raw  = file_get_contents( RFAIB_DIR . 'config/registry.json' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+			$raw  = file_get_contents( RFY_DIR . 'config/registry.json' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
 			$data = json_decode( (string) $raw, true );
 			$data = is_array( $data ) ? $data : array( 'bots' => array() );
 		}
@@ -113,13 +113,13 @@ class Registry {
 			return $b['name'];
 		}
 		if ( '_unknown' === $id ) {
-			return __( 'Unrecognised bots', 'rankyfy-ai-crawlers' );
+			return __( 'Unrecognised bots', 'rankyfy-ai-seo' );
 		}
 		if ( '_potential' === $id ) {
-			return __( 'Possible AI crawlers', 'rankyfy-ai-crawlers' );
+			return __( 'Possible AI crawlers', 'rankyfy-ai-seo' );
 		}
 		if ( '_signed' === $id ) {
-			return __( 'Signed agent (unknown operator)', 'rankyfy-ai-crawlers' );
+			return __( 'Signed agent (unknown operator)', 'rankyfy-ai-seo' );
 		}
 		return $id;
 	}
@@ -248,7 +248,7 @@ class Registry {
 		$bot['verified_on'] = gmdate( 'Y-m-d' );
 		$clean              = self::validate_bot( $bot );
 		if ( ! $clean || ! $clean['patterns'] ) {
-			return new \WP_Error( 'rfaib_invalid_bot', __( 'Give the crawler an id (lowercase letters, digits, dashes) and at least one user-agent text to look for.', 'rankyfy-ai-crawlers' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'rfy_invalid_bot', __( 'Give the crawler an id (lowercase letters, digits, dashes) and at least one user-agent text to look for.', 'rankyfy-ai-seo' ), array( 'status' => 400 ) );
 		}
 		$list = array();
 		foreach ( self::custom() as $b ) {

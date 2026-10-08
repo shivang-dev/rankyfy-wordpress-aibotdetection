@@ -96,7 +96,7 @@ function test_importance_signals() {
 }
 
 function test_never_crawled_and_blocked_findings() {
-	update_option( 'rfaib_monitoring_since', time() - 30 * DAY_IN_SECONDS );
+	update_option( 'rfy_monitoring_since', time() - 30 * DAY_IN_SECONDS );
 	$id  = t_post( 'Important but ignored', '<p>' . str_repeat( 'word ', 400 ) . '</p>' );
 	$row = t_page_row( $id );
 	Inventory::set_pin( (int) $row['id'], 1 );

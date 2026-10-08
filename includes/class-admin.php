@@ -12,14 +12,14 @@ defined( 'ABSPATH' ) || exit;
 
 class Admin {
 
-	const SLUG = 'rankyfy-ai-crawlers';
+	const SLUG = 'rankyfy-ai-seo';
 
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'wp_dashboard_setup', array( __CLASS__, 'widget' ) );
-		add_action( 'admin_post_rfaib_export', array( __CLASS__, 'export' ) );
-		add_filter( 'plugin_action_links_' . plugin_basename( RFAIB_FILE ), array( __CLASS__, 'action_links' ) );
+		add_action( 'admin_post_rfy_export', array( __CLASS__, 'export' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( RFY_FILE ), array( __CLASS__, 'action_links' ) );
 		add_action( 'admin_init', array( __CLASS__, 'privacy_text' ) );
 	}
 
@@ -28,15 +28,15 @@ class Admin {
 		if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) {
 			return;
 		}
-		$text = '<p>' . esc_html__( 'This site records requests made by automated crawlers (for example search engines and AI crawlers) to understand how they use its content. For those requests we store the time, the page requested, the server response, the user agent and the network the request came from (the address with its last part removed). Full addresses are kept only for a few minutes while the crawler\'s identity is verified, then discarded. Ordinary visitors are not recorded; when a visitor arrives from an AI assistant such as ChatGPT, only a daily count per page is kept, without any information about the visitor.', 'rankyfy-ai-crawlers' ) . '</p>';
-		wp_add_privacy_policy_content( __( 'RankyFy AI Crawler Monitor', 'rankyfy-ai-crawlers' ), wp_kses_post( $text ) );
+		$text = '<p>' . esc_html__( 'This site records requests made by automated crawlers (for example search engines and AI crawlers) to understand how they use its content. For those requests we store the time, the page requested, the server response, the user agent and the network the request came from (the address with its last part removed). Full addresses are kept only for a few minutes while the crawler\'s identity is verified, then discarded. Ordinary visitors are not recorded; when a visitor arrives from an AI assistant such as ChatGPT, only a daily count per page is kept, without any information about the visitor.', 'rankyfy-ai-seo' ) . '</p>';
+		wp_add_privacy_policy_content( __( 'RankyFy AI SEO', 'rankyfy-ai-seo' ), wp_kses_post( $text ) );
 	}
 
 	private static function unread() {
-		$n = get_transient( 'rfaib_unread' );
+		$n = get_transient( 'rfy_unread' );
 		if ( false === $n ) {
 			$n = Installer::ready() ? Alerts::unread_count() : 0;
-			set_transient( 'rfaib_unread', $n, 5 * MINUTE_IN_SECONDS );
+			set_transient( 'rfy_unread', $n, 5 * MINUTE_IN_SECONDS );
 		}
 		return (int) $n;
 	}
@@ -45,8 +45,8 @@ class Admin {
 		$n     = self::unread();
 		$badge = $n ? ' <span class="awaiting-mod count-' . (int) $n . '"><span class="pending-count">' . number_format_i18n( $n ) . '</span></span>' : '';
 		add_menu_page(
-			__( 'RankyFy', 'rankyfy-ai-crawlers' ),
-			__( 'RankyFy', 'rankyfy-ai-crawlers' ) . $badge,
+			__( 'RankyFy', 'rankyfy-ai-seo' ),
+			__( 'RankyFy', 'rankyfy-ai-seo' ) . $badge,
 			Rest::capability(),
 			self::SLUG,
 			array( __CLASS__, 'render' ),
@@ -59,7 +59,7 @@ class Admin {
 		foreach ( self::sections() as $route => $label ) {
 			add_submenu_page(
 				self::SLUG,
-				__( 'RankyFy', 'rankyfy-ai-crawlers' ),
+				__( 'RankyFy', 'rankyfy-ai-seo' ),
 				$label,
 				Rest::capability(),
 				'' === $route ? self::SLUG : 'admin.php?page=' . self::SLUG . '#' . $route,
@@ -71,50 +71,50 @@ class Admin {
 	/** Menu sections: route => label. */
 	public static function sections() {
 		return array(
-			''           => __( 'Dashboard', 'rankyfy-ai-crawlers' ),
-			'/crawlers'  => __( 'AI Crawlers', 'rankyfy-ai-crawlers' ),
-			'/referrals' => __( 'AI Referrals', 'rankyfy-ai-crawlers' ),
-			'/readiness' => __( 'Readiness Score', 'rankyfy-ai-crawlers' ),
-			'/access'    => __( 'Access Manager', 'rankyfy-ai-crawlers' ),
-			'/llms'      => __( 'llms.txt', 'rankyfy-ai-crawlers' ),
-			'/opportunities' => __( 'Opportunities', 'rankyfy-ai-crawlers' ),
-			'/settings'  => __( 'Settings', 'rankyfy-ai-crawlers' ),
+			''           => __( 'Dashboard', 'rankyfy-ai-seo' ),
+			'/crawlers'  => __( 'AI Crawlers', 'rankyfy-ai-seo' ),
+			'/referrals' => __( 'AI Referrals', 'rankyfy-ai-seo' ),
+			'/readiness' => __( 'Readiness Score', 'rankyfy-ai-seo' ),
+			'/access'    => __( 'Access Manager', 'rankyfy-ai-seo' ),
+			'/llms'      => __( 'llms.txt', 'rankyfy-ai-seo' ),
+			'/opportunities' => __( 'Opportunities', 'rankyfy-ai-seo' ),
+			'/settings'  => __( 'Settings', 'rankyfy-ai-seo' ),
 		);
 	}
 
 	public static function action_links( $links ) {
-		array_unshift( $links, '<a href="' . esc_url( admin_url( 'admin.php?page=' . self::SLUG ) ) . '">' . esc_html__( 'Dashboard', 'rankyfy-ai-crawlers' ) . '</a>' );
+		array_unshift( $links, '<a href="' . esc_url( admin_url( 'admin.php?page=' . self::SLUG ) ) . '">' . esc_html__( 'Dashboard', 'rankyfy-ai-seo' ) . '</a>' );
 		return $links;
 	}
 
 	public static function render() {
-		echo '<div class="wrap rfaib-wrap"><h1 class="screen-reader-text">' . esc_html__( 'RankyFy', 'rankyfy-ai-crawlers' ) . '</h1><hr class="wp-header-end"><div id="rfaib-app" class="rfaib-app" aria-live="polite"><p class="rfaib-boot">' . esc_html__( 'Loading…', 'rankyfy-ai-crawlers' ) . '</p></div></div>';
+		echo '<div class="wrap rfy-wrap"><h1 class="screen-reader-text">' . esc_html__( 'RankyFy', 'rankyfy-ai-seo' ) . '</h1><hr class="wp-header-end"><div id="rfy-app" class="rfy-app" aria-live="polite"><p class="rfy-boot">' . esc_html__( 'Loading…', 'rankyfy-ai-seo' ) . '</p></div></div>';
 	}
 
 	private static function version( $file ) {
-		$path = RFAIB_DIR . $file;
-		return RFAIB_VERSION . '.' . ( is_readable( $path ) ? filemtime( $path ) : 0 );
+		$path = RFY_DIR . $file;
+		return RFY_VERSION . '.' . ( is_readable( $path ) ? filemtime( $path ) : 0 );
 	}
 
 	public static function assets( $hook ) {
 		if ( 'toplevel_page_' . self::SLUG !== $hook ) {
 			return;
 		}
-		wp_enqueue_style( 'rfaib-admin', RFAIB_URL . 'assets/css/admin.css', array(), self::version( 'assets/css/admin.css' ) );
-		wp_enqueue_script( 'rfaib-admin', RFAIB_URL . 'assets/js/admin.js', array( 'wp-i18n' ), self::version( 'assets/js/admin.js' ), true );
-		wp_set_script_translations( 'rfaib-admin', 'rankyfy-ai-crawlers' );
+		wp_enqueue_style( 'rfy-admin', RFY_URL . 'assets/css/admin.css', array(), self::version( 'assets/css/admin.css' ) );
+		wp_enqueue_script( 'rfy-admin', RFY_URL . 'assets/js/admin.js', array( 'wp-i18n' ), self::version( 'assets/js/admin.js' ), true );
+		wp_set_script_translations( 'rfy-admin', 'rankyfy-ai-seo' );
 		wp_localize_script(
-			'rfaib-admin',
-			'RFAIB',
+			'rfy-admin',
+			'RFY',
 			array(
 				'root'      => esc_url_raw( rest_url( Rest::NS ) ),
 				'nonce'     => wp_create_nonce( 'wp_rest' ),
 				'adminUrl'  => admin_url( 'admin.php?page=' . self::SLUG ),
-				'exportUrl' => wp_nonce_url( admin_url( 'admin-post.php?action=rfaib_export' ), 'rfaib_export' ),
-				'workerUrl' => RFAIB_URL . 'assets/js/log-worker.js?ver=' . rawurlencode( self::version( 'assets/js/log-worker.js' ) ),
+				'exportUrl' => wp_nonce_url( admin_url( 'admin-post.php?action=rfy_export' ), 'rfy_export' ),
+				'workerUrl' => RFY_URL . 'assets/js/log-worker.js?ver=' . rawurlencode( self::version( 'assets/js/log-worker.js' ) ),
 				'siteUrl'   => home_url( '/' ),
 				'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
-				'version'   => RFAIB_VERSION,
+				'version'   => RFY_VERSION,
 				'slug'      => self::SLUG,
 				'importBatch' => Importer::BATCH,
 			)
@@ -125,29 +125,29 @@ class Admin {
 		if ( ! current_user_can( Rest::capability() ) || ! Installer::ready() ) {
 			return;
 		}
-		wp_add_dashboard_widget( 'rfaib_widget', __( 'AI crawlers — last 7 days', 'rankyfy-ai-crawlers' ), array( __CLASS__, 'widget_render' ) );
+		wp_add_dashboard_widget( 'rfy_widget', __( 'AI crawlers — last 7 days', 'rankyfy-ai-seo' ), array( __CLASS__, 'widget_render' ) );
 	}
 
 	public static function widget_render() {
 		$o   = Analytics::overview( 7 );
 		$obs = $o['observed'];
-		echo '<ul class="rfaib-widget">';
+		echo '<ul class="rfy-widget">';
 		/* translators: %s: number */
-		echo '<li>' . esc_html( sprintf( __( '%s requests from AI crawlers', 'rankyfy-ai-crawlers' ), number_format_i18n( $obs['ai_requests'] ) ) ) . '</li>';
+		echo '<li>' . esc_html( sprintf( __( '%s requests from AI crawlers', 'rankyfy-ai-seo' ), number_format_i18n( $obs['ai_requests'] ) ) ) . '</li>';
 		/* translators: %s: number */
-		echo '<li>' . esc_html( sprintf( __( '%s different AI crawlers', 'rankyfy-ai-crawlers' ), number_format_i18n( $obs['ai_bots'] ) ) ) . '</li>';
+		echo '<li>' . esc_html( sprintf( __( '%s different AI crawlers', 'rankyfy-ai-seo' ), number_format_i18n( $obs['ai_bots'] ) ) ) . '</li>';
 		/* translators: %s: number */
-		echo '<li>' . esc_html( sprintf( __( '%s fetches made for AI assistant users', 'rankyfy-ai-crawlers' ), number_format_i18n( $obs['user_fetches'] ) ) ) . '</li>';
+		echo '<li>' . esc_html( sprintf( __( '%s fetches made for AI assistant users', 'rankyfy-ai-seo' ), number_format_i18n( $obs['user_fetches'] ) ) ) . '</li>';
 		if ( $o['coverage']['important'] ) {
 			/* translators: 1: crawled, 2: total */
-			echo '<li>' . esc_html( sprintf( __( '%1$s of %2$s important pages crawled', 'rankyfy-ai-crawlers' ), number_format_i18n( $o['coverage']['important_crawled'] ), number_format_i18n( $o['coverage']['important'] ) ) ) . '</li>';
+			echo '<li>' . esc_html( sprintf( __( '%1$s of %2$s important pages crawled', 'rankyfy-ai-seo' ), number_format_i18n( $o['coverage']['important_crawled'] ), number_format_i18n( $o['coverage']['important'] ) ) ) . '</li>';
 		}
 		echo '</ul>';
 		$n = Alerts::unread_count();
-		echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=' . self::SLUG ) ) . '">' . esc_html__( 'Open AI Crawler Monitor', 'rankyfy-ai-crawlers' ) . '</a>';
+		echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=' . self::SLUG ) ) . '">' . esc_html__( 'Open RankyFy AI SEO', 'rankyfy-ai-seo' ) . '</a>';
 		if ( $n ) {
 			/* translators: %d: count */
-			echo ' · <a href="' . esc_url( admin_url( 'admin.php?page=' . self::SLUG ) . '#/alerts' ) . '">' . esc_html( sprintf( _n( '%d unread alert', '%d unread alerts', $n, 'rankyfy-ai-crawlers' ), $n ) ) . '</a>';
+			echo ' · <a href="' . esc_url( admin_url( 'admin.php?page=' . self::SLUG ) . '#/alerts' ) . '">' . esc_html( sprintf( _n( '%d unread alert', '%d unread alerts', $n, 'rankyfy-ai-seo' ), $n ) ) . '</a>';
 		}
 		echo '</p>';
 	}
@@ -155,9 +155,9 @@ class Admin {
 	/** CSV download of crawler requests, pages or crawlers. */
 	public static function export() {
 		if ( ! current_user_can( Rest::capability() ) ) {
-			wp_die( esc_html__( 'You are not allowed to do this.', 'rankyfy-ai-crawlers' ), '', array( 'response' => 403 ) );
+			wp_die( esc_html__( 'You are not allowed to do this.', 'rankyfy-ai-seo' ), '', array( 'response' => 403 ) );
 		}
-		check_admin_referer( 'rfaib_export' );
+		check_admin_referer( 'rfy_export' );
 		$ok = Rate_Limiter::hit( 'export' );
 		if ( is_wp_error( $ok ) ) {
 			wp_die( esc_html( $ok->get_error_message() ), '', array( 'response' => 429 ) );

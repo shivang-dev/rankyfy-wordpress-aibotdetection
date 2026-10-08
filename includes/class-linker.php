@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Linker {
 
-	const OPTION = 'rfaib_link_ops';
+	const OPTION = 'rfy_link_ops';
 
 	/** Suggested source pages for one target page. */
 	public static function for_page( $page_id, $limit = 5 ) {

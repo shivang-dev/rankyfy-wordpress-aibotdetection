@@ -33,9 +33,9 @@ defined( 'ABSPATH' ) || exit;
 
 class Guard {
 
-	const NOTICE = 'rfaib_guard_';
-	const LOCK   = 'rfaib-guard';
-	const CHOICE = 'rfaib_redirect_choice_'; // + post id: the editor's answer for the next save, 'yes' (create a 301) or 'no' (change anyway)
+	const NOTICE = 'rfy_guard_';
+	const LOCK   = 'rfy-guard';
+	const CHOICE = 'rfy_redirect_choice_'; // + post id: the editor's answer for the next save, 'yes' (create a 301) or 'no' (change anyway)
 
 	public static function init() {
 		// After meta is saved, so the editor's redirect choice is known.
@@ -124,9 +124,9 @@ class Guard {
 			return self::result(
 				'indexing',
 				'fail',
-				__( 'The whole site asks search engines not to index it', 'rankyfy-ai-crawlers' ),
-				__( '"Discourage search engines from indexing this site" is on, so this page will be left out of search indexes and the AI search built on them.', 'rankyfy-ai-crawlers' ),
-				__( 'Turn it off in Settings → Reading unless the site is not meant to be public yet.', 'rankyfy-ai-crawlers' )
+				__( 'The whole site asks search engines not to index it', 'rankyfy-ai-seo' ),
+				__( '"Discourage search engines from indexing this site" is on, so this page will be left out of search indexes and the AI search built on them.', 'rankyfy-ai-seo' ),
+				__( 'Turn it off in Settings → Reading unless the site is not meant to be public yet.', 'rankyfy-ai-seo' )
 			);
 		}
 		$seo = self::seo_meta( $post );
@@ -134,13 +134,13 @@ class Guard {
 			return self::result(
 				'indexing',
 				'fail',
-				__( 'This page is set to noindex', 'rankyfy-ai-crawlers' ),
+				__( 'This page is set to noindex', 'rankyfy-ai-seo' ),
 				/* translators: %s: where the setting comes from, e.g. "Yoast SEO (this page)" */
-				sprintf( __( 'Set in %s. ChatGPT search, Copilot, Google AI Overviews and Perplexity rely on search indexes, so a noindex page is rarely found or cited.', 'rankyfy-ai-crawlers' ), $seo['noindex_source'] ),
-				__( 'If the page should be found, switch it to "index" in your SEO plugin\'s advanced settings for this page (or for this content type).', 'rankyfy-ai-crawlers' )
+				sprintf( __( 'Set in %s. ChatGPT search, Copilot, Google AI Overviews and Perplexity rely on search indexes, so a noindex page is rarely found or cited.', 'rankyfy-ai-seo' ), $seo['noindex_source'] ),
+				__( 'If the page should be found, switch it to "index" in your SEO plugin\'s advanced settings for this page (or for this content type).', 'rankyfy-ai-seo' )
 			);
 		}
-		return self::result( 'indexing', 'pass', __( 'Search engines may index this page', 'rankyfy-ai-crawlers' ) );
+		return self::result( 'indexing', 'pass', __( 'Search engines may index this page', 'rankyfy-ai-seo' ) );
 	}
 
 	private static function check_robots( $path ) {
@@ -158,15 +158,15 @@ class Guard {
 			}
 		}
 		if ( ! $blocked ) {
-			return self::result( 'robots', 'pass', __( 'robots.txt lets AI crawlers read this URL', 'rankyfy-ai-crawlers' ) );
+			return self::result( 'robots', 'pass', __( 'robots.txt lets AI crawlers read this URL', 'rankyfy-ai-seo' ) );
 		}
 		return self::result(
 			'robots',
 			$hard ? 'fail' : 'warn',
 			/* translators: %d: number of crawlers */
-			sprintf( _n( 'robots.txt blocks %d priority crawler from this URL', 'robots.txt blocks %d priority crawlers from this URL', count( $blocked ), 'rankyfy-ai-crawlers' ), count( $blocked ) ),
+			sprintf( _n( 'robots.txt blocks %d priority crawler from this URL', 'robots.txt blocks %d priority crawlers from this URL', count( $blocked ), 'rankyfy-ai-seo' ), count( $blocked ) ),
 			implode( ', ', $blocked ),
-			__( 'If this page should appear in AI answers, narrow or remove the rule in robots.txt (or in the SEO or security plugin that writes it).', 'rankyfy-ai-crawlers' )
+			__( 'If this page should appear in AI answers, narrow or remove the rule in robots.txt (or in the SEO or security plugin that writes it).', 'rankyfy-ai-seo' )
 		);
 	}
 
@@ -177,68 +177,68 @@ class Guard {
 				return self::result(
 					'canonical',
 					'warn',
-					__( 'The canonical URL points to another page', 'rankyfy-ai-crawlers' ),
+					__( 'The canonical URL points to another page', 'rankyfy-ai-seo' ),
 					/* translators: 1: canonical URL, 2: SEO plugin */
-					sprintf( __( '%1$s (set in %2$s). Search engines and AI crawlers will treat that page as the real one and may ignore this one.', 'rankyfy-ai-crawlers' ), $seo['canonical'], $seo['canonical_source'] ),
-					__( 'If this page has its own content, clear the canonical field so it points to itself.', 'rankyfy-ai-crawlers' )
+					sprintf( __( '%1$s (set in %2$s). Search engines and AI crawlers will treat that page as the real one and may ignore this one.', 'rankyfy-ai-seo' ), $seo['canonical'], $seo['canonical_source'] ),
+					__( 'If this page has its own content, clear the canonical field so it points to itself.', 'rankyfy-ai-seo' )
 				);
 			}
-			return self::result( 'canonical', 'pass', __( 'The canonical URL points to this page', 'rankyfy-ai-crawlers' ) );
+			return self::result( 'canonical', 'pass', __( 'The canonical URL points to this page', 'rankyfy-ai-seo' ) );
 		}
 		$facts = $row ? json_decode( (string) $row['facts'], true ) : null;
 		if ( is_array( $facts ) && ! empty( $facts['fetched'] ) && ! empty( $facts['canonical_elsewhere'] ) && ! empty( $facts['canonical'] ) ) {
 			return self::result(
 				'canonical',
 				'warn',
-				__( 'The live page declares a canonical URL elsewhere', 'rankyfy-ai-crawlers' ),
+				__( 'The live page declares a canonical URL elsewhere', 'rankyfy-ai-seo' ),
 				/* translators: %s: canonical URL */
-				sprintf( __( 'When this page was last read, its canonical tag pointed to %s. A theme or plugin may be setting it.', 'rankyfy-ai-crawlers' ), $facts['canonical'] ),
-				__( 'Check the page source after publishing; the canonical tag should point to the page itself.', 'rankyfy-ai-crawlers' )
+				sprintf( __( 'When this page was last read, its canonical tag pointed to %s. A theme or plugin may be setting it.', 'rankyfy-ai-seo' ), $facts['canonical'] ),
+				__( 'Check the page source after publishing; the canonical tag should point to the page itself.', 'rankyfy-ai-seo' )
 			);
 		}
-		return self::result( 'canonical', 'pass', __( 'No conflicting canonical URL', 'rankyfy-ai-crawlers' ) );
+		return self::result( 'canonical', 'pass', __( 'No conflicting canonical URL', 'rankyfy-ai-seo' ) );
 	}
 
 	private static function check_url_change( \WP_Post $post, $saved, $url ) {
 		if ( ! $saved ) {
-			return self::result( 'url_change', 'na', __( 'New URL', 'rankyfy-ai-crawlers' ), $url );
+			return self::result( 'url_change', 'na', __( 'New URL', 'rankyfy-ai-seo' ), $url );
 		}
 		$old = Util::normalize_path( $saved );
 		if ( $old === Util::normalize_path( $url ) ) {
-			return self::result( 'url_change', 'pass', __( 'The URL stays the same', 'rankyfy-ai-crawlers' ) );
+			return self::result( 'url_change', 'pass', __( 'The URL stays the same', 'rankyfy-ai-seo' ) );
 		}
 		$seen = self::crawl_history( $old );
 		/* translators: 1: old URL, 2: new URL */
-		$detail = sprintf( __( 'From %1$s to %2$s.', 'rankyfy-ai-crawlers' ), $saved, $url );
+		$detail = sprintf( __( 'From %1$s to %2$s.', 'rankyfy-ai-seo' ), $saved, $url );
 		if ( $seen['hits'] ) {
 			/* translators: 1: requests, 2: crawlers, 3: date */
-			$detail .= ' ' . sprintf( __( 'AI crawlers requested the old URL %1$s times (%2$s), last on %3$s. AI answers and citations still point there.', 'rankyfy-ai-crawlers' ), number_format_i18n( $seen['hits'] ), implode( ', ', $seen['bots'] ), wp_date( get_option( 'date_format' ), $seen['last'] ) );
+			$detail .= ' ' . sprintf( __( 'AI crawlers requested the old URL %1$s times (%2$s), last on %3$s. AI answers and citations still point there.', 'rankyfy-ai-seo' ), number_format_i18n( $seen['hits'] ), implode( ', ', $seen['bots'] ), wp_date( get_option( 'date_format' ), $seen['last'] ) );
 		}
 		if ( $seen['referrals'] ) {
 			/* translators: %s: visits */
-			$detail .= ' ' . sprintf( __( '%s visits arrived at the old URL from AI assistants in the last 30 days.', 'rankyfy-ai-crawlers' ), number_format_i18n( $seen['referrals'] ) );
+			$detail .= ' ' . sprintf( __( '%s visits arrived at the old URL from AI assistants in the last 30 days.', 'rankyfy-ai-seo' ), number_format_i18n( $seen['referrals'] ) );
 		}
 		if ( Settings::get( 'guard_redirects' ) ) {
 			return self::result(
 				'url_change',
 				'pass',
-				__( 'The URL changes — a permanent redirect will be added', 'rankyfy-ai-crawlers' ),
+				__( 'The URL changes — a permanent redirect will be added', 'rankyfy-ai-seo' ),
 				$detail,
-				is_post_type_hierarchical( $post->post_type ) ? __( 'Pages below this one move too; they are redirected as well.', 'rankyfy-ai-crawlers' ) : ''
+				is_post_type_hierarchical( $post->post_type ) ? __( 'Pages below this one move too; they are redirected as well.', 'rankyfy-ai-seo' ) : ''
 			);
 		}
 		return self::result(
 			'url_change',
 			$seen['hits'] || $seen['referrals'] ? 'fail' : 'warn',
-			__( 'The URL changes and nothing will redirect the old one', 'rankyfy-ai-crawlers' ),
+			__( 'The URL changes and nothing will redirect the old one', 'rankyfy-ai-seo' ),
 			$detail,
-			__( 'Keep the old slug, or add a 301 redirect from the old URL (or switch on automatic redirects in AI Crawlers → Settings).', 'rankyfy-ai-crawlers' )
+			__( 'Keep the old slug, or add a 301 redirect from the old URL (or switch on automatic redirects in AI Crawlers → Settings).', 'rankyfy-ai-seo' )
 		);
 	}
 
 	private static function check_content( \WP_Post $post, $content, $row, $important ) {
 		if ( self::uses_builder( $post, $content ) ) {
-			return self::result( 'content', 'na', __( 'Content length is measured after publishing', 'rankyfy-ai-crawlers' ), __( 'This page is built with a page builder, so its text is only known once it is served.', 'rankyfy-ai-crawlers' ) );
+			return self::result( 'content', 'na', __( 'Content length is measured after publishing', 'rankyfy-ai-seo' ), __( 'This page is built with a page builder, so its text is only known once it is served.', 'rankyfy-ai-seo' ) );
 		}
 		$html  = strip_shortcodes( preg_replace( '/<!--\s*\/?wp:[^>]*?-->/s', '', $content ) );
 		$words = Text::word_count( html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
@@ -252,9 +252,9 @@ class Guard {
 				'content',
 				$important ? 'fail' : 'warn',
 				/* translators: 1: words before, 2: words now */
-				sprintf( __( 'Most of the text is gone (%1$s → %2$s words)', 'rankyfy-ai-crawlers' ), number_format_i18n( $before ), number_format_i18n( $words ) ),
-				$important ? __( 'This is one of your important pages. AI crawlers that re-read it will replace what they know with the shorter version.', 'rankyfy-ai-crawlers' ) : __( 'AI crawlers that re-read it will replace what they know with the shorter version.', 'rankyfy-ai-crawlers' ),
-				__( 'Check that no block or section was deleted by accident before updating.', 'rankyfy-ai-crawlers' )
+				sprintf( __( 'Most of the text is gone (%1$s → %2$s words)', 'rankyfy-ai-seo' ), number_format_i18n( $before ), number_format_i18n( $words ) ),
+				$important ? __( 'This is one of your important pages. AI crawlers that re-read it will replace what they know with the shorter version.', 'rankyfy-ai-seo' ) : __( 'AI crawlers that re-read it will replace what they know with the shorter version.', 'rankyfy-ai-seo' ),
+				__( 'Check that no block or section was deleted by accident before updating.', 'rankyfy-ai-seo' )
 			);
 		}
 		if ( $words < $min ) {
@@ -262,13 +262,13 @@ class Guard {
 				'content',
 				'warn',
 				/* translators: 1: words, 2: minimum */
-				sprintf( __( 'Thin content: %1$s words (aim for %2$s or more)', 'rankyfy-ai-crawlers' ), number_format_i18n( $words ), number_format_i18n( $min ) ),
-				__( 'AI assistants cite pages that answer a question completely. Short pages rarely contain the specific facts they quote.', 'rankyfy-ai-crawlers' ),
-				__( 'Add the details a reader would ask about: specifics, examples, numbers, steps.', 'rankyfy-ai-crawlers' )
+				sprintf( __( 'Thin content: %1$s words (aim for %2$s or more)', 'rankyfy-ai-seo' ), number_format_i18n( $words ), number_format_i18n( $min ) ),
+				__( 'AI assistants cite pages that answer a question completely. Short pages rarely contain the specific facts they quote.', 'rankyfy-ai-seo' ),
+				__( 'Add the details a reader would ask about: specifics, examples, numbers, steps.', 'rankyfy-ai-seo' )
 			);
 		}
 		/* translators: %s: words */
-		return self::result( 'content', 'pass', sprintf( __( '%s words of content', 'rankyfy-ai-crawlers' ), number_format_i18n( $words ) ) );
+		return self::result( 'content', 'pass', sprintf( __( '%s words of content', 'rankyfy-ai-seo' ), number_format_i18n( $words ) ) );
 	}
 
 	// ── helpers ────────────────────────────────────────────────────────────
@@ -364,11 +364,11 @@ class Guard {
 		// Yoast SEO: per page "1" = noindex, "2" = index, "" = the post type default.
 		$y = (string) get_post_meta( $id, '_yoast_wpseo_meta-robots-noindex', true );
 		if ( '1' === $y ) {
-			$set( 'noindex', true, __( 'Yoast SEO (this page)', 'rankyfy-ai-crawlers' ) );
+			$set( 'noindex', true, __( 'Yoast SEO (this page)', 'rankyfy-ai-seo' ) );
 		} elseif ( '' === $y && defined( 'WPSEO_VERSION' ) ) {
 			$titles = get_option( 'wpseo_titles' );
 			if ( is_array( $titles ) && ! empty( $titles[ 'noindex-' . $post->post_type ] ) ) {
-				$set( 'noindex', true, __( 'Yoast SEO (all items of this content type)', 'rankyfy-ai-crawlers' ) );
+				$set( 'noindex', true, __( 'Yoast SEO (all items of this content type)', 'rankyfy-ai-seo' ) );
 			}
 		}
 		$set( 'canonical', esc_url_raw( (string) get_post_meta( $id, '_yoast_wpseo_canonical', true ) ), 'Yoast SEO' );
@@ -376,18 +376,18 @@ class Guard {
 		// Rank Math.
 		$rm = get_post_meta( $id, 'rank_math_robots', true );
 		if ( is_array( $rm ) && $rm ) {
-			$set( 'noindex', in_array( 'noindex', $rm, true ), __( 'Rank Math (this page)', 'rankyfy-ai-crawlers' ) );
+			$set( 'noindex', in_array( 'noindex', $rm, true ), __( 'Rank Math (this page)', 'rankyfy-ai-seo' ) );
 		} elseif ( defined( 'RANK_MATH_VERSION' ) ) {
 			$o = get_option( 'rank-math-options-titles' );
 			$k = 'pt_' . $post->post_type;
 			if ( is_array( $o ) && 'on' === ( $o[ $k . '_custom_robots' ] ?? '' ) && in_array( 'noindex', (array) ( $o[ $k . '_robots' ] ?? array() ), true ) ) {
-				$set( 'noindex', true, __( 'Rank Math (all items of this content type)', 'rankyfy-ai-crawlers' ) );
+				$set( 'noindex', true, __( 'Rank Math (all items of this content type)', 'rankyfy-ai-seo' ) );
 			}
 		}
 		$set( 'canonical', esc_url_raw( (string) get_post_meta( $id, 'rank_math_canonical_url', true ) ), 'Rank Math' );
 
 		// SEOPress stores "yes" when noindex is ticked.
-		$set( 'noindex', 'yes' === get_post_meta( $id, '_seopress_robots_index', true ), __( 'SEOPress (this page)', 'rankyfy-ai-crawlers' ) );
+		$set( 'noindex', 'yes' === get_post_meta( $id, '_seopress_robots_index', true ), __( 'SEOPress (this page)', 'rankyfy-ai-seo' ) );
 		$set( 'canonical', esc_url_raw( (string) get_post_meta( $id, '_seopress_robots_canonical', true ) ), 'SEOPress' );
 
 		// All in One SEO keeps its settings in its own table.
@@ -396,7 +396,7 @@ class Guard {
 			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $t ) ) === $t ) {
 				$a = $wpdb->get_row( $wpdb->prepare( "SELECT robots_default, robots_noindex, canonical_url FROM {$t} WHERE post_id = %d", $id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				if ( $a ) {
-					$set( 'noindex', ! (int) $a['robots_default'] && (int) $a['robots_noindex'], __( 'All in One SEO (this page)', 'rankyfy-ai-crawlers' ) );
+					$set( 'noindex', ! (int) $a['robots_default'] && (int) $a['robots_noindex'], __( 'All in One SEO (this page)', 'rankyfy-ai-seo' ) );
 					$set( 'canonical', esc_url_raw( (string) $a['canonical_url'] ), 'All in One SEO' );
 				}
 			}
@@ -437,7 +437,7 @@ class Guard {
 			$post_id . ':' . implode( ',', array_column( $fails, 'id' ) ),
 			$res['important'] ? 'critical' : 'warning',
 			/* translators: %s: page title */
-			sprintf( __( '"%s" was published with problems that keep it out of AI search', 'rankyfy-ai-crawlers' ), get_the_title( $post ) ),
+			sprintf( __( '"%s" was published with problems that keep it out of AI search', 'rankyfy-ai-seo' ), get_the_title( $post ) ),
 			implode( ' ', array_column( $fails, 'title' ) ),
 			implode( ' ', array_filter( array_column( $fails, 'detail' ) ) ),
 			array(
@@ -562,7 +562,7 @@ class Guard {
 		}
 		$bot = '' !== Tracker::current_bot() ? 1 : 0;
 		$wpdb->query( $wpdb->prepare( "UPDATE {$t} SET hits = hits + 1, bot_hits = bot_hits + %d, last_hit = %d WHERE id = %d", $bot, time(), (int) $row['id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		if ( wp_safe_redirect( $target, 301, 'RankyFy AI Crawler Monitor' ) ) {
+		if ( wp_safe_redirect( $target, 301, 'RankyFy AI SEO' ) ) {
 			exit;
 		}
 	}
@@ -617,11 +617,11 @@ class Guard {
 			return;
 		}
 		$file = 'assets/js/guard.js';
-		wp_enqueue_script( 'rfaib-guard', RFAIB_URL . $file, array( 'wp-plugins', 'wp-element', 'wp-components', 'wp-data', 'wp-api-fetch', 'wp-i18n', 'wp-edit-post', 'wp-editor', 'wp-notices' ), RFAIB_VERSION . '.' . filemtime( RFAIB_DIR . $file ), true );
-		wp_set_script_translations( 'rfaib-guard', 'rankyfy-ai-crawlers' );
+		wp_enqueue_script( 'rfy-guard', RFY_URL . $file, array( 'wp-plugins', 'wp-element', 'wp-components', 'wp-data', 'wp-api-fetch', 'wp-i18n', 'wp-edit-post', 'wp-editor', 'wp-notices' ), RFY_VERSION . '.' . filemtime( RFY_DIR . $file ), true );
+		wp_set_script_translations( 'rfy-guard', 'rankyfy-ai-seo' );
 		wp_localize_script(
-			'rfaib-guard',
-			'RFAIB_GUARD',
+			'rfy-guard',
+			'RFY_GUARD',
 			array(
 				'path' => '/' . Rest::NS . '/guard',
 				'mode' => (string) Settings::get( 'guard_mode' ),
@@ -635,26 +635,26 @@ class Guard {
 			|| ( function_exists( 'use_block_editor_for_post' ) && use_block_editor_for_post( $post ) ) ) {
 			return;
 		}
-		add_meta_box( 'rfaib-guard', __( 'AI crawler check', 'rankyfy-ai-crawlers' ), array( __CLASS__, 'meta_box_render' ), $post_type, 'side', 'high' );
+		add_meta_box( 'rfy-guard', __( 'AI crawler check', 'rankyfy-ai-seo' ), array( __CLASS__, 'meta_box_render' ), $post_type, 'side', 'high' );
 	}
 
 	public static function meta_box_render( $post ) {
 		if ( 'auto-draft' === $post->post_status ) {
-			echo '<p class="description">' . esc_html__( 'Save a draft to check this page before publishing.', 'rankyfy-ai-crawlers' ) . '</p>';
+			echo '<p class="description">' . esc_html__( 'Save a draft to check this page before publishing.', 'rankyfy-ai-seo' ) . '</p>';
 			return;
 		}
 		$res = self::check( $post );
 		self::render_list( $res );
-		echo '<p class="description">' . esc_html__( 'Checked against the last saved version. Save the draft again to re-check.', 'rankyfy-ai-crawlers' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Checked against the last saved version. Save the draft again to re-check.', 'rankyfy-ai-seo' ) . '</p>';
 	}
 
 	private static function render_list( array $res ) {
 		$icons = array( 'fail' => '✕', 'warn' => '!', 'pass' => '✓', 'na' => '–' );
 		$label = array(
-			'fail' => __( 'Problem', 'rankyfy-ai-crawlers' ),
-			'warn' => __( 'Warning', 'rankyfy-ai-crawlers' ),
-			'pass' => __( 'OK', 'rankyfy-ai-crawlers' ),
-			'na'   => __( 'Not checked', 'rankyfy-ai-crawlers' ),
+			'fail' => __( 'Problem', 'rankyfy-ai-seo' ),
+			'warn' => __( 'Warning', 'rankyfy-ai-seo' ),
+			'pass' => __( 'OK', 'rankyfy-ai-seo' ),
+			'na'   => __( 'Not checked', 'rankyfy-ai-seo' ),
 		);
 		$color = array( 'fail' => '#b32d2e', 'warn' => '#996800', 'pass' => '#00702a', 'na' => '#646970' );
 		echo '<ul style="margin:0">';
@@ -686,7 +686,7 @@ class Guard {
 		if ( ! $res['counts']['fail'] && ! $res['counts']['warn'] ) {
 			return;
 		}
-		echo '<div class="notice ' . ( $res['counts']['fail'] ? 'notice-error' : 'notice-warning' ) . ' is-dismissible"><p><strong>' . esc_html__( 'AI crawler check after saving', 'rankyfy-ai-crawlers' ) . '</strong></p>';
+		echo '<div class="notice ' . ( $res['counts']['fail'] ? 'notice-error' : 'notice-warning' ) . ' is-dismissible"><p><strong>' . esc_html__( 'AI crawler check after saving', 'rankyfy-ai-seo' ) . '</strong></p>';
 		self::render_list(
 			array(
 				'checks' => array_values( array_filter( $res['checks'], static function ( $c ) {
