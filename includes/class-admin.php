@@ -77,7 +77,7 @@ class Admin {
 			'/readiness' => __( 'Readiness Score', 'rankyfy-ai-crawlers' ),
 			'/access'    => __( 'Access Manager', 'rankyfy-ai-crawlers' ),
 			'/llms'      => __( 'llms.txt', 'rankyfy-ai-crawlers' ),
-			'/visibility' => __( 'AI Visibility', 'rankyfy-ai-crawlers' ),
+			'/opportunities' => __( 'Opportunities', 'rankyfy-ai-crawlers' ),
 			'/settings'  => __( 'Settings', 'rankyfy-ai-crawlers' ),
 		);
 	}

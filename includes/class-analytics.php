@@ -808,6 +808,7 @@ class Analytics {
 			$not_analyzed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p} WHERE deleted = 0 AND object_type = 'post' AND (importance >= %d OR pinned > 0) AND assist_at = 0", $min ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 			return array(
+				'crawl'    => self::crawl_opportunities(),
 				'observed' => array(
 					'topics'           => array_map( static function ( $r ) {
 						return array( 'term' => $r['term'], 'pages' => (int) $r['pages'] );
@@ -835,6 +836,137 @@ class Analytics {
 				'links'    => Linker::opportunities(),
 			);
 		} );
+	}
+
+	/**
+	 * Opportunities read straight off the crawler data this plugin already
+	 * collects — no account, no AI, everything observed. Five lists:
+	 * crawlers blocked although their assistant sends value, important pages
+	 * no AI crawler has fetched, pages crawled often but not answer-ready,
+	 * pages that error for crawlers, and pages slow for crawlers.
+	 */
+	public static function crawl_opportunities() {
+		global $wpdb;
+		$p     = Installer::table( 'pages' );
+		$d     = Installer::table( 'daily' );
+		$pb    = Installer::table( 'page_bots' );
+		$min   = (int) Settings::get( 'importance_min' );
+		$ai    = self::ai_in();
+		$since = self::since( 30 );
+
+		// Crawlers blocked in robots.txt while the matching assistant already
+		// sends visitors, or while they keep asking. Training-only crawlers are
+		// listed only when their assistant actually sends visits — blocking
+		// those is usually a deliberate choice, not a missed opportunity.
+		$assistant_of = array(
+			'OpenAI'     => 'chatgpt',
+			'Perplexity' => 'perplexity',
+			'Google'     => 'gemini',
+			'Microsoft'  => 'copilot',
+			'Anthropic'  => 'claude',
+			'Meta'       => 'meta-ai',
+			'Mistral AI' => 'mistral',
+			'DeepSeek'   => 'deepseek',
+		);
+		$refs = array();
+		foreach ( self::referral_sources( 30 ) as $r ) {
+			$refs[ $r['source'] ] = $r;
+		}
+		$attempts = $wpdb->get_results( $wpdb->prepare( 'SELECT bot, SUM(hits) h FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot', $since ), OBJECT_K );
+		$blocked  = array();
+		foreach ( (array) ( Robots::matrix()['bots'] ?? array() ) as $id => $x ) {
+			$b = Registry::get( $id );
+			if ( ! $b || ! $b['ai'] ) {
+				continue;
+			}
+			$site_blocked = empty( $x['site_allowed'] );
+			$pages_blocked = (int) $x['blocked_count'];
+			if ( ! $site_blocked && ! $pages_blocked ) {
+				continue;
+			}
+			$src = $assistant_of[ $b['provider'] ] ?? '';
+			$ref = $src && isset( $refs[ $src ] ) ? $refs[ $src ] : null;
+			if ( in_array( $b['category'], array( 'ai_training', 'ai_other' ), true ) && ! $ref ) {
+				continue;
+			}
+			$blocked[] = array(
+				'id'            => $id,
+				'name'          => $b['name'],
+				'provider'      => $b['provider'],
+				'category'      => $b['category'],
+				'site_allowed'  => ! $site_blocked,
+				'blocked_pages' => $pages_blocked,
+				'priority'      => Scorer::is_priority( $id ),
+				'attempts'      => isset( $attempts[ $id ] ) ? (int) $attempts[ $id ]->h : 0,
+				'assistant'     => $ref ? $ref['name'] : Registry::referrer_name( $src ),
+				'visits'        => $ref ? (int) $ref['visits'] : 0,
+			);
+		}
+		usort( $blocked, static function ( $a, $b ) {
+			return ( $b['visits'] <=> $a['visits'] ) ?: ( $b['priority'] <=> $a['priority'] ) ?: ( $b['blocked_pages'] <=> $a['blocked_pages'] );
+		} );
+
+		// Important pages no AI crawler has ever fetched.
+		$uncrawled_where = "pg.deleted = 0 AND (pg.importance >= %d OR pg.pinned > 0) AND NOT EXISTS (SELECT 1 FROM {$pb} b WHERE b.url_hash = pg.url_hash AND b.bot IN ({$ai}))";
+		$uncrawled = array(
+			'total' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p} pg WHERE {$uncrawled_where}", $min ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			'items' => (array) $wpdb->get_results( $wpdb->prepare( "SELECT pg.id page_id, pg.path, pg.title, pg.importance FROM {$p} pg WHERE {$uncrawled_where} ORDER BY pg.importance DESC, pg.id ASC LIMIT 10", $min ), ARRAY_A ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		);
+
+		// Crawled often, but not answer-ready: AI crawlers already want these
+		// pages; improving them is the shortest path to being cited.
+		$weak = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT pg.id page_id, pg.path, pg.title, pg.aeo_score, SUM(d.hits) hits, COUNT(DISTINCT d.bot) bots FROM {$d} d
+				 JOIN {$p} pg ON pg.url_hash = d.url_hash AND pg.deleted = 0
+				 WHERE d.day >= %s AND d.bot IN ({$ai}) AND pg.aeo_score IS NOT NULL AND pg.aeo_score < 60
+				 GROUP BY pg.id ORDER BY hits DESC LIMIT 10", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$since
+			),
+			ARRAY_A
+		);
+
+		// Pages that errored when an AI crawler fetched them (last 14 days).
+		$errors = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT MAX(d.path) path, pg.id page_id, pg.title, SUM(d.errors) errors, SUM(d.hits) hits, MAX(d.last_status) status FROM {$d} d
+				 LEFT JOIN {$p} pg ON pg.url_hash = d.url_hash AND pg.deleted = 0
+				 WHERE d.day >= %s AND d.bot IN ({$ai}) AND d.errors > 0
+				 GROUP BY d.url_hash ORDER BY errors DESC LIMIT 10", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				self::since( 14 )
+			),
+			ARRAY_A
+		);
+
+		// Pages slow for crawlers: impatient fetchers give up or come less often.
+		$slow = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT MAX(d.path) path, pg.id page_id, pg.title, SUM(d.hits) hits, ROUND(SUM(d.ms_total) / GREATEST(SUM(d.hits), 1)) avg_ms FROM {$d} d
+				 LEFT JOIN {$p} pg ON pg.url_hash = d.url_hash AND pg.deleted = 0
+				 WHERE d.day >= %s AND d.bot IN ({$ai})
+				 GROUP BY d.url_hash HAVING hits >= 5 AND avg_ms >= 1500
+				 ORDER BY avg_ms DESC LIMIT 10", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$since
+			),
+			ARRAY_A
+		);
+
+		$int = static function ( $rows, $keys ) {
+			return array_map( static function ( $r ) use ( $keys ) {
+				foreach ( $keys as $k ) {
+					$r[ $k ] = null === $r[ $k ] ? null : (int) $r[ $k ];
+				}
+				return $r;
+			}, (array) $rows );
+		};
+		$uncrawled['items'] = $int( $uncrawled['items'], array( 'page_id', 'importance' ) );
+		return array(
+			'blocked'   => array_slice( $blocked, 0, 8 ),
+			'uncrawled' => $uncrawled,
+			'weak'      => $int( $weak, array( 'page_id', 'aeo_score', 'hits', 'bots' ) ),
+			'errors'    => $int( $errors, array( 'page_id', 'errors', 'hits', 'status' ) ),
+			'slow'      => $int( $slow, array( 'page_id', 'hits', 'avg_ms' ) ),
+		);
 	}
 
 	public static function referral_sources( $days ) {

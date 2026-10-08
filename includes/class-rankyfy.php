@@ -15,7 +15,6 @@
  *    second sign-in, no second token store:
  *      POST /ai-crawlers/classify   unrecognised bot user agents (only the UA text)
  *      POST /content/assist         Content AI analysis of one page (uses credits)
- *      GET  /ai-visibility/*        AI Visibility results and generated prompts
  *
  * Every failure degrades to local-only operation: crawler monitoring,
  * verification, robots.txt analysis, page analysis and alerts keep working.
@@ -371,64 +370,4 @@ class Rankyfy {
 		return $n;
 	}
 
-	// ── AI Visibility (account) ────────────────────────────────────────────
-
-	/**
-	 * AI Visibility from RankyFy: mentions in real AI answers (observed by
-	 * RankyFy's checks) and the prompts it tracks (generated, i.e. inferred).
-	 */
-	public static function visibility( $force = false ) {
-		if ( ! self::available() ) {
-			return array( 'state' => self::state() );
-		}
-		if ( ! class_exists( '\Rankyfy\Visibility_Api' ) ) {
-			return array( 'state' => 'error', 'message' => __( 'Update the RankyFy SEO plugin to see AI Visibility here.', 'rankyfy-ai-crawlers' ) );
-		}
-		$cached = get_transient( 'rfaib_visibility' );
-		if ( ! $force && is_array( $cached ) ) {
-			return $cached;
-		}
-		$overview = \Rankyfy\Visibility_Api::overview();
-		if ( is_wp_error( $overview ) ) {
-			$out = array(
-				'state'   => 'error',
-				'code'    => $overview->get_error_code(),
-				'message' => $overview->get_error_message(),
-			);
-			set_transient( 'rfaib_visibility', $out, 10 * MINUTE_IN_SECONDS );
-			return $out;
-		}
-		$opps    = \Rankyfy\Visibility_Api::opportunities( 25 );
-		$prompts = \Rankyfy\Visibility_Api::prompts( 1 );
-		$out     = array(
-			'state'         => 'connected',
-			'overview'      => self::strip( $overview ),
-			'opportunities' => is_wp_error( $opps ) ? array() : self::items( $opps ),
-			'prompts'       => is_wp_error( $prompts ) ? array() : array_slice( self::items( $prompts ), 0, 100 ),
-			'at'            => time(),
-		);
-		set_transient( 'rfaib_visibility', $out, HOUR_IN_SECONDS );
-		return $out;
-	}
-
-	private static function strip( $res ) {
-		if ( ! is_array( $res ) ) {
-			return array();
-		}
-		unset( $res['_status'], $res['_headers'], $res['website_id'], $res['user_id'] );
-		return $res;
-	}
-
-	private static function items( $res ) {
-		if ( class_exists( '\Rankyfy\Http' ) && method_exists( '\Rankyfy\Http', 'items' ) ) {
-			return array_map( array( __CLASS__, 'strip' ), (array) \Rankyfy\Http::items( $res ) );
-		}
-		$res = self::strip( $res );
-		foreach ( array( 'items', 'results', 'data', 'prompts', 'opportunities' ) as $k ) {
-			if ( isset( $res[ $k ] ) && is_array( $res[ $k ] ) ) {
-				return $res[ $k ];
-			}
-		}
-		return array_values( array_filter( $res, 'is_array' ) );
-	}
 }

@@ -95,7 +95,6 @@ class Rest {
 		self::route( '/recommendations', WP_REST_Server::READABLE, array( $c, 'recommendations' ) );
 		self::route( '/findings/(?P<id>\d+)', WP_REST_Server::CREATABLE, array( $c, 'finding' ), $id );
 		self::route( '/opportunities', WP_REST_Server::READABLE, array( $c, 'opportunities' ) );
-		self::route( '/visibility', WP_REST_Server::READABLE, array( $c, 'visibility' ) );
 		self::route( '/technical', WP_REST_Server::READABLE, array( $c, 'technical' ) );
 		self::route( '/technical/refresh', WP_REST_Server::CREATABLE, array( $c, 'technical_refresh' ), array(), 'sync' );
 		self::route( '/history', WP_REST_Server::READABLE, array( $c, 'history' ) );
@@ -302,10 +301,6 @@ class Rest {
 
 	public static function opportunities() {
 		return Analytics::opportunities();
-	}
-
-	public static function visibility( WP_REST_Request $r ) {
-		return Rankyfy::visibility( (bool) $r['refresh'] );
 	}
 
 	public static function technical() {

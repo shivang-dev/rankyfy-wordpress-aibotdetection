@@ -234,3 +234,45 @@ function test_design_routes_permissions() {
 	wp_delete_user( $sub );
 	delete_option( Access::OPTION );
 }
+
+function test_crawl_opportunities_from_bot_data() {
+	global $wpdb;
+	// One important page AI never fetched, one crawled often but weak.
+	$ignored = t_post( 'Opportunity ignored page', '<p>' . str_repeat( 'word ', 400 ) . '</p>' );
+	$weak    = t_post( 'Opportunity weak page', '<p>' . str_repeat( 'word ', 400 ) . '</p>' );
+	RankyfyAIB\Inventory::set_pin( (int) t_page_row( $ignored )['id'], 1 );
+	$weak_row = t_page_row( $weak );
+	$path     = Util::normalize_path( get_permalink( $weak ) );
+	t_crawl( 'gptbot', T_UA_GPTBOT, '198.51.100.0/24', $path, 6 );
+	t_crawl( 'claudebot', T_UA_CLAUDEBOT, '198.51.101.0/24', '/broken-for-bots', 2, 500 );
+	Aggregator::run( 20 );
+	$wpdb->update( Installer::table( 'pages' ), array( 'aeo_score' => 30 ), array( 'id' => (int) $weak_row['id'] ) );
+	// A page slow for crawlers: six fetches averaging two seconds.
+	$wpdb->insert( Installer::table( 'daily' ), array( 'day' => Util::day(), 'bot' => 'gptbot', 'url_hash' => Util::url_hash( '/slow-page' ), 'path' => '/slow-page', 'hits' => 6, 'ms_total' => 12000, 'ms_max' => 3000, 'last_status' => 200 ) );
+	// OAI-SearchBot blocked site-wide while ChatGPT sends visitors.
+	update_option( Robots::OPTION, array( 'body' => "User-agent: OAI-SearchBot\nDisallow: /\n", 'source' => 'http', 'status' => 200, 'fetched_at' => time(), 'hash' => 'x' ), false );
+	delete_option( Robots::MATRIX );
+	$wpdb->insert( Installer::table( 'referrals' ), array( 'day' => Util::day(), 'source' => 'chatgpt', 'url_hash' => Util::url_hash( $path ), 'path' => $path, 'hits' => 9 ) );
+
+	$o       = Analytics::crawl_opportunities();
+	$blocked = array_column( $o['blocked'], null, 'id' );
+	t_ok( isset( $blocked['oai-searchbot'] ), 'a blocked crawler whose assistant sends visitors is surfaced' );
+	t_eq( 9, $blocked['oai-searchbot']['visits'] );
+	t_eq( 'ChatGPT', $blocked['oai-searchbot']['assistant'] );
+	t_ok( false === $blocked['oai-searchbot']['site_allowed'] );
+	t_ok( ! isset( $blocked['gptbot'] ), 'a crawler robots.txt does not block is not listed' );
+	t_ok( in_array( (int) t_page_row( $ignored )['id'], array_column( $o['uncrawled']['items'], 'page_id' ), true ), 'a pinned page never crawled is an opportunity' );
+	t_ok( $o['uncrawled']['total'] >= 1 );
+	t_ok( ! in_array( (int) $weak_row['id'], array_column( $o['uncrawled']['items'], 'page_id' ), true ), 'a crawled page is not "never crawled"' );
+	t_eq( (int) $weak_row['id'], $o['weak'][0]['page_id'], 'the crawled-but-weak page leads the list' );
+	t_eq( 6, $o['weak'][0]['hits'] );
+	t_eq( array( '/broken-for-bots' ), array_column( $o['errors'], 'path' ) );
+	t_eq( 2, $o['errors'][0]['errors'] );
+	t_eq( 500, $o['errors'][0]['status'] );
+	t_eq( array( '/slow-page' ), array_column( $o['slow'], 'path' ), 'only sustained slowness counts, not a few 120 ms fetches' );
+	t_eq( 2000, $o['slow'][0]['avg_ms'] );
+	delete_option( Robots::OPTION );
+	delete_option( Robots::MATRIX );
+	wp_delete_post( $ignored, true );
+	wp_delete_post( $weak, true );
+}

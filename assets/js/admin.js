@@ -3,10 +3,9 @@
  *
  * Plain DOM, no build step. Every value from the server is inserted with
  * textContent (never innerHTML). Menu sections (RankyFy → …): #/ (dashboard),
- * #/crawlers, #/referrals, #/readiness, #/access, #/llms, #/visibility,
+ * #/crawlers, #/referrals, #/readiness, #/access, #/llms, #/opportunities,
  * #/settings. Deeper screens reached from them: #/crawlers/:id, #/pages,
- * #/pages/:id, #/recommendations, #/technical, #/history, #/alerts,
- * #/opportunities.
+ * #/pages/:id, #/recommendations, #/technical, #/history, #/alerts.
  *
  * Provenance is part of the UI contract: anything measured on the site is
  * badged "Observed"; anything produced by a model or a template is badged
@@ -296,16 +295,6 @@
 			body);
 		el.body = body;
 		return el;
-	}
-	function tile(label, value, opts) {
-		opts = opts || {};
-		var delta = null;
-		if (has(opts.prev) && opts.prev > 0) {
-			var d = Math.round(100 * (Number(value) - opts.prev) / opts.prev);
-			delta = h('span', { 'class': 'rf-delta ' + (d === 0 ? '' : (d > 0) === (opts.upGood !== false) ? 'rf-up-good' : 'rf-up-bad') }, icon(d > 0 ? 'arrowUp' : d < 0 ? 'arrowDown' : 'minus', 12), sprintf(__('%s%% vs previous period'), (d > 0 ? '+' : '') + d));
-		}
-		var inner = [h('span', { 'class': 'rf-tile-label', text: label }), h('span', { 'class': 'rf-tile-value', text: typeof value === 'string' ? value : num(value) }), delta, opts.hint ? h('span', { 'class': 'rf-hint', text: opts.hint }) : null];
-		return opts.href ? h('a', { 'class': 'rf-tile rf-tile-link', href: opts.href }, inner) : h('div', { 'class': 'rf-tile' }, inner);
 	}
 	function meter(value, max, label, opts) {
 		opts = opts || {};
@@ -694,9 +683,9 @@
 	var root = document.getElementById('rfaib-app');
 	var state = { days: 30, status: null };
 	// Sections live in the WordPress admin menu (RankyFy → …), registered in class-admin.php.
-	var SECTIONS = ['/', '/crawlers', '/referrals', '/readiness', '/access', '/llms', '/visibility', '/settings'];
+	var SECTIONS = ['/', '/crawlers', '/referrals', '/readiness', '/access', '/llms', '/opportunities', '/settings'];
 	// Deeper screens highlight the section they belong to.
-	var PARENT = { '/pages': '/crawlers', '/recommendations': '/readiness', '/technical': '/access', '/ai-files': '/llms', '/opportunities': '/visibility', '/history': '/', '/alerts': '/' };
+	var PARENT = { '/pages': '/crawlers', '/recommendations': '/readiness', '/technical': '/access', '/ai-files': '/llms', '/history': '/', '/alerts': '/' };
 	var shell = { main: null, banner: null };
 	function buildShell() {
 		clear(root);
@@ -889,7 +878,7 @@
 			var refs = card(__('Visits from AI engines'), { tools: h('span', { 'class': 'rf-hint', text: sprintf(__('%dd'), o.range) }) });
 			refs.body.appendChild(o.referrals.length ? engineBars(o.referrals) : empty(__('No visits from AI assistants in this period.')));
 
-			add(body, [h('div', { 'class': 'rf-dash' }, h('div', { 'class': 'rf-stack' }, chart, pages), h('div', { 'class': 'rf-stack' }, rc, refs, connectCard(o.rankyfy)))]);
+			add(body, [h('div', { 'class': 'rf-dash' }, h('div', { 'class': 'rf-stack' }, chart, pages), h('div', { 'class': 'rf-stack' }, rc, refs))]);
 		}).catch(function (e) { if (live()) { fail(e, viewOverview); } });
 	}
 
@@ -901,21 +890,6 @@
 			later(function () { bar.style.width = (100 * r.visits / max).toFixed(1) + '%'; });
 			return [h('span', { text: r.name }), h('div', { 'class': 'rf-bar' }, bar), h('b', { text: num(r.visits) })];
 		}));
-	}
-
-	/** Contextual, dismissible (90 days), below the value already delivered, only when not connected. */
-	function connectCard(rankyfyState) {
-		var KEY = 'rfaib_connect_dismissed';
-		var until = 0;
-		try { until = Number(window.localStorage.getItem(KEY)) || 0; } catch (e) { until = 0; }
-		if (rankyfyState === 'connected' || until > Date.now()) { return null; }
-		var c = h('section', { 'class': 'rf-card rf-connect' },
-			h('div', { 'class': 'rf-card-body' },
-				h('div', { 'class': 'rf-row rf-between' }, h('strong', { text: __('Are you in the answers?') }), h('button', { type: 'button', 'class': 'rf-x', 'aria-label': __('Dismiss for 90 days'), onclick: function () { try { window.localStorage.setItem(KEY, String(Date.now() + 90 * 86400000)); } catch (e) { /* private mode */ } c.remove(); } }, icon('x', 14))),
-				h('p', { text: __('You can see which bots read your pages. Checking whether ChatGPT actually recommends you needs a server — that part runs on rankyfy.com.') }),
-				h('div', null, h('a', { 'class': 'rf-btn rf-btn-primary rf-btn-sm', href: '#/visibility' }, __('Check your AI visibility'))),
-				h('p', { 'class': 'rf-hint', text: __('Everything on this page keeps working either way.') })));
-		return c;
 	}
 
 	/** First days: answer "is it broken?" first, then give things to do that need no crawl data. */
@@ -1399,13 +1373,55 @@
 		var live = begin('/opportunities');
 		if (!live) { return; }
 		loading();
-		Promise.all([api('/opportunities'), api('/visibility').catch(function () { return { state: 'error' }; })]).then(function (res) {
+		api('/opportunities').then(function (o) {
 			if (!live()) { return; }
-			var o = res[0], vis = res[1];
 			var body = view(__('AI search opportunities'), __('Where your site can win more AI visibility. Observed data and suggestions are kept apart.'));
 			body.appendChild(h('div', { 'class': 'rf-banner rf-banner-info' }, icon('info'), h('span', { text: __('"Observed" sections come from real requests to your site and from your own content. "AI-suggested" and "Template idea" items are generated — they are not real searches or prompts anyone was observed making. AI assistants do not share the questions people ask.') })));
 
-			body.appendChild(h('div', { 'class': 'rf-section-label' }, prov('observed'), h('span', { text: __('Observed') })));
+			// What the crawl data itself says to do, before any content suggestion.
+			var cr = o.crawl || {};
+			body.appendChild(h('div', { 'class': 'rf-section-label' }, prov('observed'), h('span', { text: __('From your crawl data') })));
+			var blocked = card(__('Blocked crawlers that already send value'), { prov: 'observed', sub: __('Your robots.txt blocks these AI crawlers, yet their assistants send visitors — or they keep asking. If that is not a deliberate choice, weigh the trade-off in the Access Manager.') });
+			blocked.body.appendChild(table([
+				{ label: __('Crawler'), render: function (b) { return link(b.name, '/crawlers/' + b.id); } },
+				{ label: __('Provider'), key: 'provider' },
+				{ label: __('Blocked from'), render: function (b) { return b.site_allowed ? sprintf(_n('%d important page', '%d important pages', b.blocked_pages), b.blocked_pages) : __('the whole site'); } },
+				{ label: __('What the block costs'), render: function (b) {
+					if (b.visits) { return sprintf(__('%1$s sent %2$s visits in 30 days'), b.assistant, num(b.visits)); }
+					if (b.attempts) { return sprintf(_n('%d request turned away in 30 days', '%d requests turned away in 30 days', b.attempts), b.attempts); }
+					return h('span', { 'class': 'rf-muted', text: __('nothing observed yet') });
+				} }
+			], cr.blocked || [], { compact: true, empty: __('No blocked AI crawler is costing you anything we can see.') }));
+			if ((cr.blocked || []).length) { blocked.body.appendChild(h('p', { 'class': 'rf-hint' }, link(__('Open the Access Manager →'), '/access'))); }
+			var un = cr.uncrawled || { items: [], total: 0 };
+			var unc = card(__('Important pages no AI crawler has read'), { prov: 'observed', sub: __('Assistants cannot cite what their crawlers have never fetched. Check that these pages are linked, in the sitemap and in llms.txt.') });
+			unc.body.appendChild(table([
+				{ label: __('Page'), render: pageLink },
+				{ label: __('Importance'), num: true, render: function (p) { return num(p.importance); } }
+			], un.items || [], { compact: true, empty: __('Every important page has been read by at least one AI crawler.') }));
+			if (un.total > (un.items || []).length) { unc.body.appendChild(h('p', { 'class': 'rf-hint' }, sprintf(_n('%s page in total.', '%s pages in total.', un.total), num(un.total)), ' ', link(__('All important pages'), '/pages?filter=important'))); }
+			var weak = card(__('Crawled often, but not answer-ready'), { prov: 'observed', sub: __('AI crawlers already want these pages; a low readiness score means the content is hard to lift into an answer. Improving them is the shortest path to being cited.') });
+			weak.body.appendChild(table([
+				{ label: __('Page'), render: pageLink },
+				{ label: __('AI requests (30 d)'), num: true, render: function (p) { return num(p.hits); } },
+				{ label: __('Crawlers'), num: true, render: function (p) { return num(p.bots); } },
+				{ label: __('Score'), num: true, render: function (p) { return String(p.aeo_score); } }
+			], cr.weak || [], { compact: true, empty: __('No frequently crawled page has a weak readiness score.') }));
+			var errs = card(__('Pages failing for AI crawlers'), { prov: 'observed', sub: __('These URLs returned errors to AI crawlers in the last 14 days. A page that errors drops out of answers quickly.') });
+			errs.body.appendChild(table([
+				{ label: __('Page'), render: pageLink },
+				{ label: __('Errors (14 d)'), num: true, render: function (p) { return num(p.errors); } },
+				{ label: __('Last status'), num: true, render: function (p) { return String(p.status || '—'); } }
+			], cr.errors || [], { compact: true, empty: __('No errors served to AI crawlers in the last 14 days.') }));
+			var slow = card(__('Slow for AI crawlers'), { prov: 'observed', sub: __('Average response above 1.5 seconds across at least five fetches. Slow pages get fewer and shallower crawls.') });
+			slow.body.appendChild(table([
+				{ label: __('Page'), render: pageLink },
+				{ label: __('Avg response'), num: true, render: function (p) { return sprintf(__('%s ms'), num(p.avg_ms)); } },
+				{ label: __('Fetches (30 d)'), num: true, render: function (p) { return num(p.hits); } }
+			], cr.slow || [], { compact: true, empty: __('No page is slow for AI crawlers.') }));
+			add(body, [blocked, h('div', { 'class': 'rf-grid' }, unc, weak), h('div', { 'class': 'rf-grid' }, errs, slow)]);
+
+			body.appendChild(h('div', { 'class': 'rf-section-label' }, prov('observed'), h('span', { text: __('From your content and visitors') })));
 			var asked = card(__('Pages AI assistants fetched for their users'), { prov: 'observed', sub: __('Each fetch is a real conversation in which an assistant opened your page (last 30 days). These pages are already in play — keep them accurate.') });
 			asked.body.appendChild(table([{ label: __('Page'), render: pageLink }, { label: __('Fetches'), num: true, render: function (p) { return num(p.fetches); } }, { label: __('Assistants'), render: function (p) { return p.bots.join(', '); } }], o.observed.assistant_pages, { compact: true, empty: __('No user-triggered fetches yet.') }));
 			var refs = card(__('Visits from AI assistants'), { prov: 'observed' });
@@ -1419,8 +1435,7 @@
 			})) : empty(__('No linking gaps found among important pages.')));
 			add(body, [h('div', { 'class': 'rf-grid' }, asked, refs), h('div', { 'class': 'rf-grid' }, topics, linksCard)]);
 
-			body.appendChild(h('div', { 'class': 'rf-section-label' }, prov('inferred'), h('span', { text: __('AI visibility and suggestions') })));
-			body.appendChild(visibilityCard(vis));
+			body.appendChild(h('div', { 'class': 'rf-section-label' }, prov('inferred'), h('span', { text: __('AI-suggested') })));
 			var inf = o.inferred;
 			if (inf.not_analyzed) {
 				body.appendChild(h('div', { 'class': 'rf-banner rf-banner-info' }, icon('sparkles'), h('span', { text: sprintf(_n('%d important page has no AI analysis yet. Open a page and choose "Analyze with RankyFy AI" to get keyword, question and topic suggestions.', '%d important pages have no AI analysis yet. Open a page and choose "Analyze with RankyFy AI" to get keyword, question and topic suggestions.', inf.not_analyzed), inf.not_analyzed) }), link(__('Important pages'), '/pages?filter=important')));
@@ -1439,35 +1454,6 @@
 			add(body, [kws, h('div', { 'class': 'rf-grid' }, qs, gaps), pats]);
 		}).catch(function (e) { if (live()) { fail(e, viewOpportunities); } });
 	}
-	function visibilityCard(vis) {
-		var c = card(__('Mentions in AI answers (RankyFy AI Visibility)'), { sub: __('RankyFy asks AI assistants a set of tracked prompts and records whether your site is mentioned. The answers are real (observed); the prompts are generated, not collected from users.') });
-		if (!vis || vis.state !== 'connected') {
-			c.body.appendChild(empty(vis && vis.state === 'error' ? (vis.message || __('AI Visibility is not available right now.')) : __('Connect a RankyFy account through the RankyFy SEO plugin to see how often ChatGPT and Google AI mention your site.')));
-			return c;
-		}
-		var ov = vis.overview || {}, run = ov.run || {};
-		add(c.body, [
-			h('div', { 'class': 'rf-tiles' },
-				has(run.visibility_score) ? tile(__('AI visibility score'), String(Math.round(run.visibility_score)), { hint: has(ov.score_delta) ? sprintf(__('%s since the previous check'), (ov.score_delta > 0 ? '+' : '') + Math.round(ov.score_delta)) : null }) : null,
-				has(run.prompt_count) ? tile(__('Prompts checked'), run.prompt_count) : null,
-				has(run.mentioned_count) ? tile(__('Answers mentioning you'), run.mentioned_count, { hint: run.check_count ? sprintf(__('of %s answers'), num(run.check_count)) : null }) : null),
-			(ov.platforms || []).length ? table([
-				{ label: __('Assistant'), key: 'label' },
-				{ label: __('Mention rate'), num: true, render: function (p) { return p.status === 'not_configured' ? h('span', { 'class': 'rf-muted', text: __('not checked') }) : Math.round(p.mention_rate) + '%'; } },
-				{ label: __('Answers checked'), num: true, render: function (p) { return num(p.checks); } },
-				{ label: __('Average position'), num: true, render: function (p) { return p.avg_position ? p.avg_position.toFixed(1) : '—'; } }
-			], ov.platforms, { compact: true }) : null,
-			(ov.top_competitors || []).length ? h('p', { 'class': 'rf-hint', text: sprintf(__('Mentioned most instead of you: %s'), ov.top_competitors.slice(0, 5).map(function (x) { return x.competitor; }).join(', ')) }) : null,
-			h('div', { 'class': 'rf-sub' }, h('h4', null, __('Prompts where you are not mentioned yet'), ' ', prov('inferred', __('Generated prompts'))), table([
-				{ label: __('Prompt'), key: 'prompt' },
-				{ label: __('Missing on'), render: function (x) { return (x.missing_on || []).join(', ') || '—'; } },
-				{ label: __('Mentioned instead'), render: function (x) { return (x.competitors || []).slice(0, 3).join(', ') || '—'; } },
-				{ label: __('Recommendation'), render: function (x) { return x.recommendation || '—'; } }
-			], (vis.opportunities || []).slice(0, 15), { compact: true, empty: __('No open opportunities.') }))
-		]);
-		return c;
-	}
-
 	// ── Recommendations ──────────────────────────────────────────────────────
 	var recState = { severity: '', kind: '', group: '', code: '', page: 1 };
 	function goRecs(changes) {
@@ -1921,62 +1907,6 @@
 		}).catch(function (e) { if (live()) { fail(e, viewLlms); } });
 	}
 
-	// ── AI Visibility ────────────────────────────────────────────────────────
-	function viewVisibility() {
-		var live = begin('/visibility');
-		if (!live) { return; }
-		loading();
-		Promise.all([api('/visibility'), api('/settings')]).then(function (res) {
-			if (!live()) { return; }
-			var vis = res[0] || {}, conn = res[1].rankyfy;
-			if (vis.state !== 'connected') { return visibilityConnect(vis, conn); }
-			var ov = vis.overview || {}, run = ov.run || {}, plats = (ov.platforms || []).filter(function (p) { return p.status !== 'not_configured'; });
-			var body = view(__('AI Visibility'), [sprintf(__('Checked %1$s across %2$d engines'), vis.at ? fmtDay(vis.at) : '—', plats.length), ' ', button(__('Refresh'), function () { return api('/visibility?refresh=1').then(viewVisibility); }, { small: true, ghost: true })]);
-			var rival = (ov.top_competitors || [])[0];
-			var posList = plats.map(function (p) { return p.avg_position; }).filter(function (x) { return x; });
-			body.appendChild(h('div', { 'class': 'rf-stiles' },
-				stile(__('Mentioned in'), [num(run.mentioned_count || 0), h('small', { text: ' / ' + num(run.prompt_count || 0) })], h('span', { 'class': 'rf-delta', text: __('prompts') })),
-				stile(__('Avg position'), posList.length ? (posList.reduce(function (a, b) { return a + b; }, 0) / posList.length).toFixed(1) : '—', h('span', { 'class': 'rf-delta', text: __('when mentioned') })),
-				stile(__('Top rival'), rival ? rival.competitor : '—', rival && has(rival.count) ? h('span', { 'class': 'rf-crit-text', text: sprintf(__('named in %1$s of %2$s'), num(rival.count), num(run.prompt_count || 0)) }) : null)));
-			var prompts = card(sprintf(__('Your %d prompts'), (vis.prompts || []).length));
-			prompts.body.appendChild(table([{ label: __('Prompt'), render: function (p) { return p.prompt || p.text || '—'; } }].concat(plats.map(function (pl) {
-				return { label: pl.label, render: function (p) {
-					var r = (p.results || p.platforms || {})[pl.key || pl.platform || pl.label] || null;
-					if (!r) { return h('span', { 'class': 'rf-muted', text: '—' }); }
-					return r.mentioned ? h('span', { 'class': 'rf-chip rf-chip-good', text: r.position ? '#' + r.position : __('Yes') }) : h('span', { 'class': 'rf-chip rf-chip-crit' }, icon('xCircle', 12), __('No'));
-				} };
-			})), vis.prompts || [], { compact: true, empty: __('No prompts checked yet.') }));
-			var named = card(__('Who was named instead'));
-			var comps = (ov.top_competitors || []).slice(0, 5);
-			named.body.appendChild(comps.length ? engineBars(comps.map(function (c) { return { name: c.competitor, visits: c.count || c.mentions || 0 }; })) : empty(__('No competitors named yet.')));
-			var gap = h('div', { 'class': 'rf-notice rf-notice-warn' }, icon('alert', 14), h('span', null, __('Pages AI crawlers read but assistants don\'t cite usually have content or structure gaps. '), link(__('See them in Readiness Score →'), '/readiness')));
-			var more = h('p', null, link(__('Content opportunities from Content AI →'), '/opportunities'));
-			add(body, [h('div', { 'class': 'rf-dash' }, prompts, h('div', { 'class': 'rf-stack' }, named, gap, more))]);
-		}).catch(function (e) { if (live()) { fail(e, viewVisibility); } });
-	}
-	/** Not connected: why an account is needed, in one honest sentence; a layout sample, not a locked feature. */
-	function visibilityConnect(vis, conn) {
-		var body = view(__('AI Visibility'), __('Does ChatGPT recommend you? That answer lives on a server, not on your site.'));
-		var url = conn === 'not_installed' ? cfg.adminUrl.replace(/admin\.php\?page=.*$/, 'plugin-install.php?s=RankyFy&tab=search&type=term') : cfg.adminUrl.replace(/page=[^&#]*/, 'page=rankyfy-settings');
-		var sent = function () {
-			var d = drawer(__('What gets sent?'));
-			add(d.body, [h('p', { text: __('Nothing leaves your site until you connect. After that, only this is sent to RankyFy:') }), h('ul', { 'class': 'rf-items' },
-				h('li', { text: __('Your site\'s address, to identify the site') }),
-				h('li', { text: __('The prompts you choose to track') }),
-				h('li', { text: __('Page addresses, when you ask for a page to be analysed') })), h('p', { 'class': 'rf-hint', text: __('Crawler logs, visitor data and addresses never leave your site.') })]);
-		};
-		var left = h('section', { 'class': 'rf-card rf-connect' }, h('div', { 'class': 'rf-card-body' },
-			h('h3', { 'class': 'rf-minihead', text: __('Check whether AI assistants recommend you') }),
-			h('p', { text: __('Running a real question through ChatGPT, Gemini, Perplexity and Google AI Overviews means querying those models — your server can\'t do it. A RankyFy account runs them for you.') }),
-			h('ul', { 'class': 'rf-checklist' }, [__('Whether you\'re mentioned, and in what position'), __('Which competitors are named instead of you'), __('Prompts where you are missing, with what to change')].map(function (t) { return h('li', null, icon('check', 14), t); })),
-			vis.state === 'error' ? h('div', { 'class': 'rf-notice rf-notice-crit' }, h('span', { text: vis.message || __('AI Visibility is not available right now.') })) : null,
-			h('div', { 'class': 'rf-row' }, h('a', { 'class': 'rf-btn rf-btn-primary', href: url }, conn === 'not_installed' ? __('Install RankyFy SEO to connect') : __('Connect a RankyFy account')), button(__('What gets sent?'), sent, { ghost: true })),
-			h('p', { 'class': 'rf-hint', text: __('Nothing leaves your site until you connect. Everything else in RankyFy keeps working.') })));
-		var sample = card(__('What this screen will show'));
-		add(sample.body, [h('div', { 'class': 'rf-sample' }, table([{ label: __('Prompt'), key: 'p' }, { label: 'ChatGPT', key: 'a' }, { label: 'Perplexity', key: 'b' }], [{ p: __('best … near me'), a: '—', b: '—' }, { p: __('how much does … cost'), a: '—', b: '—' }], { compact: true })), h('p', { 'class': 'rf-hint', text: __('A sample of the layout, with no data in it — not a locked feature.') })]);
-		add(body, [h('div', { 'class': 'rf-grid' }, left, sample)]);
-	}
-
 	// ── History ──────────────────────────────────────────────────────────────
 	var histState = { days: 90, group: 'day' };
 	function viewHistory() {
@@ -2074,8 +2004,8 @@
 			var rk = card(__('RankyFy account'));
 			add(rk.body, [
 				res[0].rankyfy === 'connected'
-					? h('p', { text: __('Connected through the RankyFy SEO plugin. AI analysis and AI Visibility are available.') })
-					: h('p', null, __('Not connected. Crawler monitoring, readiness, llms.txt and access rules all work without an account; '), link(__('see AI Visibility'), '/visibility')),
+					? h('p', { text: __('Connected through the RankyFy SEO plugin. AI analysis is available.') })
+					: h('p', { text: __('Not connected. Crawler monitoring, readiness, llms.txt, opportunities and access rules all work without an account. Connecting adds AI analysis of your pages.') }),
 				toggle('ai_auto', __('Analyse my most important pages with AI automatically'), __('Up to 5 pages a day that have no recent analysis. Uses Content AI credits.'))
 			]);
 			var general = h('div', { 'class': 'rf-stack' }, h('div', { 'class': 'rf-grid' }, notify, h('div', { 'class': 'rf-stack' }, guard, rk)), important, h('p', { 'class': 'rf-hint' }, __('Also: '), link(__('History'), '/history'), ' · ', link(__('All recommendations'), '/recommendations'), ' · ', link(__('Opportunities'), '/opportunities')));
@@ -2243,7 +2173,7 @@
 		else if (r === '/readiness') { viewReadiness(); }
 		else if (r === '/access') { viewAccess(); }
 		else if (r === '/llms' || r === '/ai-files') { viewLlms(); }
-		else if (r === '/visibility') { viewVisibility(); }
+		else if (r === '/visibility') { location.hash = '#/opportunities'; return; } // old links from before the section was folded into Opportunities
 		else if (r === '/technical') { viewTechnical(); }
 		else if (r === '/history') { viewHistory(); }
 		else if (r === '/alerts') { viewAlerts(); }

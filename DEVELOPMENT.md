@@ -20,7 +20,6 @@ For RankyFy engineers. Site owners: see [README.md](README.md).
    GET  /ai-crawlers/registry   public — live registry + operators' published ranges
    POST /ai-crawlers/classify   account — unrecognised bot user agents (text only)
    POST /content/assist         account, metered — Content AI page analysis (existing)
-   GET  /ai-visibility/*        account — AI Visibility (existing)
         │
         ▼
  contentai (Rust) src/aibotdetection: registry · ranges refresher · classifier · discovery
@@ -28,7 +27,7 @@ For RankyFy engineers. Site owners: see [README.md](README.md).
 
 - **Standalone first.** Detection, verification, robots.txt analysis, page analysis, findings, scores, alerts and history are local and work with no account and no network.
 - **No second account system.** Account calls reuse the RankyFy SEO plugin's connection (`\Rankyfy\Auth::request`) when it is installed and connected. The plugin holds no keys. The gateway adds identity, ownership checks and the service key pair (see `rankyfy-seo/DEVELOPMENT.md`).
-- **No second AI engine.** Keyword, intent, entity, FAQ, gap and link suggestions come from the existing Content AI `/content/assist`; prompts and mentions come from the existing AI Visibility module. This plugin adds the crawl data and the observed/inferred labelling.
+- **No second AI engine.** Keyword, intent, entity, FAQ, gap and link suggestions come from the existing Content AI `/content/assist`. This plugin adds the crawl data and the observed/inferred labelling. The Opportunities screen leads with lists computed from the crawl data alone (`Analytics::crawl_opportunities()`): blocked crawlers whose assistants send value, important pages never fetched, pages crawled often but not answer-ready, pages that error or respond slowly to crawlers.
 
 ## Where each piece runs, and why
 
@@ -179,7 +178,7 @@ This is a product rule, enforced in code and UI:
 
 - **Observed:** events, rollups, robots.txt, probes, page facts, key terms, entity mentions, link graph, referrals, user-triggered fetches (`ai_user` category).
 - **Measured** (real data from elsewhere): Content Assist keyword volumes with `measured: true`; FAQ questions with `from_search: true`.
-- **Inferred:** everything else from Content Assist, and AI Visibility prompts. The answers in AI Visibility are observed; the prompts are generated.
+- **Inferred:** everything else from Content Assist.
 - **Template:** `Analytics::query_patterns()` builds subjects from the page's own title. Template ideas are labelled as such and never stored as queries.
 
 The REST payloads keep these in separate keys (`observed` / `inferred`). Every UI block carries a provenance badge.

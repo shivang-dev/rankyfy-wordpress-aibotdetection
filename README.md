@@ -6,13 +6,13 @@ See which AI crawlers and assistants visit your site, what they read and what th
 Install → Activate → Done (monitoring starts immediately)
 ```
 
-Nothing to configure. A RankyFy account is optional: it adds AI analysis of pages and AI Visibility (mentions in AI answers).
+Nothing to configure. A RankyFy account is optional: it adds AI analysis of pages.
 
 ## Requirements
 
 - WordPress 6.0 or newer, PHP 7.4 or newer
 - WP-Cron running (the WordPress default), or a server cron calling `wp-cron.php`
-- Optional: the RankyFy SEO plugin, connected to a RankyFy account, for AI analysis and AI Visibility
+- Optional: the RankyFy SEO plugin, connected to a RankyFy account, for AI analysis
 
 ## What you see
 
@@ -26,7 +26,7 @@ Open **RankyFy** in the admin menu (just below Settings).
 | **Readiness Score** | 18 checks, a score out of 100 and the open issues ranked by impact; *How to fix* explains each one with the pages to start with; accept a deliberate choice so it stops counting; history of the score and fixed checks |
 | **Access Manager** | Allow or block each AI crawler, grouped by operator, with its traffic and what blocking it costs. Presets (allow search, block training…), a preview of the exact robots.txt lines, nothing written until you save. RankyFy adds its own fenced block to robots.txt and touches nothing else |
 | **llms.txt** | The generated `/llms.txt` (your pages AI crawlers read most, with descriptions), `/llms-full.txt` and `/ai.txt`: what's included, a minimum length, manual edits that survive rebuilds, whether each file answers and which crawlers fetched it |
-| **AI Visibility** | With a RankyFy account: whether AI assistants mention you, in what position, and who they name instead |
+| **Opportunities** | What the crawl data says to do next: crawlers you block whose assistants already send visitors, important pages no AI crawler has read, pages crawled often but not answer-ready, pages that error or respond slowly to crawlers — plus content suggestions, clearly labelled as AI-suggested |
 | **Settings** | General (notifications, publish check, important pages), Capture (how requests are caught, log import, storage, verification), Compatibility (which plugin handles what), Data & privacy (what is stored and sent, exports, status) |
 
 Deeper screens open from these: a crawler's detail, the page list and page detail, all recommendations, the technical robots.txt/server report, history and alerts.
