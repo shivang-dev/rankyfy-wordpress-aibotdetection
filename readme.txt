@@ -105,6 +105,21 @@ No. Monitoring, verification, the readiness score, the access manager, llms.txt,
 
 Cached pages are answered before WordPress runs, so those crawler requests are missed by the hook. The plugin detects common caches and can import your server's access log to fill the gap.
 
+== Screenshots ==
+
+1. Dashboard — AI crawler hits, pages read, visits from AI assistants and the readiness score.
+2. AI Crawlers — every request, verified, by bot and by page.
+3. A user-triggered fetch: ChatGPT opening a page for a real user.
+4. A crawler's detail: GPTBot's requests, verification and the pages it reads.
+5. Google's AI crawlers and agent fetches.
+6. Googlebot's detail with its verification state.
+7. Important pages no AI crawler has read.
+8. Pages not crawled in the last 30 days.
+9. A page's detail with its crawl history and findings.
+10. Recommendations, ordered by severity and how important the page is.
+11. Alerts — new crawlers, blocked crawlers, impersonation, score drops.
+12. The technical robots.txt and server report.
+
 == Changelog ==
 
 = 1.1.0 =
