@@ -39,15 +39,15 @@ class Installer {
 
 	public static function table( $name ) {
 		global $wpdb;
-		return $wpdb->prefix . 'rfy_' . $name;
+		return $wpdb->prefix . 'rfyai_' . $name;
 	}
 
 	public static function activate() {
 		self::install();
 		Registry::compile();
 		Worker::schedule();
-		if ( ! get_option( 'rfy_monitoring_since' ) ) {
-			update_option( 'rfy_monitoring_since', time(), false );
+		if ( ! get_option( 'rfyai_monitoring_since' ) ) {
+			update_option( 'rfyai_monitoring_since', time(), false );
 		}
 		Inventory::request_rebuild();
 	}
@@ -57,13 +57,13 @@ class Installer {
 	}
 
 	public static function maybe_upgrade() {
-		$from = (string) get_option( 'rfy_db_version' );
-		if ( $from !== RFY_DB_VERSION ) {
+		$from = (string) get_option( 'rfyai_db_version' );
+		if ( $from !== RFYAI_DB_VERSION ) {
 			self::install();
 			self::migrate( $from );
 			Registry::compile();
-			if ( ! get_option( 'rfy_monitoring_since' ) ) {
-				update_option( 'rfy_monitoring_since', time(), false );
+			if ( ! get_option( 'rfyai_monitoring_since' ) ) {
+				update_option( 'rfyai_monitoring_since', time(), false );
 			}
 		}
 	}
@@ -80,7 +80,7 @@ class Installer {
 				}
 			}
 			if ( $ai ) {
-				// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+				// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 				$wpdb->query(
 					'INSERT IGNORE INTO ' . self::table( 'daily_pages' ) . ' (day, url_hash, hits, errors, ms_total)
 					 SELECT day, url_hash, SUM(hits), SUM(errors), SUM(ms_total) FROM ' . self::table( 'daily' ) . ' WHERE bot IN (' . implode( ',', $ai ) . ') GROUP BY day, url_hash' // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
@@ -91,7 +91,7 @@ class Installer {
 	}
 
 	public static function ready() {
-		return get_option( 'rfy_db_version' ) === RFY_DB_VERSION;
+		return get_option( 'rfyai_db_version' ) === RFYAI_DB_VERSION;
 	}
 
 	public static function install() {
@@ -419,12 +419,12 @@ class Installer {
 		add_option( Settings::OPTION, array(), '', 'yes' );
 		add_option( Tracker::THROTTLE, array(), '', 'yes' );
 		add_option( Ranges::IP_ONLY, array(), '', 'yes' );
-		add_option( 'rfy_cf_ranges', Util::CLOUDFLARE, '', 'yes' ); // read when a request carries CF-Connecting-IP
+		add_option( 'rfyai_cf_ranges', Util::CLOUDFLARE, '', 'yes' ); // read when a request carries CF-Connecting-IP
 		Aggregator::ensure_watermark();
 
-		update_option( 'rfy_db_version', RFY_DB_VERSION, true );
-		if ( ! get_option( 'rfy_secret' ) ) {
-			update_option( 'rfy_secret', wp_generate_password( 48, false, false ), true );
+		update_option( 'rfyai_db_version', RFYAI_DB_VERSION, true );
+		if ( ! get_option( 'rfyai_secret' ) ) {
+			update_option( 'rfyai_secret', wp_generate_password( 48, false, false ), true );
 		}
 	}
 

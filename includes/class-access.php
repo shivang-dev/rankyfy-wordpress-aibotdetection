@@ -29,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Access {
 
-	const OPTION = 'rfy_access'; // bot id => 'allow' | 'block'
+	const OPTION = 'rfyai_access'; // bot id => 'allow' | 'block'
 	const BEGIN  = '## BEGIN RankyFy AI rules';
 	const END    = '## END RankyFy AI rules';
 
@@ -188,7 +188,7 @@ class Access {
 		global $wpdb;
 		$choices = self::choices();
 		$hits    = array();
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT bot, SUM(hits) h FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot', wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ) ), ARRAY_A ) as $r ) { // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT bot, SUM(hits) h FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot', wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ) ), ARRAY_A ) as $r ) { // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			$hits[ $r['bot'] ] = (int) $r['h'];
 		}
 		// What the file says without RankyFy's block: blocks there are not ours to lift.

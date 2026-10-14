@@ -16,12 +16,12 @@ defined( 'ABSPATH' ) || exit;
 
 class Linker {
 
-	const OPTION = 'rfy_link_ops';
+	const OPTION = 'rfyai_link_ops';
 
 	/** Suggested source pages for one target page. */
 	public static function for_page( $page_id, $limit = 5 ) {
 		global $wpdb;
-		$type = $wpdb->get_var( $wpdb->prepare( 'SELECT object_type FROM ' . Installer::table( 'pages' ) . ' WHERE id = %d', $page_id ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$type = $wpdb->get_var( $wpdb->prepare( 'SELECT object_type FROM ' . Installer::table( 'pages' ) . ' WHERE id = %d', $page_id ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		if ( 'post' !== $type ) {
 			return array(); // the home page and archives get their links from navigation
 		}

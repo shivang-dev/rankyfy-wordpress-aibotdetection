@@ -31,7 +31,7 @@ defined( 'ABSPATH' ) || exit;
 class Rankyfy {
 
 	const DEFAULT_GATEWAY = 'https://api.rankyfy.com/api/wp/v1';
-	const SYNC            = 'rfy_registry_sync';
+	const SYNC            = 'rfyai_registry_sync';
 
 	/** RankyFy SEO is installed and its account is connected. */
 	public static function available() {
@@ -61,7 +61,7 @@ class Rankyfy {
 	public static function request( $method, $path, array $opts = array() ) {
 		if ( ! self::available() ) {
 			return new WP_Error(
-				'rfy_not_connected',
+				'rfyai_not_connected',
 				class_exists( '\Rankyfy\Auth' )
 					? __( 'Connect your RankyFy account in RankyFy SEO → Settings to use AI analysis.', 'rankyfy-ai-seo' )
 					: __( 'AI analysis uses your RankyFy account. Install and connect the RankyFy SEO plugin to enable it; everything else works without it.', 'rankyfy-ai-seo' ),
@@ -94,7 +94,7 @@ class Rankyfy {
 				'redirection'         => 1,
 				'limit_response_size' => 8 * MB_IN_BYTES,
 				'headers'             => $headers,
-				'user-agent'          => 'RankyFy-AI-Crawler-Monitor/' . RFY_VERSION . '; ' . home_url( '/' ),
+				'user-agent'          => 'RankyFy-AI-Crawler-Monitor/' . RFYAI_VERSION . '; ' . home_url( '/' ),
 			)
 		);
 		$code = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
@@ -197,17 +197,17 @@ class Rankyfy {
 		$t = Installer::table( 'pages' );
 		$p = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d AND deleted = 0", $page_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( ! $p || 'post' !== $p['object_type'] ) {
-			return new WP_Error( 'rfy_not_found', __( 'AI analysis is available for posts, pages and products.', 'rankyfy-ai-seo' ), array( 'status' => 404 ) );
+			return new WP_Error( 'rfyai_not_found', __( 'AI analysis is available for posts, pages and products.', 'rankyfy-ai-seo' ), array( 'status' => 404 ) );
 		}
 		$post = get_post( (int) $p['object_id'] );
 		if ( ! $post ) {
-			return new WP_Error( 'rfy_not_found', __( 'The page no longer exists.', 'rankyfy-ai-seo' ), array( 'status' => 404 ) );
+			return new WP_Error( 'rfyai_not_found', __( 'The page no longer exists.', 'rankyfy-ai-seo' ), array( 'status' => 404 ) );
 		}
 		$facts = json_decode( (string) $p['facts'], true );
 		$terms = array_column( Analyzer::key_terms( (int) $p['id'], 6 ), 'term' );
 		$text  = trim( wp_strip_all_tags( preg_replace( '/<!--\s*\/?wp:[^>]*?-->/s', '', strip_shortcodes( $post->post_content ) ) ) );
 		if ( Text::word_count( $text ) < 30 ) {
-			return new WP_Error( 'rfy_too_short', __( 'This page has too little text in the editor for AI analysis (page-builder layouts are not supported yet).', 'rankyfy-ai-seo' ), array( 'status' => 422 ) );
+			return new WP_Error( 'rfyai_too_short', __( 'This page has too little text in the editor for AI analysis (page-builder layouts are not supported yet).', 'rankyfy-ai-seo' ), array( 'status' => 422 ) );
 		}
 		$others = $wpdb->get_results(
 			$wpdb->prepare( "SELECT path, title FROM {$t} WHERE deleted = 0 AND id <> %d AND object_type = 'post' ORDER BY importance DESC LIMIT 40", $page_id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

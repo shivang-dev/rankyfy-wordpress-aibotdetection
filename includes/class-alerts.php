@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Alerts {
 
-	const BASELINE = 'rfy_baseline_done';
+	const BASELINE = 'rfyai_baseline_done';
 
 	/**
 	 * Create an alert unless the same key fired within $cooldown seconds.
@@ -51,7 +51,7 @@ class Alerts {
 				'created_at' => time(),
 			)
 		);
-		delete_transient( 'rfy_unread' );
+		delete_transient( 'rfyai_unread' );
 		Analytics::bust();
 		return (int) $wpdb->insert_id;
 	}
@@ -101,7 +101,7 @@ class Alerts {
 
 	// ── stream rules ───────────────────────────────────────────────────────
 
-	const FIRST_HIT = 'rfy_first_hit_email'; // address to tell once, when the first AI crawler arrives
+	const FIRST_HIT = 'rfyai_first_hit_email'; // address to tell once, when the first AI crawler arrives
 
 	public static function stream( array $new_bots, array $first_crawls ) {
 		self::first_hit( $new_bots );
@@ -299,16 +299,16 @@ class Alerts {
 		global $wpdb;
 		$d7  = wp_date( 'Y-m-d', time() - 7 * DAY_IN_SECONDS );
 		$d35 = wp_date( 'Y-m-d', time() - 35 * DAY_IN_SECONDS );
-		$rows = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$rows = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
-				'SELECT bot, SUM(IF(day >= %s, hits, 0)) recent, SUM(IF(day < %s, hits, 0)) before_ FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+				'SELECT bot, SUM(IF(day >= %s, hits, 0)) recent, SUM(IF(day < %s, hits, 0)) before_ FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 				$d7,
 				$d7,
 				$d35
 			),
 			ARRAY_A
 		);
-		$monitor_days = ( time() - (int) get_option( 'rfy_monitoring_since', time() ) ) / DAY_IN_SECONDS;
+		$monitor_days = ( time() - (int) get_option( 'rfyai_monitoring_since', time() ) ) / DAY_IN_SECONDS;
 		if ( $monitor_days < 21 ) {
 			return; // not enough history for a fair comparison
 		}
@@ -422,8 +422,8 @@ class Alerts {
 		if ( ! self::baseline_done() ) {
 			return;
 		}
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
-		$rows = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
+		$rows = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
 				'SELECT p.id, p.path, p.title, p.importance, p.pinned, MAX(pb.last_seen) last_seen FROM ' . Installer::table( 'pages' ) . ' p JOIN ' . Installer::table( 'page_bots' ) . ' pb ON pb.url_hash = p.url_hash
 				 WHERE p.deleted = 0 AND (p.importance >= %d OR p.pinned > 0) AND pb.hits >= 3
@@ -459,7 +459,7 @@ class Alerts {
 		if ( ! self::baseline_done() ) {
 			return;
 		}
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		$rows = $wpdb->get_results(
 			'SELECT p.id, p.path, p.title, p.importance, p.pinned FROM ' . Installer::table( 'findings' ) . ' f JOIN ' . Installer::table( 'pages' ) . " p ON p.id = f.page_id
 			 WHERE f.code = 'never_crawled' AND f.status = 'open' AND p.deleted = 0 ORDER BY p.importance DESC LIMIT 25", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
@@ -488,8 +488,8 @@ class Alerts {
 	/** Unregistered bots whose user agent suggests AI, seen for the first time. */
 	private static function potential_agents() {
 		global $wpdb;
-		$since = (int) get_option( 'rfy_potential_checked', time() - HOUR_IN_SECONDS );
-		update_option( 'rfy_potential_checked', time(), false );
+		$since = (int) get_option( 'rfyai_potential_checked', time() - HOUR_IN_SECONDS );
+		update_option( 'rfyai_potential_checked', time(), false );
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT ua, hits FROM ' . Installer::table( 'agents' ) . " WHERE cls = 'potential' AND state = 'new' AND first_seen > %d ORDER BY hits DESC LIMIT 5", $since ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		foreach ( (array) $rows as $r ) {
 			self::raise(
@@ -632,7 +632,7 @@ class Alerts {
 			return false;
 		}
 		$t = Installer::table( 'alerts' );
-		delete_transient( 'rfy_unread' );
+		delete_transient( 'rfyai_unread' );
 		if ( 'all' === $id ) {
 			return false !== $wpdb->query( $wpdb->prepare( "UPDATE {$t} SET status = %s WHERE status = 'unread'", $status ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		}

@@ -23,7 +23,7 @@ class Importer {
 
 	const BATCH = 2000;
 
-	const SEEN = 'rfy_import_batches';
+	const SEEN = 'rfyai_import_batches';
 
 	/**
 	 * @param string $key client batch key (file fingerprint + batch number); a
@@ -104,9 +104,9 @@ class Importer {
 				if ( $ref && Settings::get( 'track_referrals' ) && $status < 400 && 'GET' === $ctx['method'] && '' === $ctx['kind'] ) {
 					$host = strtolower( (string) wp_parse_url( $ref, PHP_URL_HOST ) );
 					if ( isset( $m['ref'][ $host ] ) ) {
-						$wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+						$wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 							$wpdb->prepare(
-								'INSERT INTO ' . Installer::table( 'referrals' ) . ' (day, source, url_hash, path, object_id, hits) VALUES (%s, %s, %s, %s, 0, 1) ON DUPLICATE KEY UPDATE hits = hits + 1', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+								'INSERT INTO ' . Installer::table( 'referrals' ) . ' (day, source, url_hash, path, object_id, hits) VALUES (%s, %s, %s, %s, 0, 1) ON DUPLICATE KEY UPDATE hits = hits + 1', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 								Util::day( $ts ),
 								$m['ref'][ $host ],
 								$ctx['hash'],
@@ -131,10 +131,10 @@ class Importer {
 				$out['duplicates']++;
 			}
 		}
-		$st = get_option( 'rfy_import', array() );
+		$st = get_option( 'rfyai_import', array() );
 		$st = is_array( $st ) ? $st : array();
 		update_option(
-			'rfy_import',
+			'rfyai_import',
 			array(
 				'at'     => time(),
 				'events' => (int) ( $st['events'] ?? 0 ) + $out['events'],

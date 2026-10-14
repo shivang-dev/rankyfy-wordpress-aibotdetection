@@ -1,6 +1,7 @@
 /**
  * RankyFy AI SEO — admin app.
  *
+ * This file is the source: hand-written, not generated, not minified.
  * Plain DOM, no build step. Every value from the server is inserted with
  * textContent (never innerHTML). Menu sections (RankyFy → …): #/ (dashboard),
  * #/crawlers, #/referrals, #/readiness, #/access, #/llms, #/opportunities,
@@ -19,7 +20,7 @@
 (function () {
 	'use strict';
 
-	var cfg = window.RFY || {};
+	var cfg = window.RFYAI || {};
 	var D = 'rankyfy-ai-seo';
 	var i18n = (window.wp && wp.i18n) || {};
 	var __ = function (s) { return i18n.__ ? i18n.__(s, D) : s; };
@@ -680,7 +681,7 @@
 	}
 
 	// ── app shell ────────────────────────────────────────────────────────────
-	var root = document.getElementById('rfy-app');
+	var root = document.getElementById('rfyai-app');
 	var state = { days: 30, status: null };
 	// Sections live in the WordPress admin menu (RankyFy → …), registered in class-admin.php.
 	var SECTIONS = ['/', '/crawlers', '/referrals', '/readiness', '/access', '/llms', '/opportunities', '/settings'];
@@ -734,14 +735,14 @@
 		}
 		if (st.remote_updates === false) {
 			var dismissed = false;
-			try { dismissed = window.localStorage.getItem('rfy_remote_prompt') === '1'; } catch (e) { dismissed = false; }
+			try { dismissed = window.localStorage.getItem('rfyai_remote_prompt') === '1'; } catch (e) { dismissed = false; }
 			if (!dismissed) {
 				var bn = h('div', { 'class': 'rf-banner rf-banner-info' }, icon('info'),
 					h('span', { text: __('Running fully locally with the bundled crawler registry. Optionally, the plugin can keep crawler identities and published address ranges up to date by contacting rankyfy.com and the crawler operators’ own published files.') }),
 					button(__('Enable updates'), function () {
 						return api('/settings', { method: 'POST', body: { remote_updates: true } }).then(function () { bn.remove(); refreshStatus(); toast(__('Remote updates enabled. You can switch this off in Settings → Capture.')); });
 					}, { small: true, primary: true }),
-					button(__('Keep local only'), function () { try { window.localStorage.setItem('rfy_remote_prompt', '1'); } catch (e) { /* private mode */ } bn.remove(); }, { small: true, ghost: true }));
+					button(__('Keep local only'), function () { try { window.localStorage.setItem('rfyai_remote_prompt', '1'); } catch (e) { /* private mode */ } bn.remove(); }, { small: true, ghost: true }));
 				shell.banner.appendChild(bn);
 			}
 		}
@@ -897,7 +898,7 @@
 
 	/** Contextual, dismissible (90 days), below the value already delivered, only when no account is connected. */
 	function connectCard(rankyfyState) {
-		var KEY = 'rfy_connect_dismissed';
+		var KEY = 'rfyai_connect_dismissed';
 		var until = 0;
 		try { until = Number(window.localStorage.getItem(KEY)) || 0; } catch (e) { until = 0; }
 		if (rankyfyState === 'connected' || until > Date.now()) { return null; }

@@ -43,19 +43,19 @@ class Notifier {
 
 	private static function digest() {
 		global $wpdb;
-		$last = (int) get_option( 'rfy_digest_at', 0 );
+		$last = (int) get_option( 'rfyai_digest_at', 0 );
 		if ( time() - $last < DAY_IN_SECONDS ) {
 			return;
 		}
-		update_option( 'rfy_digest_at', time(), false );
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'alerts' ) . ' WHERE created_at > %d ORDER BY FIELD(severity, \'critical\', \'warning\', \'info\'), id DESC LIMIT 30', max( $last, time() - 2 * DAY_IN_SECONDS ) ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		update_option( 'rfyai_digest_at', time(), false );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'alerts' ) . ' WHERE created_at > %d ORDER BY FIELD(severity, \'critical\', \'warning\', \'info\'), id DESC LIMIT 30', max( $last, time() - 2 * DAY_IN_SECONDS ) ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		if ( $rows ) {
 			self::email( $rows, true );
 		}
 	}
 
 	private static function under_daily_cap() {
-		$key = 'rfy_mails_' . wp_date( 'Ymd' );
+		$key = 'rfyai_mails_' . wp_date( 'Ymd' );
 		$n   = (int) get_transient( $key );
 		if ( $n >= self::MAX_EMAILS_PER_DAY ) {
 			return false;
@@ -154,7 +154,7 @@ class Notifier {
 		$code = (int) wp_remote_retrieve_response_code( $res );
 		if ( $code >= 300 ) {
 			Log::warning( 'webhook refused', array( 'status' => $code ) );
-			return new \WP_Error( 'rfy_webhook', sprintf( /* translators: %d: status */ __( 'The webhook answered with HTTP %d.', 'rankyfy-ai-seo' ), $code ) );
+			return new \WP_Error( 'rfyai_webhook', sprintf( /* translators: %d: status */ __( 'The webhook answered with HTTP %d.', 'rankyfy-ai-seo' ), $code ) );
 		}
 		return true;
 	}

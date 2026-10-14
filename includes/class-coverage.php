@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Coverage {
 
-	const CURSOR = 'rfy_coverage_cursor';
+	const CURSOR = 'rfyai_coverage_cursor';
 
 	public static function run( $budget = 20 ) {
 		global $wpdb;
@@ -79,7 +79,7 @@ class Coverage {
 			$refs[ $r['url_hash'] ] = (int) $r['h'];
 		}
 
-		$monitor_days = ( time() - (int) get_option( 'rfy_monitoring_since', time() ) ) / DAY_IN_SECONDS;
+		$monitor_days = ( time() - (int) get_option( 'rfyai_monitoring_since', time() ) ) / DAY_IN_SECONDS;
 		$ai_active    = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Installer::table( 'bots_seen' ) . ' WHERE last_seen > %d', time() - 14 * DAY_IN_SECONDS ) ) > 0; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		$learning     = $monitor_days < 14 || ! $ai_active;
 		$min_imp      = (int) Settings::get( 'importance_min' );
@@ -287,13 +287,13 @@ class Coverage {
 				continue;
 			}
 			// If the real, verified crawler got through recently, the CDN is checking addresses: not a block.
-			$ok = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(verified) - SUM(errors) FROM ' . Installer::table( 'daily_bots' ) . ' WHERE bot = %s AND day >= %s', $r['bot'], $since ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+			$ok = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(verified) - SUM(errors) FROM ' . Installer::table( 'daily_bots' ) . ' WHERE bot = %s AND day >= %s', $r['bot'], $since ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			if ( $ok > 0 ) {
 				continue;
 			}
 			$out[] = array( 'edge_blocks_bot', array( 'bot_status' => $r['bot_status'], 'browser_status' => $r['browser_status'], 'value' => $r['url'] ), $r['bot'] );
 		}
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT bot, SUM(spoofed) s FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot HAVING s >= 20', $since ), ARRAY_A ) as $r ) { // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT bot, SUM(spoofed) s FROM ' . Installer::table( 'daily_bots' ) . ' WHERE day >= %s GROUP BY bot HAVING s >= 20', $since ), ARRAY_A ) as $r ) { // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			$out[] = array( 'impersonation', array( 'n' => (int) $r['s'] ), $r['bot'] );
 		}
 		$stale = false;
@@ -305,7 +305,7 @@ class Coverage {
 		if ( $stale && Ranges::status() ) {
 			$out[] = array( 'verification_stale', array(), '' );
 		}
-		if ( ! Settings::get( 'proxy_header' ) && (int) get_option( 'rfy_proxy_noted', 0 ) > time() - WEEK_IN_SECONDS ) {
+		if ( ! Settings::get( 'proxy_header' ) && (int) get_option( 'rfyai_proxy_noted', 0 ) > time() - WEEK_IN_SECONDS ) {
 			$out[] = array( 'proxy_unconfigured', array(), '' );
 		}
 		$opened = Findings::sync( 0, 'site', $out );

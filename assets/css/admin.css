@@ -1,7 +1,7 @@
 /*
  * RankyFy AI SEO admin.
  *
- * Scoped to .rfy-app. Same visual language as RankyFy SEO. Colour roles:
+ * Scoped to .rfyai-app. Same visual language as RankyFy SEO. Colour roles:
  *   brand    chrome and the primary action only
  *   series   four categorical hues for "what the crawler is for" (order validated
  *            for colour-vision deficiency; legend + table view always present)
@@ -10,7 +10,7 @@
  * Layout follows the app's width (container queries), not the window.
  */
 
-.rfy-app,
+.rfyai-app,
 .rf-drawer-wrap {
 	--rf-brand: #ff692d;
 	--rf-brand-ink: #1a120b;
@@ -53,44 +53,44 @@
 	-webkit-font-smoothing: antialiased;
 }
 
-.rfy-wrap {
+.rfyai-wrap {
 	margin: 0 20px 0 2px;
 }
 
-.rfy-app *,
-.rfy-app *::before,
-.rfy-app *::after {
+.rfyai-app *,
+.rfyai-app *::before,
+.rfyai-app *::after {
 	box-sizing: border-box;
 }
 
-.rfy-app h2,
-.rfy-app h3,
-.rfy-app h4,
-.rfy-app p,
-.rfy-app ul,
-.rfy-app ol,
-.rfy-app dl,
-.rfy-app dd {
+.rfyai-app h2,
+.rfyai-app h3,
+.rfyai-app h4,
+.rfyai-app p,
+.rfyai-app ul,
+.rfyai-app ol,
+.rfyai-app dl,
+.rfyai-app dd {
 	margin: 0;
 	padding: 0;
 }
 
-.rfy-app ul,
-.rfy-app ol {
+.rfyai-app ul,
+.rfyai-app ol {
 	list-style: none;
 }
 
-.rfy-app a {
+.rfyai-app a {
 	color: var(--rf-accent-ink);
 }
 
-.rfy-app :focus-visible {
+.rfyai-app :focus-visible {
 	outline: 2px solid var(--rf-accent);
 	outline-offset: 2px;
 	border-radius: 4px;
 }
 
-.rfy-app [hidden] {
+.rfyai-app [hidden] {
 	display: none !important;
 }
 
@@ -1216,7 +1216,7 @@ line.rf-gridline {
 }
 
 /* motion: one easing everywhere; all of it switched off for reduced motion (end of file) */
-.rfy-app,
+.rfyai-app,
 .rf-drawer-wrap {
 	--rf-ease: cubic-bezier(.2, .7, .2, 1);
 }
@@ -1842,7 +1842,7 @@ line.rf-gridline {
 
 @media (prefers-reduced-motion: reduce) {
 
-	.rfy-app *,
+	.rfyai-app *,
 	.rf-drawer-wrap *,
 	.rf-toast {
 		animation: none !important;
@@ -1982,7 +1982,7 @@ line.rf-gridline {
 	gap: 8px;
 }
 
-.rfy-app select.rf-select {
+.rfyai-app select.rf-select {
 	width: auto;
 	min-height: 30px;
 	height: 30px;
@@ -2405,11 +2405,11 @@ textarea.rf-code {
 }
 
 /* dashboard widget */
-.rfy-widget {
+.rfyai-widget {
 	margin: 0 0 10px;
 }
 
-.rfy-widget li {
+.rfyai-widget li {
 	margin: 0 0 4px;
 }
 

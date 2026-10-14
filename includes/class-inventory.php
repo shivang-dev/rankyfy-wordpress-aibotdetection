@@ -23,7 +23,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Inventory {
 
-	const STATE = 'rfy_inventory';
+	const STATE = 'rfyai_inventory';
 	const BATCH = 300;
 
 	public static function init() {
@@ -40,13 +40,13 @@ class Inventory {
 	public static function post_types() {
 		$types = get_post_types( array( 'public' => true ), 'names' );
 		unset( $types['attachment'] );
-		return array_values( apply_filters( 'rfy_post_types', $types ) );
+		return array_values( apply_filters( 'rfyai_post_types', $types ) );
 	}
 
 	public static function taxonomies() {
 		$tax = get_taxonomies( array( 'public' => true, 'publicly_queryable' => true ), 'names' );
 		unset( $tax['post_format'] );
-		return array_values( apply_filters( 'rfy_taxonomies', $tax ) );
+		return array_values( apply_filters( 'rfyai_taxonomies', $tax ) );
 	}
 
 	private static function post_is_page( $post ) {
@@ -297,7 +297,7 @@ class Inventory {
 			} else {
 				self::upsert_home( $gen );
 				// Rows this pass did not see are gone (unpublished, deleted, renamed).
-				$wpdb->query( $wpdb->prepare( 'UPDATE ' . Installer::table( 'pages' ) . ' SET deleted = 1 WHERE gen < %d AND deleted = 0', $gen ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . Installer::table( 'pages' ) . ' SET deleted = 1 WHERE gen < %d AND deleted = 0', $gen ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 				$st['running']  = false;
 				$st['finished'] = time();
 				Log::info( 'page inventory rebuilt', array( 'pages' => self::count() ) );
@@ -326,12 +326,12 @@ class Inventory {
 	// ── importance ─────────────────────────────────────────────────────────
 
 	public static function forget_signals() {
-		delete_transient( 'rfy_signals' );
+		delete_transient( 'rfyai_signals' );
 	}
 
 	/** Site-wide signals, computed once and cached. */
 	public static function signals() {
-		$s = get_transient( 'rfy_signals' );
+		$s = get_transient( 'rfyai_signals' );
 		if ( is_array( $s ) ) {
 			return $s;
 		}
@@ -351,7 +351,7 @@ class Inventory {
 			'posts_page' => (int) get_option( 'page_for_posts' ),
 			'shop'       => function_exists( 'wc_get_page_id' ) ? (int) wc_get_page_id( 'shop' ) : 0,
 		);
-		set_transient( 'rfy_signals', $s, 6 * HOUR_IN_SECONDS );
+		set_transient( 'rfyai_signals', $s, 6 * HOUR_IN_SECONDS );
 		return $s;
 	}
 

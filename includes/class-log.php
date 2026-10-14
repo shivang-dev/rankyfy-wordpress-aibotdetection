@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Log {
 
-	const OPTION = 'rfy_log';
+	const OPTION = 'rfyai_log';
 	const MAX    = 100;
 
 	public static function info( $message, array $context = array() ) {

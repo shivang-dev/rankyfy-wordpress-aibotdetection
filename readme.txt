@@ -30,6 +30,12 @@ Install, activate, done — monitoring starts immediately and runs entirely on y
 
 **Local by default.** The plugin ships with a bundled crawler registry and works completely offline. Optional remote updates (the live registry and the operators' published address lists) and the optional RankyFy account are both opt-in — see External Services below.
 
+== Development ==
+
+The plugin is developed in the open at https://github.com/shivang-dev/rankyfy-wordpress-aibotdetection — issues and pull requests are welcome there.
+
+Everything in this package ships exactly as written: the PHP, the JavaScript (assets/js/admin.js, guard.js, log-worker.js) and the CSS are the hand-written source files themselves. There is no build step, no bundler, no transpiler and no minification, so no separate "source" version exists — what you read is what runs.
+
 == External Services ==
 
 The plugin contacts no external service by default. Each service below is used only after the administrator enables it, and each can be switched off again at any time.
@@ -44,9 +50,20 @@ The plugin contacts no external service by default. Each service below is used o
 
 **2. Crawler operators' published files** (optional, off by default; same switch as above)
 
-* Services: the IP-range files and Web Bot Auth key directories that crawler operators publish on their own sites (for example `openai.com`, `anthropic.com`, `perplexity.ai`), and Cloudflare's public edge list (`cloudflare.com/ips-v4`, `/ips-v6`).
-* Purpose: verifying that a request claiming to be a known crawler really came from that crawler.
-* Data sent: a plain HTTP GET; the user-agent names the plugin. No visitor data, no content.
+* Purpose: verifying that a request claiming to be a known crawler really came from that crawler, by comparing it against the address lists and signing keys the operators themselves publish.
+* Data sent: a plain, anonymous HTTP GET to a fixed public file; the user-agent names the plugin. No site content, no visitor data, nothing about your WordPress installation.
+* When: at most once a day per file, in the background, and only while the opt-in is enabled.
+* The published IP-range files fetched, and each operator's privacy policy:
+    * OpenAI — `openai.com` (https://openai.com/policies/privacy-policy/)
+    * Anthropic — `claude.com` (https://www.anthropic.com/legal/privacy)
+    * Perplexity — `www.perplexity.com` (https://www.perplexity.ai/hub/legal/privacy-policy)
+    * Google — `developers.google.com` (https://policies.google.com/privacy)
+    * Microsoft Bing — `www.bing.com` (https://www.microsoft.com/privacy/privacystatement)
+    * Apple — `search.developer.apple.com` (https://www.apple.com/legal/privacy/)
+    * Common Crawl — `index.commoncrawl.org` (https://commoncrawl.org/privacy-policy)
+    * DuckDuckGo — `duckduckgo.com` (https://duckduckgo.com/privacy)
+* Web Bot Auth key directories: when a crawler signs its requests (RFC 9421), its public keys are fetched from the `/.well-known/http-message-signatures-directory` path of the host the crawler itself names in its Signature-Agent header — always over HTTPS, never to private addresses, capped per hour.
+* Cloudflare's public edge list — `www.cloudflare.com/ips-v4` and `/ips-v6` (https://www.cloudflare.com/privacypolicy/, terms: https://www.cloudflare.com/website-terms/): fetched weekly so that sites behind Cloudflare can trust its visitor-address header without manual setup. The request carries no data about your site.
 
 **3. RankyFy account services** (optional, requires the separate RankyFy SEO plugin and a connected account)
 

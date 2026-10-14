@@ -29,9 +29,9 @@ defined( 'ABSPATH' ) || exit;
 
 class Llms {
 
-	const CACHE  = 'rfy_llms_cache';
-	const OVERRIDE = 'rfy_llms_override'; // hand-written llms.txt; served instead of the generated one
-	const STATUS = 'rfy_llms_status';
+	const CACHE  = 'rfyai_llms_cache';
+	const OVERRIDE = 'rfyai_llms_override'; // hand-written llms.txt; served instead of the generated one
+	const STATUS = 'rfyai_llms_status';
 	const FILES  = array( 'llms.txt', 'llms-full.txt', 'ai.txt' );
 	const HEADER = 'X-RankyFy-Generated';
 	const MAX_AGE        = 12 * HOUR_IN_SECONDS;
@@ -90,12 +90,12 @@ class Llms {
 	// ── request path ───────────────────────────────────────────────────────
 
 	public static function serve() {
-		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$uri  = Util::server_field( 'REQUEST_URI', 2000 );
 		$file = self::requested( $uri );
 		if ( '' === $file || ! Installer::ready() || ! self::active( $file ) ) {
 			return;
 		}
-		$method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( (string) $_SERVER['REQUEST_METHOD'] ) : 'GET'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$method = strtoupper( Util::server_field( 'REQUEST_METHOD', 20, 'GET' ) );
 		if ( 'GET' !== $method && 'HEAD' !== $method ) {
 			return;
 		}
@@ -113,7 +113,7 @@ class Llms {
 		header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', (int) $built['built_at'] ) . ' GMT' );
 		header( 'ETag: ' . $etag );
 		header( self::HEADER . ': ' . $file );
-		$inm = isset( $_SERVER['HTTP_IF_NONE_MATCH'] ) ? (string) wp_unslash( $_SERVER['HTTP_IF_NONE_MATCH'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- compared only
+		$inm = Util::server_field( 'HTTP_IF_NONE_MATCH', 200 );
 		if ( '' !== $inm && self::etag_matches( $inm, $etag ) ) {
 			status_header( 304 );
 			exit;
@@ -155,7 +155,7 @@ class Llms {
 					get_bloginfo( 'name' ),
 					get_bloginfo( 'description' ),
 					home_url( '/' ),
-					RFY_VERSION,
+					RFYAI_VERSION,
 				)
 			)
 		);
@@ -244,8 +244,8 @@ class Llms {
 		global $wpdb;
 		// Pages AI crawlers read most come first: the plugin knows what they care about.
 		$min   = (int) Settings::get( 'llms_min_words' );
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
-		$rows  = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
+		$rows  = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
 				'SELECT p.id, p.object_type, p.object_id, p.subtype, p.path, p.title, p.importance, p.pinned, p.http_status, p.facts, COALESCE(h.hits, 0) ai_hits
 				 FROM ' . Installer::table( 'pages' ) . ' p

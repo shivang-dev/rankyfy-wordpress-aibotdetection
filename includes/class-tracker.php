@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Tracker {
 
-	const THROTTLE = 'rfy_throttle';
+	const THROTTLE = 'rfyai_throttle';
 
 	/** @var array|null classification of the current request */
 	private static $hit = null;
@@ -34,10 +34,10 @@ class Tracker {
 			return;
 		}
 		$m  = Registry::matcher();
-		$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? (string) $_SERVER['HTTP_USER_AGENT'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$ua = Util::server_field( 'HTTP_USER_AGENT', 500 );
 
 		if ( $m['ex'] ) {
-			$uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			$uri = Util::server_field( 'REQUEST_URI', 2000, '/' );
 			foreach ( $m['ex'] as $prefix ) {
 				if ( '' !== $prefix && 0 === strpos( $uri, $prefix ) ) {
 					return;
@@ -47,7 +47,7 @@ class Tracker {
 
 		// A Signature-Agent header counts only together with the signature itself;
 		// on its own it is just a claim anyone can send.
-		$sig = ( ! empty( $_SERVER['HTTP_SIGNATURE_AGENT'] ) && ! empty( $_SERVER['HTTP_SIGNATURE_INPUT'] ) && ! empty( $_SERVER['HTTP_SIGNATURE'] ) ) ? (string) $_SERVER['HTTP_SIGNATURE_AGENT'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$sig = ( '' !== Util::server_field( 'HTTP_SIGNATURE_INPUT', 2000 ) && '' !== Util::server_field( 'HTTP_SIGNATURE', 2000 ) ) ? Util::server_field( 'HTTP_SIGNATURE_AGENT', 500 ) : '';
 		// The address is only needed when the user agent looks like a browser
 		// and address-only agents are configured; Detector asks for it lazily.
 		$ip  = get_option( Ranges::IP_ONLY ) ? Util::client_ip() : '';
@@ -85,7 +85,7 @@ class Tracker {
 			return false;
 		}
 		// The plugin's own probes ("how does the site answer GPTBot?") are not visits.
-		if ( isset( $_SERVER['HTTP_X_RFY_PROBE'] ) && hash_equals( Probe::token(), (string) $_SERVER['HTTP_X_RFY_PROBE'] ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		if ( isset( $_SERVER['HTTP_X_RFYAI_PROBE'] ) && hash_equals( Probe::token(), Util::server_field( 'HTTP_X_RFYAI_PROBE', 64 ) ) ) {
 			return false;
 		}
 		return true;
@@ -97,7 +97,7 @@ class Tracker {
 			return '';
 		}
 		if ( ! empty( $_SERVER['HTTP_REFERER'] ) && $m['ref'] ) {
-			$host = strtolower( (string) wp_parse_url( (string) $_SERVER['HTTP_REFERER'], PHP_URL_HOST ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			$host = strtolower( (string) wp_parse_url( Util::server_text( 'HTTP_REFERER', 2000 ), PHP_URL_HOST ) );
 			if ( isset( $m['ref'][ $host ] ) ) {
 				return $m['ref'][ $host ];
 			}
@@ -114,7 +114,7 @@ class Tracker {
 
 	/** What WordPress served: object, path, status, time. */
 	private static function context() {
-		$uri    = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$uri    = Util::server_field( 'REQUEST_URI', 2000, '/' );
 		$path   = Util::normalize_path( $uri );
 		$status = function_exists( 'http_response_code' ) ? (int) http_response_code() : 200;
 		$status = $status > 0 ? $status : 200;
@@ -141,7 +141,7 @@ class Tracker {
 			'ms'     => (int) max( 0, min( 600000, ( microtime( true ) - $start ) * 1000 ) ),
 			'otype'  => $otype,
 			'oid'    => $oid,
-			'method' => strtoupper( substr( preg_replace( '/[^A-Za-z]/', '', (string) $_SERVER['REQUEST_METHOD'] ), 0, 7 ) ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			'method' => strtoupper( substr( (string) preg_replace( '/[^A-Za-z]/', '', Util::server_field( 'REQUEST_METHOD', 20 ) ), 0, 7 ) ),
 			'ts'     => isset( $_SERVER['REQUEST_TIME'] ) ? (int) $_SERVER['REQUEST_TIME'] : time(),
 		);
 	}
@@ -204,8 +204,8 @@ class Tracker {
 		}
 		if ( ! $per_page ) {
 			// One counter row per day and crawler; no page, no address.
-			// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
-			$wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+			// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
+			$wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 				$wpdb->prepare(
 					'INSERT INTO ' . Installer::table( 'daily_bots' ) . ' (day, bot, hits, verified, spoofed, errors, ms_total) VALUES (%s, %s, %d, %d, %d, %d, %d)
 					 ON DUPLICATE KEY UPDATE hits = hits + VALUES(hits), verified = verified + VALUES(verified), spoofed = spoofed + VALUES(spoofed), errors = errors + VALUES(errors), ms_total = ms_total + VALUES(ms_total)',
@@ -227,8 +227,8 @@ class Tracker {
 		// Same second, address, page, method and user agent = the same request
 		// (seen live and again in an imported log).
 		$dedup = md5( $ctx['ts'] . '|' . $ip_hash . '|' . strtolower( $ctx['path'] ) . '|' . $ctx['method'] . '|' . $ua );
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
-		$ok    = $wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
+		$ok    = $wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
 				'INSERT IGNORE INTO ' . Installer::table( 'events' ) . ' (ts, day, bot, cls, vstate, method, path, url_hash, kind, object_type, object_id, status, ms, ip_net, ip_hash, ua, source, dedup)
 				 VALUES (%d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %d, %d, %s, %s, %s, %s, %s)',
@@ -274,8 +274,8 @@ class Tracker {
 			return;
 		}
 		self::release_client();
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
-		$wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
+		$wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'referrals' ) . ' (day, source, url_hash, path, object_id, hits) VALUES (%s, %s, %s, %s, %d, 1)
 				 ON DUPLICATE KEY UPDATE hits = hits + 1',
@@ -306,11 +306,11 @@ class Tracker {
 	private static function remember_agent( $ua, $cls, $ts, $count = true ) {
 		global $wpdb;
 		$ua = Util::clean( $ua, 255 );
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		$wpdb->query(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'agents' ) . ' (ua_hash, ua, cls, state, hits, first_seen, last_seen) VALUES (%s, %s, %s, %s, ' . ( $count ? 1 : 0 ) . ', %d, %d)
-				 ON DUPLICATE KEY UPDATE hits = hits + ' . ( $count ? 1 : 0 ) . ', last_seen = GREATEST(last_seen, VALUES(last_seen))', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+				 ON DUPLICATE KEY UPDATE hits = hits + ' . ( $count ? 1 : 0 ) . ', last_seen = GREATEST(last_seen, VALUES(last_seen))', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 				md5( $ua ),
 				$ua,
 				$cls,
@@ -328,23 +328,23 @@ class Tracker {
 			return array();
 		}
 		$out = array(
-			'@method'         => isset( $_SERVER['REQUEST_METHOD'] ) ? (string) $_SERVER['REQUEST_METHOD'] : 'GET', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-			'@authority'      => isset( $_SERVER['HTTP_HOST'] ) ? strtolower( (string) $_SERVER['HTTP_HOST'] ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			'@method'         => Util::server_field( 'REQUEST_METHOD', 20, 'GET' ),
+			'@authority'      => strtolower( Util::server_field( 'HTTP_HOST', 300 ) ),
 			'@scheme'         => is_ssl() ? 'https' : 'http',
 			'@target-uri'     => '',
-			'@path'           => (string) wp_parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '/' ), PHP_URL_PATH ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-			'@query'          => '?' . (string) wp_parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '/' ), PHP_URL_QUERY ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-			'signature'       => substr( (string) $_SERVER['HTTP_SIGNATURE'], 0, 2000 ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-			'signature-input' => substr( (string) $_SERVER['HTTP_SIGNATURE_INPUT'], 0, 2000 ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-			'signature-agent' => substr( (string) $_SERVER['HTTP_SIGNATURE_AGENT'], 0, 500 ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			'@path'           => (string) wp_parse_url( Util::server_field( 'REQUEST_URI', 2000, '/' ), PHP_URL_PATH ),
+			'@query'          => '?' . (string) wp_parse_url( Util::server_field( 'REQUEST_URI', 2000, '/' ), PHP_URL_QUERY ),
+			'signature'       => Util::server_field( 'HTTP_SIGNATURE', 2000 ),
+			'signature-input' => Util::server_field( 'HTTP_SIGNATURE_INPUT', 2000 ),
+			'signature-agent' => Util::server_field( 'HTTP_SIGNATURE_AGENT', 500 ),
 		);
-		$out['@target-uri'] = $out['@scheme'] . '://' . $out['@authority'] . (string) ( $_SERVER['REQUEST_URI'] ?? '/' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$out['@target-uri'] = $out['@scheme'] . '://' . $out['@authority'] . Util::server_field( 'REQUEST_URI', 2000, '/' );
 		// Any other plain header the signature covers.
 		if ( preg_match_all( '/"([a-z0-9-]+)"/', $out['signature-input'], $mm ) ) {
 			foreach ( array_slice( array_unique( $mm[1] ), 0, 12 ) as $name ) {
 				$key = 'HTTP_' . strtoupper( str_replace( '-', '_', $name ) );
 				if ( ! isset( $out[ $name ] ) && isset( $_SERVER[ $key ] ) ) {
-					$out[ $name ] = substr( (string) $_SERVER[ $key ], 0, 1000 ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+					$out[ $name ] = Util::server_field( $key, 1000 );
 				}
 			}
 		}
@@ -353,9 +353,9 @@ class Tracker {
 
 	/** Remember (at most daily) that crawler requests arrive through an unconfigured proxy. */
 	public static function note_proxy() {
-		if ( ! get_transient( 'rfy_proxy_seen' ) ) {
-			set_transient( 'rfy_proxy_seen', 1, DAY_IN_SECONDS );
-			update_option( 'rfy_proxy_noted', time(), false );
+		if ( ! get_transient( 'rfyai_proxy_seen' ) ) {
+			set_transient( 'rfyai_proxy_seen', 1, DAY_IN_SECONDS );
+			update_option( 'rfyai_proxy_noted', time(), false );
 		}
 	}
 

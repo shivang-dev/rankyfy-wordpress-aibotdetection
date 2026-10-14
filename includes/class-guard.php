@@ -33,9 +33,9 @@ defined( 'ABSPATH' ) || exit;
 
 class Guard {
 
-	const NOTICE = 'rfy_guard_';
-	const LOCK   = 'rfy-guard';
-	const CHOICE = 'rfy_redirect_choice_'; // + post id: the editor's answer for the next save, 'yes' (create a 301) or 'no' (change anyway)
+	const NOTICE = 'rfyai_guard_';
+	const LOCK   = 'rfyai-guard';
+	const CHOICE = 'rfyai_redirect_choice_'; // + post id: the editor's answer for the next save, 'yes' (create a 301) or 'no' (change anyway)
 
 	public static function init() {
 		// After meta is saved, so the editor's redirect choice is known.
@@ -300,14 +300,14 @@ class Guard {
 
 	private static function page_row( $post_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'pages' ) . " WHERE object_type = 'post' AND object_id = %d AND deleted = 0", (int) $post_id ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'pages' ) . " WHERE object_type = 'post' AND object_id = %d AND deleted = 0", (int) $post_id ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 	}
 
 	/** Observed AI crawls of, and AI-assistant visits to, one path. */
 	private static function crawl_history( $path ) {
 		global $wpdb;
 		$hash = Util::url_hash( $path );
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT bot, hits, last_seen FROM ' . Installer::table( 'page_bots' ) . ' WHERE url_hash = %s', $hash ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT bot, hits, last_seen FROM ' . Installer::table( 'page_bots' ) . ' WHERE url_hash = %s', $hash ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		$out  = array( 'hits' => 0, 'last' => 0, 'bots' => array(), 'by_bot' => array(), 'referrals' => 0 );
 		foreach ( (array) $rows as $r ) {
 			$b = Registry::get( $r['bot'] );
@@ -323,7 +323,7 @@ class Guard {
 		} );
 		$out['by_bot']    = array_slice( $out['by_bot'], 0, 6 );
 		$out['bots']      = array_column( $out['by_bot'], 'name' );
-		$out['referrals'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(hits) FROM ' . Installer::table( 'referrals' ) . ' WHERE url_hash = %s AND day >= %s', $hash, wp_date( 'Y-m-d', time() - 30 * DAY_IN_SECONDS ) ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$out['referrals'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(hits) FROM ' . Installer::table( 'referrals' ) . ' WHERE url_hash = %s AND day >= %s', $hash, wp_date( 'Y-m-d', time() - 30 * DAY_IN_SECONDS ) ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		return $out;
 	}
 
@@ -521,8 +521,8 @@ class Guard {
 		if ( '/' === $source ) {
 			return false;
 		}
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
-		return false !== $wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
+		return false !== $wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'redirects' ) . ' (source_hash, source, post_id, reason, created_at) VALUES (%s, %s, %d, %s, %d)
 				 ON DUPLICATE KEY UPDATE post_id = VALUES(post_id), reason = VALUES(reason), created_at = VALUES(created_at)',
@@ -543,7 +543,7 @@ class Guard {
 		}
 		global $wpdb;
 		$t    = Installer::table( 'redirects' );
-		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$uri  = Util::server_field( 'REQUEST_URI', 2000, '/' );
 		$path = Util::normalize_path( $uri );
 		$row  = $wpdb->get_row( $wpdb->prepare( "SELECT id, post_id FROM {$t} WHERE source_hash = %s", Util::url_hash( $path ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( ! $row ) {
@@ -575,7 +575,7 @@ class Guard {
 			static function ( $r ) {
 				return array( 'source' => $r['source'], 'created_at' => (int) $r['created_at'], 'hits' => (int) $r['hits'] );
 			},
-			(array) $wpdb->get_results( $wpdb->prepare( 'SELECT source, created_at, hits FROM ' . Installer::table( 'redirects' ) . ' WHERE post_id = %d ORDER BY created_at DESC LIMIT 20', (int) $post_id ), ARRAY_A ) // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+			(array) $wpdb->get_results( $wpdb->prepare( 'SELECT source, created_at, hits FROM ' . Installer::table( 'redirects' ) . ' WHERE post_id = %d ORDER BY created_at DESC LIMIT 20', (int) $post_id ), ARRAY_A ) // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		);
 	}
 
@@ -619,11 +619,11 @@ class Guard {
 			return;
 		}
 		$file = 'assets/js/guard.js';
-		wp_enqueue_script( 'rfy-guard', RFY_URL . $file, array( 'wp-plugins', 'wp-element', 'wp-components', 'wp-data', 'wp-api-fetch', 'wp-i18n', 'wp-edit-post', 'wp-editor', 'wp-notices' ), RFY_VERSION . '.' . filemtime( RFY_DIR . $file ), true );
-		wp_set_script_translations( 'rfy-guard', 'rankyfy-ai-seo' );
+		wp_enqueue_script( 'rfyai-guard', RFYAI_URL . $file, array( 'wp-plugins', 'wp-element', 'wp-components', 'wp-data', 'wp-api-fetch', 'wp-i18n', 'wp-edit-post', 'wp-editor', 'wp-notices' ), RFYAI_VERSION . '.' . filemtime( RFYAI_DIR . $file ), true );
+		wp_set_script_translations( 'rfyai-guard', 'rankyfy-ai-seo' );
 		wp_localize_script(
-			'rfy-guard',
-			'RFY_GUARD',
+			'rfyai-guard',
+			'RFYAI_GUARD',
 			array(
 				'path' => '/' . Rest::NS . '/guard',
 				'mode' => (string) Settings::get( 'guard_mode' ),
@@ -637,7 +637,7 @@ class Guard {
 			|| ( function_exists( 'use_block_editor_for_post' ) && use_block_editor_for_post( $post ) ) ) {
 			return;
 		}
-		add_meta_box( 'rfy-guard', __( 'AI crawler check', 'rankyfy-ai-seo' ), array( __CLASS__, 'meta_box_render' ), $post_type, 'side', 'high' );
+		add_meta_box( 'rfyai-guard', __( 'AI crawler check', 'rankyfy-ai-seo' ), array( __CLASS__, 'meta_box_render' ), $post_type, 'side', 'high' );
 	}
 
 	public static function meta_box_render( $post ) {
@@ -679,7 +679,7 @@ class Guard {
 		if ( ! $screen || 'post' !== $screen->base || empty( $_GET['post'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
-		$key = self::NOTICE . get_current_user_id() . '_' . (int) $_GET['post']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$key = self::NOTICE . get_current_user_id() . '_' . absint( $_GET['post'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only notice key
 		$res = get_transient( $key );
 		if ( ! is_array( $res ) ) {
 			return;

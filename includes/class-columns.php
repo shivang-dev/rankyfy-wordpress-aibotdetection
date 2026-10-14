@@ -15,14 +15,14 @@ defined( 'ABSPATH' ) || exit;
 
 class Columns {
 
-	const KEY = 'rfy_ai';
+	const KEY = 'rfyai_ai';
 
 	private static $data = null;
 
 	public static function init() {
 		add_action( 'admin_init', array( __CLASS__, 'register' ) );
 		add_filter( 'posts_clauses', array( __CLASS__, 'sort' ), 10, 2 );
-		add_action( 'admin_head-edit.php', array( __CLASS__, 'style' ) );
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'style' ) );
 	}
 
 	public static function register() {
@@ -66,7 +66,7 @@ class Columns {
 		if ( ! $ids ) {
 			return self::$data;
 		}
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT p.object_id, p.aeo_score, COALESCE(SUM(d.hits), 0) hits FROM ' . Installer::table( 'pages' ) . ' p
@@ -103,7 +103,7 @@ class Columns {
 		)[ $level ];
 		/* translators: 1: requests, 2: score, 3: word */
 		$title = null === $score ? sprintf( __( '%s AI crawler requests in 30 days', 'rankyfy-ai-seo' ), number_format_i18n( (int) $r['hits'] ) ) : sprintf( __( '%1$s AI crawler requests in 30 days · readiness %2$d (%3$s)', 'rankyfy-ai-seo' ), number_format_i18n( (int) $r['hits'] ), $score, $word );
-		echo '<span class="rfy-col" title="' . esc_attr( $title ) . '"><i class="rfy-dot rfy-dot-' . esc_attr( $level ) . '" aria-hidden="true"></i>' . esc_html( number_format_i18n( (int) $r['hits'] ) ) . '<span class="screen-reader-text"> ' . esc_html( $title ) . '</span></span>';
+		echo '<span class="rfyai-col" title="' . esc_attr( $title ) . '"><i class="rfyai-dot rfyai-dot-' . esc_attr( $level ) . '" aria-hidden="true"></i>' . esc_html( number_format_i18n( (int) $r['hits'] ) ) . '<span class="screen-reader-text"> ' . esc_html( $title ) . '</span></span>';
 	}
 
 	/** Sort the list by AI crawler requests in the last 30 days. */
@@ -113,13 +113,18 @@ class Columns {
 			return $clauses;
 		}
 		$order              = 'ASC' === strtoupper( (string) $query->get( 'order' ) ) ? 'ASC' : 'DESC';
-		$clauses['join']   .= ' LEFT JOIN ' . Installer::table( 'pages' ) . " rfy_p ON rfy_p.object_type = 'post' AND rfy_p.object_id = {$wpdb->posts}.ID AND rfy_p.deleted = 0"
-			. ' LEFT JOIN (SELECT url_hash, SUM(hits) hits FROM ' . Installer::table( 'daily_pages' ) . $wpdb->prepare( ' WHERE day >= %s', wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ) ) . ' GROUP BY url_hash) rfy_h ON rfy_h.url_hash = rfy_p.url_hash';
-		$clauses['orderby'] = "COALESCE(rfy_h.hits, 0) {$order}, {$wpdb->posts}.post_date DESC";
+		$clauses['join']   .= ' LEFT JOIN ' . Installer::table( 'pages' ) . " rfyai_p ON rfyai_p.object_type = 'post' AND rfyai_p.object_id = {$wpdb->posts}.ID AND rfyai_p.deleted = 0"
+			. ' LEFT JOIN (SELECT url_hash, SUM(hits) hits FROM ' . Installer::table( 'daily_pages' ) . $wpdb->prepare( ' WHERE day >= %s', wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ) ) . ' GROUP BY url_hash) rfyai_h ON rfyai_h.url_hash = rfyai_p.url_hash';
+		$clauses['orderby'] = "COALESCE(rfyai_h.hits, 0) {$order}, {$wpdb->posts}.post_date DESC";
 		return $clauses;
 	}
 
-	public static function style() {
-		echo '<style>.column-rfy_ai{width:64px}.rfy-col{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}.rfy-dot{width:8px;height:8px;border-radius:50%;background:#c3c4c7;display:inline-block}.rfy-dot-good{background:#0ca30c}.rfy-dot-warn{background:#c98500}.rfy-dot-crit{background:#d03b3b}</style>';
+	public static function style( $hook ) {
+		if ( 'edit.php' !== $hook ) {
+			return;
+		}
+		wp_register_style( 'rfyai-columns', false, array(), RFYAI_VERSION );
+		wp_enqueue_style( 'rfyai-columns' );
+		wp_add_inline_style( 'rfyai-columns', '.column-rfyai_ai{width:64px}.rfyai-col{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}.rfyai-dot{width:8px;height:8px;border-radius:50%;background:#c3c4c7;display:inline-block}.rfyai-dot-good{background:#0ca30c}.rfyai-dot-warn{background:#c98500}.rfyai-dot-crit{background:#d03b3b}' );
 	}
 }

@@ -35,8 +35,8 @@ defined( 'ABSPATH' ) || exit;
 
 class Readiness {
 
-	const OPTION = 'rfy_readiness';
-	const STATE  = 'rfy_readiness_state';
+	const OPTION = 'rfyai_readiness';
+	const STATE  = 'rfyai_readiness_state';
 
 	/** id => [group, weight, effort, finding codes] in display order */
 	const CHECKS = array(

@@ -13,6 +13,42 @@ defined( 'ABSPATH' ) || exit;
 class Util {
 
 	/**
+	 * A $_SERVER value as plain text: unslashed, sanitized, length-capped.
+	 * For values that only inform (a referer, a host name).
+	 */
+	public static function server_text( $key, $max = 1000, $default = '' ) {
+		if ( ! isset( $_SERVER[ $key ] ) ) {
+			return $default;
+		}
+		$v = substr( sanitize_text_field( wp_unslash( (string) $_SERVER[ $key ] ) ), 0, $max );
+		return '' === $v ? $default : $v;
+	}
+
+	/**
+	 * A $_SERVER value sanitized to printable ASCII, spacing kept: HTTP header
+	 * values are printable ASCII by RFC 9110, and signature verification
+	 * (RFC 9421) needs the exact spacing sanitize_text_field() would collapse.
+	 * Every other byte is dropped; a value a middlebox mangled then simply
+	 * fails verification, which is the safe direction.
+	 */
+	public static function server_field( $key, $max = 1000, $default = '' ) {
+		if ( ! isset( $_SERVER[ $key ] ) ) {
+			return $default;
+		}
+		$v = substr( (string) preg_replace( '/[^\x20-\x7E]/', '', wp_unslash( (string) $_SERVER[ $key ] ) ), 0, $max ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- the preg_replace on this line is the sanitizer: printable ASCII only, exact spacing kept for RFC 9421 signature verification
+		return '' === $v ? $default : $v;
+	}
+
+	/** A $_SERVER value that must be an IP address; '' otherwise. */
+	public static function server_ip( $key ) {
+		if ( empty( $_SERVER[ $key ] ) ) {
+			return '';
+		}
+		$v = trim( wp_unslash( (string) $_SERVER[ $key ] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated on the next line
+		return false === filter_var( $v, FILTER_VALIDATE_IP ) ? '' : $v;
+	}
+
+	/**
 	 * Make an untrusted string safe to store and to show: valid UTF-8, no
 	 * control characters (so a crafted user agent cannot forge log lines or
 	 * break a CSV export), bounded length.
@@ -113,7 +149,7 @@ class Util {
 	private static $forwarded = null;
 
 	public static function cloudflare_ranges() {
-		$r = get_option( 'rfy_cf_ranges' );
+		$r = get_option( 'rfyai_cf_ranges' );
 		return is_array( $r ) && count( $r ) >= 10 ? $r : self::CLOUDFLARE;
 	}
 
@@ -144,14 +180,13 @@ class Util {
 
 	public static function client_ip() {
 		self::$forwarded = false;
-		$remote = isset( $_SERVER['REMOTE_ADDR'] ) ? trim( (string) $_SERVER['REMOTE_ADDR'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-		$remote = filter_var( $remote, FILTER_VALIDATE_IP ) ? $remote : '';
+		$remote = self::server_ip( 'REMOTE_ADDR' );
 		$header = Settings::get( 'proxy_header' );
 		// Cloudflare needs no setup: its header is used only when the connection
 		// really comes from Cloudflare's published ranges, so it cannot be forged.
 		if ( ! $header && $remote && ! empty( $_SERVER['HTTP_CF_CONNECTING_IP'] ) ) {
-			$cf = trim( (string) $_SERVER['HTTP_CF_CONNECTING_IP'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-			if ( filter_var( $cf, FILTER_VALIDATE_IP ) && self::ip_in_list( $remote, self::cloudflare_ranges() ) ) {
+			$cf = self::server_ip( 'HTTP_CF_CONNECTING_IP' );
+			if ( '' !== $cf && self::ip_in_list( $remote, self::cloudflare_ranges() ) ) {
 				self::$forwarded = true;
 				return $cf;
 			}
@@ -161,7 +196,7 @@ class Util {
 			if ( $trusted && self::ip_in_list( $remote, preg_split( '/\s+/', $trusted ) ) ) {
 				$key = 'HTTP_' . strtoupper( str_replace( '-', '_', $header ) );
 				if ( ! empty( $_SERVER[ $key ] ) ) {
-					$parts = explode( ',', (string) $_SERVER[ $key ] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+					$parts = explode( ',', self::server_field( $key, 500 ) );
 					// X-Forwarded-For: the right-most address not added by our own proxies is the client.
 					$parts = array_reverse( array_map( 'trim', $parts ) );
 					foreach ( $parts as $cand ) {
@@ -236,7 +271,7 @@ class Util {
 
 	/** Keyed hash of an address: groups requests from one address without storing it. */
 	public static function ip_hash( $ip ) {
-		return substr( hash_hmac( 'sha256', (string) $ip, (string) get_option( 'rfy_secret' ) ), 0, 16 );
+		return substr( hash_hmac( 'sha256', (string) $ip, (string) get_option( 'rfyai_secret' ) ), 0, 16 );
 	}
 
 	public static function now() {

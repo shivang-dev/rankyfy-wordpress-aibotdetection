@@ -75,7 +75,7 @@ function test_rest_never_returns_addresses_or_secrets() {
 	$a    = t_admin();
 	$json = wp_json_encode( array( t_rest( 'GET', '/bots/gptbot', array(), $a )->get_data(), t_rest( 'GET', '/status', array(), $a )->get_data(), t_rest( 'GET', '/settings', array(), $a )->get_data() ) );
 	t_ok( false === strpos( $json, '20.171.206.99' ), 'full address never exposed' );
-	t_ok( false === strpos( $json, (string) get_option( 'rfy_secret' ) ), 'site secret never exposed' );
+	t_ok( false === strpos( $json, (string) get_option( 'rfyai_secret' ) ), 'site secret never exposed' );
 }
 
 function test_rate_limit() {
@@ -84,9 +84,9 @@ function test_rate_limit() {
 		return 'write' === $action ? 3 : $max;
 	};
 	global $wpdb;
-	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_%rfy\\_rl\\_%'" );
+	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_%rfyai\\_rl\\_%'" );
 	wp_cache_flush();
-	add_filter( 'rfy_rate_limit', $f, 10, 2 );
+	add_filter( 'rfyai_rate_limit', $f, 10, 2 );
 	try {
 		$codes = array();
 		for ( $i = 0; $i < 5; $i++ ) {
@@ -94,9 +94,9 @@ function test_rate_limit() {
 		}
 		t_eq( array( 200, 200, 200, 429, 429 ), $codes );
 	} finally {
-		remove_filter( 'rfy_rate_limit', $f, 10 );
+		remove_filter( 'rfyai_rate_limit', $f, 10 );
 		global $wpdb;
-		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_%rfy\\_rl\\_%'" );
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_%rfyai\\_rl\\_%'" );
 		wp_cache_flush();
 	}
 }
@@ -139,7 +139,7 @@ function test_backend_unavailable_degrades_gracefully() {
 	if ( ! class_exists( '\Rankyfy\Auth' ) ) {
 		$r = RankyfyAIB\Rankyfy::analyze_page( 1 );
 		t_ok( is_wp_error( $r ) );
-		t_eq( 'rfy_not_connected', $r->get_error_code() );
+		t_eq( 'rfyai_not_connected', $r->get_error_code() );
 	}
 }
 
@@ -171,9 +171,9 @@ function test_activation_upgrade_and_uninstall() {
 	global $wpdb;
 	t_hit( 'GPTBot/1.4', '192.0.2.1', '/keep-me/' );
 	// Upgrade: an older schema version triggers dbDelta and keeps data.
-	update_option( 'rfy_db_version', '0' );
+	update_option( 'rfyai_db_version', '0' );
 	RankyfyAIB\Installer::maybe_upgrade();
-	t_eq( RFY_DB_VERSION, get_option( 'rfy_db_version' ) );
+	t_eq( RFYAI_DB_VERSION, get_option( 'rfyai_db_version' ) );
 	t_eq( 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Installer::table( 'events' ) ), 'data survives an upgrade' );
 	// Deactivation clears the schedule; activation restores it.
 	RankyfyAIB\Installer::deactivate();
@@ -181,25 +181,25 @@ function test_activation_upgrade_and_uninstall() {
 	RankyfyAIB\Installer::activate();
 	t_ok( (bool) wp_next_scheduled( RankyfyAIB\Worker::HOOK ) );
 	// Autoloaded request-path options exist (a missing option costs a query per page view).
-	$autoload = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'rfy\\_%' AND autoload IN ('yes','on','auto-on','auto')" );
-	foreach ( array( 'rfy_settings', 'rfy_matcher', 'rfy_throttle', 'rfy_iponly', 'rfy_db_version', 'rfy_secret' ) as $o ) {
+	$autoload = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'rfyai\\_%' AND autoload IN ('yes','on','auto-on','auto')" );
+	foreach ( array( 'rfyai_settings', 'rfyai_matcher', 'rfyai_throttle', 'rfyai_iponly', 'rfyai_db_version', 'rfyai_secret' ) as $o ) {
 		t_ok( in_array( $o, $autoload, true ), "$o autoloaded" );
 	}
-	$big = $wpdb->get_var( "SELECT SUM(LENGTH(option_value)) FROM {$wpdb->options} WHERE option_name LIKE 'rfy\\_%' AND autoload IN ('yes','on','auto-on','auto')" );
+	$big = $wpdb->get_var( "SELECT SUM(LENGTH(option_value)) FROM {$wpdb->options} WHERE option_name LIKE 'rfyai\\_%' AND autoload IN ('yes','on','auto-on','auto')" );
 	t_ok( (int) $big < 40000, 'autoloaded footprint stays small (' . (int) $big . ' bytes)' );
 }
 
 function test_uninstall_removes_everything() {
 	// Run uninstall.php in a child process so this process keeps its tables.
 	global $wpdb;
-	$basename = plugin_basename( RFY_FILE );
-	$cmd = 'cd ' . escapeshellarg( ABSPATH ) . ' && wp eval ' . escapeshellarg( 'define( "WP_UNINSTALL_PLUGIN", "' . $basename . '" ); include WP_PLUGIN_DIR . "/' . dirname( $basename ) . '/uninstall.php"; global $wpdb; echo (int) $wpdb->get_var( "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE \'" . $wpdb->prefix . "rfy\\\\_%\'" ), "|", (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE \'rfy\\\\_%\'" );' ) . ' 2>&1';
+	$basename = plugin_basename( RFYAI_FILE );
+	$cmd = 'cd ' . escapeshellarg( ABSPATH ) . ' && wp eval ' . escapeshellarg( 'define( "WP_UNINSTALL_PLUGIN", "' . $basename . '" ); include WP_PLUGIN_DIR . "/' . dirname( $basename ) . '/uninstall.php"; global $wpdb; echo (int) $wpdb->get_var( "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE \'" . $wpdb->prefix . "rfyai\\\\_%\'" ), "|", (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE \'rfyai\\\\_%\'" );' ) . ' 2>&1';
 	$out = trim( (string) shell_exec( $cmd ) );
 	t_eq( '0|0', substr( $out, -3 ), 'tables and options removed: ' . $out );
 	// Put everything back for the rest of the suite.
 	wp_cache_flush();
 	RankyfyAIB\Installer::activate();
-	update_option( 'rfy_worker_lock', time(), false ); // the child process removed the test's lock with every other option
+	update_option( 'rfyai_worker_lock', time(), false ); // the child process removed the test's lock with every other option
 	RankyfyAIB\Registry::compile();
 	t_ok( RankyfyAIB\Installer::ready() );
 }

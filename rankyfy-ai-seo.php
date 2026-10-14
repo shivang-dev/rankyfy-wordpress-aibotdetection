@@ -16,11 +16,11 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'RFY_VERSION', '1.1.0' );
-define( 'RFY_DB_VERSION', '4' );
-define( 'RFY_FILE', __FILE__ );
-define( 'RFY_DIR', plugin_dir_path( __FILE__ ) );
-define( 'RFY_URL', plugin_dir_url( __FILE__ ) );
+define( 'RFYAI_VERSION', '1.1.0' );
+define( 'RFYAI_DB_VERSION', '4' );
+define( 'RFYAI_FILE', __FILE__ );
+define( 'RFYAI_DIR', plugin_dir_path( __FILE__ ) );
+define( 'RFYAI_URL', plugin_dir_url( __FILE__ ) );
 
 spl_autoload_register(
 	static function ( $class ) {
@@ -28,7 +28,7 @@ spl_autoload_register(
 			return;
 		}
 		$name = strtolower( str_replace( '_', '-', substr( $class, strlen( 'RankyfyAIB\\' ) ) ) );
-		$file = RFY_DIR . 'includes/class-' . $name . '.php';
+		$file = RFYAI_DIR . 'includes/class-' . $name . '.php';
 		if ( is_readable( $file ) ) {
 			require_once $file;
 		}

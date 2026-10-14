@@ -311,7 +311,7 @@ class Analyzer {
 			'_text'            => '',
 			'_links'           => array(),
 		);
-		$doc = self::dom( '<div id="rfy-root">' . $html . '</div>' );
+		$doc = self::dom( '<div id="rfyai-root">' . $html . '</div>' );
 		if ( ! $doc ) {
 			$text       = wp_strip_all_tags( $html );
 			$f['words'] = Text::word_count( $text );
@@ -319,7 +319,7 @@ class Analyzer {
 			return $f;
 		}
 		$xp   = new \DOMXPath( $doc );
-		$root = $xp->query( '//*[@id="rfy-root"]' )->item( 0 );
+		$root = $xp->query( '//*[@id="rfyai-root"]' )->item( 0 );
 		foreach ( array( 'script', 'style', 'noscript' ) as $tag ) {
 			foreach ( iterator_to_array( $root->getElementsByTagName( $tag ) ) as $el ) {
 				$el->parentNode->removeChild( $el );
@@ -536,8 +536,8 @@ class Analyzer {
 	/** Key terms of a page, ranked by TF-IDF against the site. */
 	public static function key_terms( $page_id, $limit = 12 ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
-			$wpdb->prepare( 'SELECT pt.term, pt.weight, COALESCE(t.df, 0) df FROM ' . Installer::table( 'page_terms' ) . ' pt LEFT JOIN ' . Installer::table( 'terms' ) . ' t ON t.term = pt.term WHERE pt.page_id = %d', $page_id ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$rows = $wpdb->get_results( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
+			$wpdb->prepare( 'SELECT pt.term, pt.weight, COALESCE(t.df, 0) df FROM ' . Installer::table( 'page_terms' ) . ' pt LEFT JOIN ' . Installer::table( 'terms' ) . ' t ON t.term = pt.term WHERE pt.page_id = %d', $page_id ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			ARRAY_A
 		);
 		$counts = array();

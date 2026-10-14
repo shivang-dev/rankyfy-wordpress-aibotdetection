@@ -2,28 +2,28 @@
 /**
  * Test runner. Runs inside a disposable WordPress with the plugin active:
  *
- *   RFY_ALLOW_DESTRUCTIVE_TESTS=1 wp eval-file wp-content/plugins/aibotdetection/tests/run.php [filter]
+ *   RFYAI_ALLOW_DESTRUCTIVE_TESTS=1 wp eval-file wp-content/plugins/aibotdetection/tests/run.php [filter]
  *
  * It truncates the plugin's tables between tests — never point it at a real site.
  *
  * @package RankyfyAIB
  */
 
-if ( '1' !== getenv( 'RFY_ALLOW_DESTRUCTIVE_TESTS' ) ) {
-	fwrite( STDERR, "Refusing to run: set RFY_ALLOW_DESTRUCTIVE_TESTS=1 (this wipes the plugin's data).\n" );
+if ( '1' !== getenv( 'RFYAI_ALLOW_DESTRUCTIVE_TESTS' ) ) {
+	fwrite( STDERR, "Refusing to run: set RFYAI_ALLOW_DESTRUCTIVE_TESTS=1 (this wipes the plugin's data).\n" );
 	exit( 1 );
 }
 
-class RFY_Assert_Failed extends Exception {}
+class RFYAI_Assert_Failed extends Exception {}
 
 function t_ok( $cond, $msg = 'assertion failed' ) {
 	if ( ! $cond ) {
-		throw new RFY_Assert_Failed( $msg );
+		throw new RFYAI_Assert_Failed( $msg );
 	}
 }
 function t_eq( $expected, $actual, $msg = '' ) {
 	if ( $expected !== $actual ) {
-		throw new RFY_Assert_Failed( ( $msg ? $msg . ': ' : '' ) . 'expected ' . var_export( $expected, true ) . ', got ' . var_export( $actual, true ) );
+		throw new RFYAI_Assert_Failed( ( $msg ? $msg . ': ' : '' ) . 'expected ' . var_export( $expected, true ) . ', got ' . var_export( $actual, true ) );
 	}
 }
 
@@ -33,11 +33,11 @@ function t_reset() {
 	foreach ( RankyfyAIB\Installer::TABLES as $t ) {
 		$wpdb->query( 'TRUNCATE ' . RankyfyAIB\Installer::table( $t ) ); // phpcs:ignore
 	}
-	update_option( 'rfy_agg_watermark', '0', false );
+	update_option( 'rfyai_agg_watermark', '0', false );
 	update_option( RankyfyAIB\Tracker::THROTTLE, array(), true );
 	// Hold the worker lock so the site's own WP-Cron run cannot work on the
 	// tables while a test truncates and fills them.
-	update_option( 'rfy_worker_lock', time(), false );
+	update_option( 'rfyai_worker_lock', time(), false );
 	delete_option( RankyfyAIB\Alerts::BASELINE );
 	update_option( RankyfyAIB\Settings::OPTION, array(), true );
 	RankyfyAIB\Ranges::purge_all();
@@ -104,7 +104,7 @@ foreach ( get_defined_functions()['user'] as $fn ) {
 }
 printf( "\n%d passed, %d failed in %.1fs\n", $pass, $fail, microtime( true ) - $start );
 t_reset();
-delete_option( 'rfy_worker_lock' );
+delete_option( 'rfyai_worker_lock' );
 if ( $fail ) {
 	exit( 1 );
 }

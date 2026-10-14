@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Aggregator {
 
-	const WATERMARK   = 'rfy_agg_watermark';
+	const WATERMARK   = 'rfyai_agg_watermark';
 	const CHUNK       = 5000;
 	const SESSION_GAP = 1800;     // 30 minutes without a request ends a crawl session
 	const SESSION_MAX = 6 * 3600; // a crawler that never pauses starts a new session every 6 hours
@@ -88,7 +88,7 @@ class Aggregator {
 			$wm = $hi;
 		}
 		if ( $total ) {
-			update_option( 'rfy_agg_last', time(), false );
+			update_option( 'rfyai_agg_last', time(), false );
 			Analytics::bust();
 		}
 		return $total;
@@ -121,7 +121,7 @@ class Aggregator {
 		$genuine = "cls IN ('ai','search')";
 
 		// What is new — read before the upserts change the answer.
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		$new_bots = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT DISTINCT ev.bot FROM {$e} ev LEFT JOIN " . Installer::table( 'bots_seen' ) . " s ON s.bot = ev.bot
@@ -135,7 +135,7 @@ class Aggregator {
 		foreach ( (array) $new_bots as $b ) {
 			self::$new_bots[ $b ] = true;
 		}
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		$firsts = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT ev.url_hash, ev.bot, MIN(ev.ts) AS ts, MAX(ev.path) AS path FROM {$e} ev
@@ -154,7 +154,7 @@ class Aggregator {
 		}
 
 		// Day × bot × page.
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'daily' ) . " (day, bot, url_hash, path, object_id, hits, errors, ms_total, ms_max, last_status)
@@ -172,7 +172,7 @@ class Aggregator {
 		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
 		// Day × page totals for AI crawlers (what page lists sum over a date range).
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'daily_pages' ) . " (day, url_hash, hits, errors, ms_total)
@@ -186,7 +186,7 @@ class Aggregator {
 		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
 		// Day × bot totals (impersonations counted under the bot they claimed).
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'daily_bots' ) . " (day, bot, hits, verified, spoofed, errors, ms_total)
@@ -203,7 +203,7 @@ class Aggregator {
 		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
 		// First and last crawl per page × bot.
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'page_bots' ) . " (url_hash, bot, path, object_id, first_seen, last_seen, hits, last_status)
@@ -222,7 +222,7 @@ class Aggregator {
 		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
 		// First and last visit per bot.
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		self::exec(
 			$wpdb->prepare(
 				'INSERT INTO ' . Installer::table( 'bots_seen' ) . " (bot, first_seen, last_seen, hits, verified, spoofed)
@@ -245,7 +245,7 @@ class Aggregator {
 		);
 		self::check();
 		foreach ( (array) $spoofed as $r ) {
-			self::exec( $wpdb->prepare( 'UPDATE ' . Installer::table( 'bots_seen' ) . ' SET spoofed = spoofed + %d WHERE bot = %s', (int) $r['c'], $r['bot'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+			self::exec( $wpdb->prepare( 'UPDATE ' . Installer::table( 'bots_seen' ) . ' SET spoofed = spoofed + %d WHERE bot = %s', (int) $r['c'], $r['bot'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		}
 
 		self::sessions( $lo, $hi );
@@ -377,7 +377,7 @@ class Aggregator {
 		$sess    = time() - DAY_IN_SECONDS * (int) Settings::get( 'retention_sessions' );
 
 		for ( $i = 0; $i < 20; $i++ ) {
-			$n = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'events' ) . ' WHERE ts < %d AND id <= %d LIMIT 5000', $events, $wm ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+			$n = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'events' ) . ' WHERE ts < %d AND id <= %d LIMIT 5000', $events, $wm ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			if ( $n < 5000 ) {
 				break;
 			}
@@ -385,13 +385,13 @@ class Aggregator {
 		foreach ( array( 'daily', 'daily_pages', 'daily_bots', 'referrals' ) as $t ) {
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( $t ) . ' WHERE day < %s LIMIT 50000', $history ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		}
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'snapshots' ) . ' WHERE day < %s', $history ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'sessions' ) . ' WHERE ended < %d LIMIT 50000', $sess ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'agents' ) . " WHERE last_seen < %d AND state IN ('new','ignored')", time() - 180 * DAY_IN_SECONDS ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'alerts' ) . ' WHERE created_at < %d', time() - 180 * DAY_IN_SECONDS ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'findings' ) . " WHERE status = 'resolved' AND resolved_at < %d", time() - 365 * DAY_IN_SECONDS ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'snapshots' ) . ' WHERE day < %s', $history ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'sessions' ) . ' WHERE ended < %d LIMIT 50000', $sess ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'agents' ) . " WHERE last_seen < %d AND state IN ('new','ignored')", time() - 180 * DAY_IN_SECONDS ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'alerts' ) . ' WHERE created_at < %d', time() - 180 * DAY_IN_SECONDS ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'findings' ) . " WHERE status = 'resolved' AND resolved_at < %d", time() - 365 * DAY_IN_SECONDS ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		// Page × bot rows for pages no bot has touched within the history window.
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'page_bots' ) . ' WHERE last_seen < %d LIMIT 50000', time() - DAY_IN_SECONDS * (int) Settings::get( 'retention_history' ) ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'page_bots' ) . ' WHERE last_seen < %d LIMIT 50000', time() - DAY_IN_SECONDS * (int) Settings::get( 'retention_history' ) ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 		Verifier::prune();
 	}
 }

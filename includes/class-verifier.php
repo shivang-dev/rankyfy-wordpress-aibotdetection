@@ -32,10 +32,10 @@ class Verifier {
 		global $wpdb;
 		$k = $bot . '|' . $ip_hash;
 		if ( ! array_key_exists( $k, self::$cache ) ) {
-			self::$cache[ $k ] = $wpdb->get_var( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+			self::$cache[ $k ] = $wpdb->get_var( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 				$wpdb->prepare(
 					// A pass is trusted for a week; a failure only for a day (it may have been a DNS hiccup).
-					'SELECT verdict FROM ' . Installer::table( 'ip_verdicts' ) . " WHERE ip_hash = %s AND bot = %s AND checked_at > IF(verdict = 'failed', %d, %d)", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+					'SELECT verdict FROM ' . Installer::table( 'ip_verdicts' ) . " WHERE ip_hash = %s AND bot = %s AND checked_at > IF(verdict = 'failed', %d, %d)", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 					$ip_hash,
 					$bot,
 					time() - DAY_IN_SECONDS,
@@ -52,9 +52,9 @@ class Verifier {
 
 	public static function enqueue( $kind, $event_id, $bot, $ip, $ip_hash, array $payload = array() ) {
 		global $wpdb;
-		$wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$wpdb->query( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			$wpdb->prepare(
-				'INSERT IGNORE INTO ' . Installer::table( 'verify_queue' ) . ' (event_id, kind, bot, ip, ip_hash, payload, created_at) VALUES (%d, %s, %s, %s, %s, %s, %d)', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+				'INSERT IGNORE INTO ' . Installer::table( 'verify_queue' ) . ' (event_id, kind, bot, ip, ip_hash, payload, created_at) VALUES (%d, %s, %s, %s, %s, %s, %d)', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 				'sig' === $kind ? $event_id : 0,
 				$kind,
 				$bot,
@@ -180,7 +180,7 @@ class Verifier {
 
 	/** PTR name; '' when none exists; null on a lookup failure worth retrying. */
 	protected static function reverse( $ip ) {
-		$filtered = apply_filters( 'rfy_reverse_dns', null, $ip ); // tests and unusual hosts
+		$filtered = apply_filters( 'rfyai_reverse_dns', null, $ip ); // tests and unusual hosts
 		if ( null !== $filtered ) {
 			return (string) $filtered;
 		}
@@ -209,7 +209,7 @@ class Verifier {
 	}
 
 	protected static function forward( $host, $ip ) {
-		$filtered = apply_filters( 'rfy_forward_dns', null, $host );
+		$filtered = apply_filters( 'rfyai_forward_dns', null, $host );
 		if ( is_array( $filtered ) ) {
 			return $filtered;
 		}
@@ -327,11 +327,11 @@ class Verifier {
 
 	/** Ed25519 public keys (raw 32 bytes) published by a signing agent, keyed by thumbprint and kid. */
 	protected static function directory_keys( $host ) {
-		$filtered = apply_filters( 'rfy_signature_keys', null, $host );
+		$filtered = apply_filters( 'rfyai_signature_keys', null, $host );
 		if ( is_array( $filtered ) ) {
 			return $filtered;
 		}
-		$cache_key = 'rfy_sigdir_' . md5( $host );
+		$cache_key = 'rfyai_sigdir_' . md5( $host );
 		$cached    = get_transient( $cache_key );
 		if ( is_array( $cached ) ) {
 			return $cached;
@@ -339,6 +339,14 @@ class Verifier {
 		if ( ! Settings::get( 'remote_updates' ) ) {
 			return array(); // no remote fetches without the opt-in; the request stays "user agent only"
 		}
+		// The host comes from the request's own Signature-Agent header, so cap how many
+		// new directories are fetched per hour: a flood of unique fake hosts must not
+		// turn this site into a scanner. Not cached, so real agents are retried later.
+		$budget = (int) get_transient( 'rfyai_sigdir_budget' );
+		if ( $budget >= 30 ) {
+			return array();
+		}
+		set_transient( 'rfyai_sigdir_budget', $budget + 1, HOUR_IN_SECONDS );
 		$res  = wp_safe_remote_get(
 			'https://' . $host . '/.well-known/http-message-signatures-directory',
 			array(
@@ -436,6 +444,6 @@ class Verifier {
 	/** Housekeeping: verdicts are re-checked after a week. */
 	public static function prune() {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'ip_verdicts' ) . ' WHERE checked_at < %d', time() - 2 * self::VERDICT_TTL ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Installer::table( 'ip_verdicts' ) . ' WHERE checked_at < %d', time() - 2 * self::VERDICT_TTL ) ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 	}
 }

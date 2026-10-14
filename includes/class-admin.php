@@ -18,8 +18,8 @@ class Admin {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'wp_dashboard_setup', array( __CLASS__, 'widget' ) );
-		add_action( 'admin_post_rfy_export', array( __CLASS__, 'export' ) );
-		add_filter( 'plugin_action_links_' . plugin_basename( RFY_FILE ), array( __CLASS__, 'action_links' ) );
+		add_action( 'admin_post_rfyai_export', array( __CLASS__, 'export' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( RFYAI_FILE ), array( __CLASS__, 'action_links' ) );
 		add_action( 'admin_init', array( __CLASS__, 'privacy_text' ) );
 	}
 
@@ -34,10 +34,10 @@ class Admin {
 	}
 
 	private static function unread() {
-		$n = get_transient( 'rfy_unread' );
+		$n = get_transient( 'rfyai_unread' );
 		if ( false === $n ) {
 			$n = Installer::ready() ? Alerts::unread_count() : 0;
-			set_transient( 'rfy_unread', $n, 5 * MINUTE_IN_SECONDS );
+			set_transient( 'rfyai_unread', $n, 5 * MINUTE_IN_SECONDS );
 		}
 		return (int) $n;
 	}
@@ -89,33 +89,33 @@ class Admin {
 	}
 
 	public static function render() {
-		echo '<div class="wrap rfy-wrap"><h1 class="screen-reader-text">' . esc_html__( 'RankyFy AI SEO', 'rankyfy-ai-seo' ) . '</h1><hr class="wp-header-end"><div id="rfy-app" class="rfy-app" aria-live="polite"><p class="rfy-boot">' . esc_html__( 'Loading…', 'rankyfy-ai-seo' ) . '</p></div></div>';
+		echo '<div class="wrap rfyai-wrap"><h1 class="screen-reader-text">' . esc_html__( 'RankyFy AI SEO', 'rankyfy-ai-seo' ) . '</h1><hr class="wp-header-end"><div id="rfyai-app" class="rfyai-app" aria-live="polite"><p class="rfyai-boot">' . esc_html__( 'Loading…', 'rankyfy-ai-seo' ) . '</p></div></div>';
 	}
 
 	private static function version( $file ) {
-		$path = RFY_DIR . $file;
-		return RFY_VERSION . '.' . ( is_readable( $path ) ? filemtime( $path ) : 0 );
+		$path = RFYAI_DIR . $file;
+		return RFYAI_VERSION . '.' . ( is_readable( $path ) ? filemtime( $path ) : 0 );
 	}
 
 	public static function assets( $hook ) {
 		if ( 'toplevel_page_' . self::SLUG !== $hook ) {
 			return;
 		}
-		wp_enqueue_style( 'rfy-admin', RFY_URL . 'assets/css/admin.css', array(), self::version( 'assets/css/admin.css' ) );
-		wp_enqueue_script( 'rfy-admin', RFY_URL . 'assets/js/admin.js', array( 'wp-i18n' ), self::version( 'assets/js/admin.js' ), true );
-		wp_set_script_translations( 'rfy-admin', 'rankyfy-ai-seo' );
+		wp_enqueue_style( 'rfyai-admin', RFYAI_URL . 'assets/css/admin.css', array(), self::version( 'assets/css/admin.css' ) );
+		wp_enqueue_script( 'rfyai-admin', RFYAI_URL . 'assets/js/admin.js', array( 'wp-i18n' ), self::version( 'assets/js/admin.js' ), true );
+		wp_set_script_translations( 'rfyai-admin', 'rankyfy-ai-seo' );
 		wp_localize_script(
-			'rfy-admin',
-			'RFY',
+			'rfyai-admin',
+			'RFYAI',
 			array(
 				'root'      => esc_url_raw( rest_url( Rest::NS ) ),
 				'nonce'     => wp_create_nonce( 'wp_rest' ),
 				'adminUrl'  => admin_url( 'admin.php?page=' . self::SLUG ),
-				'exportUrl' => wp_nonce_url( admin_url( 'admin-post.php?action=rfy_export' ), 'rfy_export' ),
-				'workerUrl' => RFY_URL . 'assets/js/log-worker.js?ver=' . rawurlencode( self::version( 'assets/js/log-worker.js' ) ),
+				'exportUrl' => wp_nonce_url( admin_url( 'admin-post.php?action=rfyai_export' ), 'rfyai_export' ),
+				'workerUrl' => RFYAI_URL . 'assets/js/log-worker.js?ver=' . rawurlencode( self::version( 'assets/js/log-worker.js' ) ),
 				'siteUrl'   => home_url( '/' ),
 				'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
-				'version'   => RFY_VERSION,
+				'version'   => RFYAI_VERSION,
 				'slug'      => self::SLUG,
 				'importBatch' => Importer::BATCH,
 			)
@@ -126,13 +126,13 @@ class Admin {
 		if ( ! current_user_can( Rest::capability() ) || ! Installer::ready() ) {
 			return;
 		}
-		wp_add_dashboard_widget( 'rfy_widget', __( 'AI crawlers — last 7 days', 'rankyfy-ai-seo' ), array( __CLASS__, 'widget_render' ) );
+		wp_add_dashboard_widget( 'rfyai_widget', __( 'AI crawlers — last 7 days', 'rankyfy-ai-seo' ), array( __CLASS__, 'widget_render' ) );
 	}
 
 	public static function widget_render() {
 		$o   = Analytics::overview( 7 );
 		$obs = $o['observed'];
-		echo '<ul class="rfy-widget">';
+		echo '<ul class="rfyai-widget">';
 		/* translators: %s: number */
 		echo '<li>' . esc_html( sprintf( __( '%s requests from AI crawlers', 'rankyfy-ai-seo' ), number_format_i18n( $obs['ai_requests'] ) ) ) . '</li>';
 		/* translators: %s: number */
@@ -158,7 +158,7 @@ class Admin {
 		if ( ! current_user_can( Rest::capability() ) ) {
 			wp_die( esc_html__( 'You are not allowed to do this.', 'rankyfy-ai-seo' ), '', array( 'response' => 403 ) );
 		}
-		check_admin_referer( 'rfy_export' );
+		check_admin_referer( 'rfyai_export' );
 		$ok = Rate_Limiter::hit( 'export' );
 		if ( is_wp_error( $ok ) ) {
 			wp_die( esc_html( $ok->get_error_message() ), '', array( 'response' => 429 ) );
@@ -176,7 +176,7 @@ class Admin {
 		};
 		if ( 'referrals' === $type ) {
 			$put( array( 'landing_page', 'engine', 'visits_' . $days . 'd' ) );
-			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT MAX(path) path, source, SUM(hits) h FROM ' . Installer::table( 'referrals' ) . ' WHERE day >= %s GROUP BY url_hash, source ORDER BY h DESC LIMIT 100000', wp_date( 'Y-m-d', time() - ( $days - 1 ) * DAY_IN_SECONDS ) ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT MAX(path) path, source, SUM(hits) h FROM ' . Installer::table( 'referrals' ) . ' WHERE day >= %s GROUP BY url_hash, source ORDER BY h DESC LIMIT 100000', wp_date( 'Y-m-d', time() - ( $days - 1 ) * DAY_IN_SECONDS ) ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 			foreach ( (array) $rows as $r ) {
 				$put( array( $r['path'], Registry::referrer_name( $r['source'] ), $r['h'] ) );
 			}
@@ -199,7 +199,7 @@ class Admin {
 			$last = PHP_INT_MAX;
 			$from = time() - $days * DAY_IN_SECONDS;
 			for ( $i = 0; $i < 200; $i++ ) {
-				$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'events' ) . ' WHERE id < %d AND ts >= %d ORDER BY id DESC LIMIT 5000', $last, $from ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfy_ prefix (Installer::table), never from user input
+				$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Installer::table( 'events' ) . ' WHERE id < %d AND ts >= %d ORDER BY id DESC LIMIT 5000', $last, $from ), ARRAY_A ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.NotPrepared -- table names come from the fixed rfyai_ prefix (Installer::table), never from user input
 				if ( ! $rows ) {
 					break;
 				}
