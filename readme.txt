@@ -128,7 +128,7 @@ Requires WP-Cron running (the WordPress default), or a server cron calling `wp-c
 
 = What is AI SEO? =
 
-AI SEO (also called GEO, generative engine optimization, or AEO, answer engine optimization) is making your content findable and usable by AI systems — ChatGPT, Perplexity, Gemini, Claude, Copilot and Google's AI Overviews — the way classic SEO does for search engines. In practice that means letting the right AI crawlers in, structuring content so an assistant can lift an answer from it, and measuring what AI actually reads and sends back. This plugin covers exactly that, with real data from your own site.
+AI SEO — also called GEO (generative engine optimization), AEO (answer engine optimization), LLM SEO or AI visibility — is making your content findable and usable by AI systems — ChatGPT, Perplexity, Gemini, Claude, Copilot and Google's AI Overviews — the way classic SEO does for search engines. In practice that means letting the right AI crawlers in, structuring content so an assistant can lift an answer from it, and measuring what AI actually reads and sends back. This plugin covers exactly that, with real data from your own site.
 
 = How do I know if ChatGPT or other AI bots visit my WordPress site? =
 
@@ -137,6 +137,18 @@ Install and activate — the dashboard starts listing every AI crawler request w
 = What is llms.txt, and do I need one? =
 
 llms.txt is a proposed standard: a Markdown file at your site root that gives AI systems a curated list of your most important pages with short descriptions. It is low-effort and risk-free — this plugin generates it from the pages AI crawlers actually read, keeps it current, and serves it only after you switch it on. ai.txt (your training policy) and llms-full.txt are included.
+
+= What is the difference between llms.txt, robots.txt and an XML sitemap? =
+
+robots.txt says who may crawl, an XML sitemap says what exists, and llms.txt says what matters: a curated, readable list of your best content for AI systems. They complement each other. This plugin manages the AI side of all three — crawler rules in robots.txt through the Access Manager, and a generated llms.txt built from what AI crawlers actually read.
+
+= Do AI crawlers respect robots.txt? =
+
+The major operators (OpenAI, Anthropic, Google, Microsoft, Perplexity) document that their crawlers honor robots.txt, and the plugin shows each crawler's documented policy next to its real behavior on your site. What robots.txt cannot stop is impersonation — requests faking a crawler's name — which is why every request here is verified and failures are counted separately.
+
+= How do I stop AI bots from scraping my WordPress site? =
+
+Use the "Block everything" preset in the Access Manager to disallow every known AI crawler in robots.txt, or block only model-training crawlers and keep AI search working. Be aware of the honest limit: robots.txt is a rule the polite crawlers follow, not a wall. The plugin tells you who keeps requesting despite a block, so you can escalate those networks to your firewall or CDN with evidence.
 
 = Should I block GPTBot and other AI crawlers? =
 
@@ -149,6 +161,22 @@ Yes — that is what the "Allow search, block training" preset does. Operators u
 = Can it tell me whether ChatGPT cites my site? =
 
 It shows what can actually be measured on your site: which AI crawlers read which pages, when an assistant fetched a page for a real user, and which visits arrived from AI assistants. AI assistants do not share what people asked them, and the plugin never pretends otherwise — anything generated is clearly labelled as a suggestion, never as data.
+
+= How do I rank in ChatGPT, Perplexity or Google AI Overviews? =
+
+Nobody can guarantee placement inside an AI answer, and you should distrust any tool that claims to. What is measurable are the prerequisites: the right crawlers can reach you, your important pages have actually been read, and the content is structured so an assistant can lift an answer from it (direct answers under question headings, enough depth, working pages). That is exactly what the readiness score, the coverage data and the Opportunities screen keep in front of you.
+
+= Why doesn't Google Analytics show my ChatGPT traffic? =
+
+Analytics suites lump assistant click-throughs into generic referral traffic, and some AI visits carry no referrer at all. This plugin recognises the referrer and UTM patterns of ChatGPT, Perplexity, Gemini, Claude, Copilot and other assistants and reports those visits by engine and landing page — next to the crawl data for the same pages.
+
+= Which AI crawlers does it detect? =
+
+Over 30 out of the box, with a registry that can update without a plugin release: OpenAI (GPTBot, OAI-SearchBot, ChatGPT-User), Anthropic (ClaudeBot, Claude-SearchBot, Claude-User), Perplexity (PerplexityBot, Perplexity-User), Google (Googlebot, Google-Extended, Google-CloudVertexBot), Microsoft Bingbot, Meta, Amazonbot, Applebot-Extended, ByteDance Bytespider, Common Crawl CCBot, DuckAssistBot, Mistral, Cohere, You.com and more — plus detection of unrecognised bots and your own custom entries.
+
+= Does it work with WooCommerce and custom post types? =
+
+Yes. Every public post type is monitored, scored and eligible for llms.txt — products, docs, courses, anything. Importance signals include your shop and cornerstone pages, so the readiness checks focus where revenue is.
 
 = Does this replace my SEO plugin? =
 
