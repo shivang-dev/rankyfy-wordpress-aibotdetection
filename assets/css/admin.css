@@ -1095,7 +1095,9 @@ line.rf-gridline {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.rf-skeleton div {
+	.rf-skeleton div,
+	.rf-viewbody,
+	.rf-dot-ping {
 		animation: none;
 	}
 }

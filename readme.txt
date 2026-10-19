@@ -125,17 +125,17 @@ Cached pages are answered before WordPress runs, so those crawler requests are m
 == Screenshots ==
 
 1. Dashboard — AI crawler hits, pages read, visits from AI assistants and the readiness score.
-2. AI Crawlers — every request, verified, by bot and by page.
-3. A user-triggered fetch: ChatGPT opening a page for a real user.
-4. A crawler's detail: GPTBot's requests, verification and the pages it reads.
-5. Google's AI crawlers and agent fetches.
-6. Googlebot's detail with its verification state.
-7. Important pages no AI crawler has read.
-8. Pages not crawled in the last 30 days.
-9. A page's detail with its crawl history and findings.
+2. AI Crawlers — every request, verified, with daily trends per bot.
+3. A crawler's detail: GPTBot's requests, verification and the pages it reads.
+4. AI Referrals — visits from ChatGPT, Perplexity, Claude and more, beside the crawl data.
+5. Readiness Score — 18 checks ranked by impact, each with how to fix it.
+6. Access Manager — allow or block each AI crawler, with the trade-off spelled out.
+7. llms.txt — the generated file, what is included and which crawlers fetch it.
+8. Opportunities — what your own crawl data says to do next.
+9. Important pages no AI crawler has read.
 10. Recommendations, ordered by severity and how important the page is.
 11. Alerts — new crawlers, blocked crawlers, impersonation, score drops.
-12. The technical robots.txt and server report.
+12. Settings — capture, verification, the remote-updates opt-in, data and privacy.
 
 == Changelog ==
 
