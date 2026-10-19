@@ -8,7 +8,7 @@ set -e
 VER="$1"
 [ -n "$VER" ] || { echo "usage: tools/release.sh <version>"; exit 1; }
 PLUGIN="$(cd "$(dirname "$0")/.." && pwd)"
-SVN="$HOME/Projects/rankyfy/wordpressplugin/svn"
+SVN="$PLUGIN/svn"
 grep -q "Version:           $VER" "$PLUGIN/rankyfy-ai-seo.php" || { echo "Version header is not $VER"; exit 1; }
 grep -q "Stable tag: $VER" "$PLUGIN/readme.txt" || { echo "Stable tag is not $VER"; exit 1; }
 grep -q "= $VER =" "$PLUGIN/readme.txt" || { echo "No changelog entry for $VER"; exit 1; }

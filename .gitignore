@@ -2,3 +2,4 @@
 tools/bench/wasm-logparse/target/
 tools/bench/wasm-logparse/pkg/
 *.log
+/svn/
