@@ -8,27 +8,59 @@ Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-See which AI crawlers and assistants read your site, where AI traffic lands, and what keeps your content out of AI search — beside your SEO plugin.
+See which AI crawlers read your WordPress site, track visits from ChatGPT and Perplexity, publish llms.txt, and fix what keeps you out of AI search.
 
 == Description ==
 
+**RankyFy AI SEO brings AI search optimization to WordPress.** See exactly which AI crawlers — GPTBot, ClaudeBot, OAI-SearchBot, PerplexityBot, Google-Extended and 30+ more — read your site, track the visitors that ChatGPT, Perplexity, Gemini, Claude and Copilot send you, publish a clean llms.txt, control AI bot access through robots.txt, and fix the issues that keep your content out of AI answers.
+
+AI SEO is to assistants what classic SEO is to search engines: being readable, verifiable and worth quoting when ChatGPT or Perplexity answers a question in your niche. This plugin gives you the measurement and the controls for it.
+
 Install, activate, done — monitoring starts immediately and runs entirely on your own site. No account is needed, and nothing is sent anywhere unless you explicitly enable it.
 
-**What you get:**
+### AI crawler analytics, verified
 
-* **Dashboard** — AI crawler hits, pages ever read (and how many never were), visits from AI assistants, the share of verified hits, daily hits per crawler and your readiness score.
-* **AI Crawlers** — every AI crawler request, verified. Anyone can claim to be GPTBot; requests are checked by published IP range, forward-confirmed reverse DNS or cryptographic signature, and impersonations are counted separately.
-* **AI Referrals** — visits that arrived from ChatGPT, Perplexity, Gemini, Claude, Copilot and more, by engine and landing page. *Crawled vs. AI visits* shows pages that are read by AI but never receive an AI visit.
-* **Readiness Score** — 18 checks, a score out of 100 and the open issues ranked by impact, each with how to fix it and the pages to start with.
-* **Access Manager** — allow or block each AI crawler, grouped by operator, with its traffic and what blocking it costs spelled out. A preview of the exact robots.txt lines; nothing is written until you save.
-* **llms.txt** — a generated `/llms.txt` listing the pages AI crawlers read most, plus `/llms-full.txt` and `/ai.txt`. Manual edits survive rebuilds. Nothing is served until you switch it on.
-* **Opportunities** — what your own crawl data says to do next: crawlers you block whose assistants already send visitors, important pages no AI crawler has read, pages crawled often but not answer-ready, and pages that error or respond slowly to crawlers.
-* **Publish check** — the editor warns before you publish a page that is noindex, blocked by robots.txt, canonicalised elsewhere or too thin for AI search.
-* **Alerts** — email or webhook (Slack, Teams, Google Chat) when something changes: a new AI crawler, robots.txt now blocking AI search, impersonation, a drop in the readiness score and more.
+Anyone can claim to be GPTBot. Every request that claims a known AI crawler is verified against the operator's published IP ranges, by forward-confirmed reverse DNS, or by cryptographic signature (Web Bot Auth) — and impersonations are counted separately, never as crawls.
 
-**Observed vs. suggested.** Everything is labelled with where it comes from. Real requests, real server responses and your own content are marked *Observed*. AI assistants do not tell websites what people asked them, and this plugin never presents a generated suggestion as a real query.
+* Every AI crawler request logged: bot, page, response, timing.
+* Per-crawler detail: purpose (model training, AI search, or fetching a page for a real user), daily trends, crawl sessions, the pages it reads.
+* The dashboard answers the first question — are AI crawlers reading my site at all, and which pages have they never seen?
 
-**Local by default.** The plugin ships with a bundled crawler registry and works completely offline. Optional remote updates (the live registry and the operators' published address lists) and the optional RankyFy account are both opt-in — see External Services below.
+### Track AI traffic: visits from ChatGPT, Perplexity and more
+
+AI referral tracking shows every AI referral — the visits that arrive from ChatGPT, Perplexity, Gemini, Claude, Copilot and other assistants — by engine and by landing page, right beside the crawl data for the same page. *Crawled vs. AI visits* highlights pages AI reads but never sends anyone to: usually a content problem, not a crawling one.
+
+### llms.txt generator — plus llms-full.txt and ai.txt
+
+llms.txt is a proposed standard file that gives AI systems a curated map of your most important content. RankyFy AI SEO generates it from what AI crawlers actually read on your site, keeps it updated as content changes, and leaves out pages that are noindex, erroring or blocked. llms-full.txt (full text) and ai.txt (training policy) are included. Your manual edits survive rebuilds, and nothing is served until you switch it on.
+
+### Control AI bots: allow or block each crawler, eyes open
+
+The Access Manager lets you block AI bots selectively — allow or block every AI crawler individually, grouped by operator, with the consequence of each choice spelled out — so you can block AI model training (GPTBot, ClaudeBot, Google-Extended) without disappearing from ChatGPT or Perplexity answers. Presets, a preview of the exact robots.txt lines, and nothing written until you save.
+
+### AI readiness score: optimize for AI search (GEO / AEO)
+
+Generative engine optimization starts with what AI systems can actually use. The AI SEO readiness score runs 18 checks — access, discovery, structure, depth, trust and internal linking — and ranks the open issues by impact, each with a plain-language fix and the pages to start with.
+
+### Opportunities from your own crawl data
+
+What should you do next? The Opportunities screen answers from observed data: crawlers you block whose assistants already send you visitors, important pages no AI crawler has read, pages crawled often but not answer-ready, and pages that error or respond slowly to crawlers.
+
+### Publish check, alerts, and the posts list
+
+The editor warns before you publish a page that is noindex, blocked by robots.txt, canonicalised elsewhere or too thin for AI search. Alerts (email or webhook — Slack, Teams, Google Chat) fire when something changes: a new AI crawler, robots.txt suddenly blocking AI search, impersonation attempts, a drop in your readiness score. The posts list gains a sortable AI column.
+
+### Honest data: observed vs. suggested
+
+Everything is labelled with where it comes from. Real requests, real server responses and your own content are marked *Observed*. AI assistants do not tell websites what people asked them, and this plugin never presents a generated suggestion as a real query.
+
+### Private and local by default
+
+The plugin ships with a bundled crawler registry and works completely offline. Visitors are never tracked; crawler addresses are stored truncated. Optional remote updates and the optional RankyFy account are both opt-in — see External Services below.
+
+### Works beside your SEO plugin
+
+RankyFy AI SEO complements Yoast SEO, Rank Math, SEOPress and All in One SEO rather than replacing them: classic SEO plugins optimize for search engine rankings, this plugin covers the AI SEO side — crawler access, AI traffic, llms.txt and answer-readiness. The publish check even reads your SEO plugin's noindex settings to warn you before a page silently drops out of AI search.
 
 == Development ==
 
@@ -42,7 +74,7 @@ The plugin contacts no external service by default. Each service below is used o
 
 **1. RankyFy crawler registry** (optional, off by default)
 
-* Service: `https://api.rankyfy.com/` — operated by RankyFy (https://rankyfy.com/)
+* Service: `https://dashboard.rankyfy.com/` — operated by RankyFy (https://rankyfy.com/)
 * Purpose: fetches an updated registry of AI crawler identities and a consolidated copy of the operators' published network ranges, so new crawlers are recognised without a plugin update.
 * When: only when "Keep crawler data updated from the internet" is enabled in Settings → Capture, or when the administrator clicks "Update now" on the registry screen. Checked at most twice a day.
 * Data sent: a standard HTTP request whose user-agent contains the plugin version and the site's address. No visitor data, no content.
@@ -67,7 +99,7 @@ The plugin contacts no external service by default. Each service below is used o
 
 **3. RankyFy account services** (optional, requires the separate RankyFy SEO plugin and a connected account)
 
-* Service: `https://api.rankyfy.com/` — operated by RankyFy (https://rankyfy.com/)
+* Service: `https://dashboard.rankyfy.com/` — operated by RankyFy (https://rankyfy.com/)
 * Purpose and data sent: (a) if "Help identify new AI crawlers" is enabled, the user-agent text of unrecognised bots — nothing else; (b) when the administrator explicitly requests AI analysis of a page, that page's content, title and address.
 * When: never without a connected account, and (b) only on an explicit per-page request or when automatic analysis is switched on.
 * Privacy policy: https://rankyfy.com/privacy-policy/ — Terms: https://rankyfy.com/terms/
@@ -94,6 +126,38 @@ Requires WP-Cron running (the WordPress default), or a server cron calling `wp-c
 
 == Frequently Asked Questions ==
 
+= What is AI SEO? =
+
+AI SEO (also called GEO, generative engine optimization, or AEO, answer engine optimization) is making your content findable and usable by AI systems — ChatGPT, Perplexity, Gemini, Claude, Copilot and Google's AI Overviews — the way classic SEO does for search engines. In practice that means letting the right AI crawlers in, structuring content so an assistant can lift an answer from it, and measuring what AI actually reads and sends back. This plugin covers exactly that, with real data from your own site.
+
+= How do I know if ChatGPT or other AI bots visit my WordPress site? =
+
+Install and activate — the dashboard starts listing every AI crawler request within minutes: which bot, which pages, how often, and whether the request really came from that bot. User-triggered fetches (ChatGPT-User, Claude-User, Perplexity-User) are shown separately: each one is a real conversation in which an assistant opened your page.
+
+= What is llms.txt, and do I need one? =
+
+llms.txt is a proposed standard: a Markdown file at your site root that gives AI systems a curated list of your most important pages with short descriptions. It is low-effort and risk-free — this plugin generates it from the pages AI crawlers actually read, keeps it current, and serves it only after you switch it on. ai.txt (your training policy) and llms-full.txt are included.
+
+= Should I block GPTBot and other AI crawlers? =
+
+It depends on which crawler and what you want. Blocking training crawlers (GPTBot, ClaudeBot, Google-Extended, CCBot) stops your content being used to train models and costs you little visibility. Blocking AI search crawlers (OAI-SearchBot, Claude-SearchBot, PerplexityBot) removes you from those assistants' answers — usually not what you want. The Access Manager spells out this trade-off per crawler, with its real traffic next to it, before anything is written to robots.txt.
+
+= Can I block AI model training without losing ChatGPT traffic? =
+
+Yes — that is what the "Allow search, block training" preset does. Operators use separate crawlers for training and for answering: block GPTBot and your pages stop feeding model training, while OAI-SearchBot and ChatGPT-User keep working so ChatGPT can still cite and open your pages.
+
+= Can it tell me whether ChatGPT cites my site? =
+
+It shows what can actually be measured on your site: which AI crawlers read which pages, when an assistant fetched a page for a real user, and which visits arrived from AI assistants. AI assistants do not share what people asked them, and the plugin never pretends otherwise — anything generated is clearly labelled as a suggestion, never as data.
+
+= Does this replace my SEO plugin? =
+
+No, it runs beside it. Yoast SEO, Rank Math, SEOPress and All in One SEO handle classic search engine optimization; this plugin handles the AI side — crawler verification, AI referral tracking, llms.txt, crawler access and answer-readiness. It also reads your SEO plugin's noindex settings so the publish check can warn you before a page drops out of AI search.
+
+= How do you know a request is really GPTBot? =
+
+Each request claiming a known crawler is verified against the operator's published IP ranges, by forward-confirmed reverse DNS, or by a cryptographic signature (Web Bot Auth). Requests that fail verification are counted as impersonations, never as crawls. Range and key fetching require the remote-updates opt-in; reverse DNS works out of the box.
+
 = Does the plugin phone home? =
 
 No. By default everything runs on your own site with the bundled crawler registry. Remote registry updates and the RankyFy account are separate opt-ins, documented under External Services.
@@ -102,25 +166,17 @@ No. By default everything runs on your own site with the bundled crawler registr
 
 No. Classification runs early and costs well under a millisecond for ordinary visitors; only bot requests are recorded. Dashboard reads come from pre-aggregated rollup tables.
 
-= How do you know a request is really GPTBot? =
-
-Each request claiming a known crawler is verified against the operator's published IP ranges, by forward-confirmed reverse DNS, or by a cryptographic signature (Web Bot Auth). Requests that fail verification are counted as impersonations, never as crawls. Range and key fetching require the remote-updates opt-in; reverse DNS works out of the box.
-
-= Can it tell me whether ChatGPT cites my site? =
-
-It shows what can actually be measured on your site: which AI crawlers read which pages, when an assistant fetched a page for a user, and which visits arrived from AI assistants. AI assistants do not share what people asked them, and the plugin never pretends otherwise.
-
 = What data is stored, and does anything leave my site? =
 
-See Data Storage and External Services above. Nothing leaves your site unless you enable it.
+See Data Storage and External Services above. Visitors are never tracked, crawler addresses are stored truncated, and nothing leaves your site unless you enable it.
 
 = Do I need a RankyFy account? =
 
-No. Monitoring, verification, the readiness score, the access manager, llms.txt, opportunities and alerts are all local. An account adds AI content analysis of your pages.
+No. Monitoring, verification, the readiness score, the access manager, llms.txt, opportunities and alerts are all local and free. An account adds AI content analysis of your pages.
 
 = Does it work with my cache or CDN? =
 
-Cached pages are answered before WordPress runs, so those crawler requests are missed by the hook. The plugin detects common caches and can import your server's access log to fill the gap.
+Yes, with one caveat: cached pages are answered before WordPress runs, so those crawler requests are missed by the hook. The plugin detects common caches and can import your server's access log to fill the gap. Cloudflare's visitor-address header is recognised automatically.
 
 == Screenshots ==
 
