@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       RankyFy AI SEO
  * Description:       See which AI crawlers and assistants read your site, where AI traffic lands, and what keeps your content out of AI search — beside your SEO plugin.
- * Version:           1.1.0
+ * Version:           1.1.1
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            RankyFy
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'RFYAI_VERSION', '1.1.0' );
+define( 'RFYAI_VERSION', '1.1.1' );
 define( 'RFYAI_DB_VERSION', '4' );
 define( 'RFYAI_FILE', __FILE__ );
 define( 'RFYAI_DIR', plugin_dir_path( __FILE__ ) );

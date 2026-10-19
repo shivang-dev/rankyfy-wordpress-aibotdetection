@@ -4,7 +4,7 @@ Tags: seo, ai, ai search, llms.txt, ai crawler
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -194,6 +194,11 @@ Yes, with one caveat: cached pages are answered before WordPress runs, so those 
 12. Settings — capture, verification, the remote-updates opt-in, data and privacy.
 
 == Changelog ==
+
+= 1.1.1 =
+* Accessibility: the view transition now honors the prefers-reduced-motion setting.
+* New screenshots captured from the released interface, with updated captions.
+* Documentation: rewritten description and a much larger FAQ (what AI SEO is, whether to block GPTBot, how to keep ChatGPT traffic while blocking training, what llms.txt is).
 
 = 1.1.0 =
 * Changed: all remote fetching (live crawler registry, operators' published address lists and signature keys, Cloudflare's edge list) is now off by default and enabled by a single explicit opt-in in Settings → Capture. The bundled registry is used until then.
