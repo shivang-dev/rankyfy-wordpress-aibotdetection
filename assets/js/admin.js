@@ -685,14 +685,38 @@
 	var state = { days: 30, status: null };
 	// Sections live in the WordPress admin menu (RankyFy → …), registered in class-admin.php.
 	var SECTIONS = ['/', '/crawlers', '/referrals', '/readiness', '/access', '/llms', '/opportunities', '/settings'];
+	// The same sections as the admin menu, for the horizontal bar at the top of the app.
+	var SECTION_LABELS = {
+		'/': __('Dashboard'),
+		'/crawlers': __('AI Crawlers'),
+		'/referrals': __('AI Referrals'),
+		'/readiness': __('Readiness Score'),
+		'/access': __('Access Manager'),
+		'/llms': 'llms.txt',
+		'/opportunities': __('Opportunities'),
+		'/settings': __('Settings')
+	};
 	// Deeper screens highlight the section they belong to.
 	var PARENT = { '/pages': '/crawlers', '/recommendations': '/readiness', '/technical': '/access', '/ai-files': '/llms', '/history': '/', '/alerts': '/' };
 	var shell = { main: null, banner: null };
 	function buildShell() {
 		clear(root);
 		shell.banner = h('div', { 'class': 'rf-banners' });
+		shell.nav = h('nav', { 'class': 'rf-topnav', 'aria-label': __('RankyFy AI SEO sections') }, SECTIONS.map(function (r) {
+			return h('a', { 'class': 'rf-topnav-link', href: '#' + r, text: SECTION_LABELS[r] || r });
+		}));
 		shell.main = h('main', { 'class': 'rf-main', tabindex: '-1' });
-		add(root, [shell.banner, shell.main]);
+		add(root, [shell.banner, shell.nav, shell.main]);
+	}
+	/** Highlight the current section in the top bar. */
+	function renderTopNav() {
+		if (!shell.nav) { return; }
+		var cur = section(route());
+		Array.prototype.forEach.call(shell.nav.children, function (a) {
+			var on = a.getAttribute('href') === '#' + cur;
+			a.classList.toggle('is-on', on);
+			if (on) { a.setAttribute('aria-current', 'page'); } else { a.removeAttribute('aria-current'); }
+		});
 	}
 	function route() { var hsh = location.hash.replace(/^#/, '') || '/'; return hsh.split('?')[0]; }
 	/** The section a route belongs to: /pages/12 → /pages. */
@@ -707,6 +731,7 @@
 	 * load; routes change without a reload, so this follows them.
 	 */
 	function renderNav() {
+		renderTopNav();
 		var cur = section(route());
 		var items = document.querySelectorAll('#toplevel_page_' + cfg.slug + ' .wp-submenu li');
 		Array.prototype.forEach.call(items, function (li) {
@@ -733,18 +758,17 @@
 		if (!st.tracking) {
 			shell.banner.appendChild(h('div', { 'class': 'rf-banner rf-banner-warn' }, icon('alert'), h('span', { text: __('Tracking is switched off. No crawler visits are being recorded.') }), link(__('Settings'), '/settings')));
 		}
-		if (st.remote_updates === false) {
-			var dismissed = false;
-			try { dismissed = window.localStorage.getItem('rfyai_remote_prompt') === '1'; } catch (e) { dismissed = false; }
-			if (!dismissed) {
-				var bn = h('div', { 'class': 'rf-banner rf-banner-info' }, icon('info'),
-					h('span', { text: __('Running fully locally with the bundled crawler registry. Optionally, the plugin can keep crawler identities and published address ranges up to date by contacting rankyfy.com and the crawler operators’ own published files.') }),
-					button(__('Enable updates'), function () {
-						return api('/settings', { method: 'POST', body: { remote_updates: true } }).then(function () { bn.remove(); refreshStatus(); toast(__('Remote updates enabled. You can switch this off in Settings → Capture.')); });
-					}, { small: true, primary: true }),
-					button(__('Keep local only'), function () { try { window.localStorage.setItem('rfyai_remote_prompt', '1'); } catch (e) { /* private mode */ } bn.remove(); }, { small: true, ghost: true }));
-				shell.banner.appendChild(bn);
-			}
+		if (st.remote_updates === false && st.remote_prompt === false) {
+			// Asked once per site, not per browser: the answer is stored as a setting.
+			var bn = h('div', { 'class': 'rf-banner rf-banner-info' }, icon('info'),
+				h('span', { text: __('Running fully locally with the bundled crawler registry. Optionally, the plugin can keep crawler identities and published address ranges up to date by contacting rankyfy.com and the crawler operators’ own published files.') }),
+				button(__('Enable updates'), function () {
+					return api('/settings', { method: 'POST', body: { remote_updates: true, remote_prompt: true } }).then(function () { bn.remove(); refreshStatus(); toast(__('Remote updates enabled. You can switch this off in Settings → Capture.')); });
+				}, { small: true, primary: true }),
+				button(__('Keep local only'), function () {
+					return api('/settings', { method: 'POST', body: { remote_prompt: true } }).then(function () { bn.remove(); refreshStatus(); toast(__('Staying fully local. You can enable updates any time in Settings → Capture.')); });
+				}, { small: true, ghost: true }));
+			shell.banner.appendChild(bn);
 		}
 		if (st.worker && st.worker.stalled) {
 			shell.banner.appendChild(h('div', { 'class': 'rf-banner rf-banner-crit' }, icon('xCircle'), h('span', { text: __('Background processing has not run for over an hour. Visits are still recorded, but history, verification and alerts are not updating. WP-Cron may be disabled — ask your host to run wp-cron.php every 5 minutes.') })));
@@ -768,11 +792,105 @@
 	function fail(e, retry) {
 		clear(shell.main).appendChild(h('div', { 'class': 'rf-error' }, icon('xCircle', 20), h('p', { text: e.message || __('Something went wrong.') }), retry ? button(__('Try again'), retry, { icon: 'refresh' }) : null));
 	}
+	// What each screen is, in plain words — for people who don't live in SEO tools.
+	var EXPLAIN = {
+		'/': {
+			what: __('This screen shows which AI programs — the bots behind ChatGPT, Perplexity, Claude and others — have been reading your website, and how ready your content is for them.'),
+			terms: [
+				[__('AI crawler hit'), __('One visit by an AI company\'s bot to one of your pages.')],
+				[__('Verified'), __('We checked that the visit really came from the company it claims. Anyone can fake a bot\'s name; a verified hit cannot be faked.')],
+				[__('Visits from AI'), __('Real people who clicked through to your site from an AI assistant\'s answer.')],
+				[__('Readiness'), __('A 0–100 score for how easy your content is for AI search to find, read and quote.')]
+			]
+		},
+		'/crawlers': {
+			what: __('An AI crawler is a program a company like OpenAI or Google sends out to read web pages. This screen lists every one that visited your site, which pages it read, and whether it is genuine.'),
+			terms: [
+				[__('Training'), __('The bot collects text to teach AI models. Your pages may inform future answers, usually without credit.')],
+				[__('Search'), __('The bot powers an AI assistant\'s live answers — these can show and link your pages.')],
+				[__('User fetch'), __('An assistant opened your page for one real person, during a real conversation.')],
+				[__('Unverified'), __('The visit claimed a known bot\'s name but could not be confirmed. It is counted separately and never trusted.')]
+			]
+		},
+		'/referrals': {
+			what: __('When a person asks ChatGPT, Perplexity or another assistant something and then clicks through to your site, that visit lands here. It is the clearest sign AI assistants are showing your content to real people.'),
+			terms: [
+				[__('Engine'), __('The AI assistant the visitor came from.')],
+				[__('Landing page'), __('The page of yours the visitor arrived on.')],
+				[__('Crawled vs AI visits'), __('Pages AI bots read but that never receive an AI visit usually have a content problem, not a crawling one.')]
+			]
+		},
+		'/readiness': {
+			what: __('One score, 0 to 100, for how easy your content is for AI search to find, read and quote. Each check below explains one thing that helps or hurts, in order of impact — fix from the top.'),
+			terms: [
+				[__('Check'), __('One specific, testable thing about your site — for example whether important pages answer a question near the top.')],
+				[__('Quick fix'), __('A check you can usually resolve in minutes.')],
+				[__('Accepted'), __('A deliberate choice you told the plugin to stop counting against you.')]
+			]
+		},
+		'/access': {
+			what: __('Here you decide which AI bots may read your site. Each switch spells out what you gain or lose before anything is written — blocking the wrong bot can quietly remove you from an assistant\'s answers.'),
+			terms: [
+				[__('Block training'), __('Your text stops being used to teach AI models. Usually has no effect on whether assistants can cite you.')],
+				[__('Block search'), __('You disappear from that assistant\'s answers. Rarely what you want.')],
+				[__('robots.txt'), __('The public file on every website that tells bots what they may read. The plugin writes only its own clearly-marked section of it.')]
+			]
+		},
+		'/llms': {
+			what: __('llms.txt is a simple public file that tells AI systems what your site is about and which pages matter most — like a sitemap written for AI, in plain text. Nothing is published until you switch it on.'),
+			terms: [
+				[__('llms.txt'), __('A short index: your site\'s name, a summary, and links to your best pages with one-line descriptions.')],
+				[__('llms-full.txt'), __('The same, but with the actual text of your top pages included.')],
+				[__('ai.txt'), __('A statement of your training policy. It does not control access — robots.txt does that.')]
+			]
+		},
+		'/opportunities': {
+			what: __('Concrete things to do next, based on what really happened on your site: pages AI wants but cannot use well, pages it never found, and bots you block that already send you visitors.'),
+			terms: [
+				[__('Observed'), __('Measured on your site — real requests, real responses, your own content.')],
+				[__('AI-suggested'), __('Generated by an AI model. An idea to consider, not a fact about your visitors.')],
+				[__('Striking distance'), __('Something that needs one small push — one fix, a few links — to start paying off.')]
+			]
+		},
+		'/settings': {
+			what: __('How visits are captured and stored, what gets verified, and what — if anything — leaves your site. Everything runs locally unless you switch on an option that clearly says otherwise.'),
+			terms: [
+				[__('Capture'), __('How the plugin notices bot visits: a WordPress hook by default, or your server\'s log for cached pages.')],
+				[__('Retention'), __('How long raw visit records are kept before they are reduced to daily totals.')],
+				[__('Remote updates'), __('The one switch that lets the plugin fetch fresh crawler lists from the internet. Off by default.')]
+			]
+		}
+	};
+	var EXPLAIN_KEY = 'rfyai_explain_seen';
+	function explainSeen() {
+		try { return JSON.parse(window.localStorage.getItem(EXPLAIN_KEY) || '{}'); } catch (e) { return {}; }
+	}
+	function explainMark(sec) {
+		try { var m = explainSeen(); m[sec] = 1; window.localStorage.setItem(EXPLAIN_KEY, JSON.stringify(m)); } catch (e) { /* private mode */ }
+	}
+	/** The plain-words panel: open on a section's first visit, then behind "What is this?". */
+	function explainer(sec) {
+		var ex = EXPLAIN[sec];
+		if (!ex) { return { box: null, btn: null }; }
+		var box = h('div', { 'class': 'rf-explain', hidden: explainSeen()[sec] ? '' : null },
+			h('p', { 'class': 'rf-explain-what', text: ex.what }),
+			h('dl', { 'class': 'rf-explain-terms' }, ex.terms.map(function (t) {
+				return [h('dt', { text: t[0] }), h('dd', { text: t[1] })];
+			})),
+			h('div', null, button(__('Got it'), function () { explainMark(sec); box.hidden = true; }, { small: true, ghost: true })));
+		var btn = button(__('What is this?'), function () {
+			box.hidden = !box.hidden;
+			if (box.hidden) { explainMark(sec); }
+		}, { small: true, ghost: true, icon: 'info', title: __('Explain this screen in plain words') });
+		return { box: box, btn: btn };
+	}
+
 	function view(title, sub, tools) {
-		var head = h('div', { 'class': 'rf-viewhead' }, h('div', null, h('h2', { 'class': 'rf-title', text: title }), sub ? h('p', { 'class': 'rf-subtitle' }, sub) : null), h('div', { 'class': 'rf-viewtools' }, tools || null));
+		var ex = explainer(section(route()));
+		var head = h('div', { 'class': 'rf-viewhead' }, h('div', null, h('h2', { 'class': 'rf-title', text: title }), sub ? h('p', { 'class': 'rf-subtitle' }, sub) : null), h('div', { 'class': 'rf-viewtools' }, ex.btn, tools || null));
 		var body = h('div', { 'class': 'rf-viewbody' });
 		clear(shell.main);
-		add(shell.main, [head, body]);
+		add(shell.main, [head, ex.box, body]);
 		return body;
 	}
 	function rangeControl(onChange, options) {

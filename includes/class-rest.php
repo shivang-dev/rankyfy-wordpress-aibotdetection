@@ -185,6 +185,7 @@ class Rest {
 			'monitoring_since' => (int) get_option( 'rfyai_monitoring_since' ),
 			'tracking'         => (bool) Settings::get( 'tracking' ),
 			'remote_updates'   => (bool) Settings::get( 'remote_updates' ),
+			'remote_prompt'    => (bool) Settings::get( 'remote_prompt' ),
 			'worker'           => array(
 				'age'          => $age,
 				'stalled'      => null !== $age && $age > HOUR_IN_SECONDS,
@@ -464,6 +465,9 @@ class Rest {
 
 	public static function save_settings( WP_REST_Request $r ) {
 		$in = (array) $r->get_json_params();
+		if ( array_key_exists( 'remote_updates', $in ) ) {
+			$in['remote_prompt'] = true; // deciding in Settings answers the one-time question too
+		}
 		Settings::update( $in );
 		if ( preg_grep( '/^(llms_|ai_txt_)/', array_keys( $in ) ) ) {
 			Llms::stale();

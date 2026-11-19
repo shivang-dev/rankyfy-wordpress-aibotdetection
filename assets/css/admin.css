@@ -211,6 +211,86 @@
 	margin-bottom: 14px;
 }
 
+/* Plain-words explainer: open on a section's first visit, then behind "What is this?". */
+.rf-explain {
+	margin-bottom: 16px;
+	padding: 14px 16px;
+	background: var(--rf-info-soft);
+	border: 1px solid var(--rf-line);
+	border-left: 3px solid var(--rf-accent);
+	border-radius: var(--rf-radius-sm);
+	max-width: 860px;
+}
+
+.rf-explain-what {
+	margin: 0 0 10px;
+	font-size: 13.5px;
+	line-height: 1.55;
+}
+
+.rf-explain-terms {
+	display: grid;
+	grid-template-columns: minmax(110px, max-content) 1fr;
+	gap: 5px 14px;
+	margin: 0 0 10px;
+	font-size: 12.5px;
+	line-height: 1.5;
+}
+
+.rf-explain-terms dt {
+	font-weight: 600;
+}
+
+.rf-explain-terms dd {
+	margin: 0;
+	color: var(--rf-ink-2);
+}
+
+@media (max-width: 600px) {
+	.rf-explain-terms {
+		grid-template-columns: 1fr;
+		gap: 2px;
+	}
+
+	.rf-explain-terms dd {
+		margin-bottom: 8px;
+	}
+}
+
+/* The app's own section bar: the admin-menu sections, horizontally. */
+.rf-topnav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px;
+	margin-bottom: 16px;
+	border-bottom: 1px solid var(--rf-line);
+}
+
+.rf-topnav-link {
+	padding: 9px 12px 10px;
+	margin-bottom: -1px;
+	font-size: 13.5px;
+	font-weight: 500;
+	color: var(--rf-ink-2);
+	text-decoration: none;
+	border-bottom: 2px solid transparent;
+	border-radius: 3px 3px 0 0;
+	white-space: nowrap;
+}
+
+.rf-topnav-link:hover,
+.rf-topnav-link:focus {
+	color: var(--rf-accent-ink);
+	background: rgba(42, 120, 214, 0.06);
+	box-shadow: none;
+}
+
+.rf-topnav-link.is-on {
+	color: var(--rf-accent-ink);
+	font-weight: 600;
+	border-bottom-color: var(--rf-accent);
+}
+
 .rf-banner {
 	display: flex;
 	gap: 10px;

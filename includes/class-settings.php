@@ -30,6 +30,7 @@ class Settings {
 			'retention_history'   => array( 400, 'int', array( 30, 1825 ) ),
 			'retention_sessions'  => array( 180, 'int', array( 7, 1825 ) ),
 			'remote_updates'      => array( false, 'bool' ),   // master opt-in for everything fetched from the internet (registry, ranges, signature keys)
+			'remote_prompt'       => array( false, 'bool' ),   // true once the owner answered the remote-updates question (either way)
 			'verify_rdns'         => array( true, 'bool' ),
 			'verify_signatures'   => array( true, 'bool' ),
 			'fetch_ranges_direct' => array( true, 'bool' ),    // fall back to operators' own IP lists when RankyFy is unreachable
